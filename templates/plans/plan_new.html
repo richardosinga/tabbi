@@ -1,0 +1,19 @@
+{% extends "guide/base.html" %}
+{% block title %}New trip — World66{% endblock %}
+{% block content %}
+<div class="login-page">
+  <div class="login-box">
+    <div class="login-logo">World<span class="logo-dot"></span>66</div>
+    <h1>New trip</h1>
+    <form method="post" action="/plans/new/">
+      {% csrf_token %}
+      {% if error %}<div class="login-error">{{ error }}</div>{% endif %}
+      <label for="title">Trip name</label>
+      <input type="text" id="title" name="title" autofocus autocomplete="off" placeholder="e.g. Summer in France">
+      <label for="keywords">Interests <span class="plan-new-hint">(optional — used for suggestions)</span></label>
+      <input type="text" id="keywords" name="keywords" autocomplete="off" placeholder="e.g. food, art, hiking, beaches">
+      <button type="submit">Create trip</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
