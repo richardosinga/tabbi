@@ -769,7 +769,7 @@ def plan_stop(request, slug, city_slug):
         "city_snippet": city_snippet,
         "city_image_url": city_image_url,
         "suggestion_groups": suggestion_groups,
-        "budget_json": mark_safe(json.dumps(stop_budget)),
+        "budget_json": json.dumps(stop_budget),
     })
 
 

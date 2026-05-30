@@ -85,14 +85,27 @@
 
       {% if suggestion_groups %}
       <div class="plan-suggestions">
+        <div class="plan-suggestions-search-row">
+          <input type="text" id="suggestion-search" class="plan-suggestions-search" placeholder="Search or add anything…" autocomplete="off">
+        </div>
+        <div id="suggestion-no-results" class="plan-suggestions-no-results" hidden>
+          <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/add/" class="plan-suggestions-add-custom">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <input type="hidden" name="poi_path" id="add-custom-path" value="">
+            <button type="submit" class="plan-suggestions-add-custom-btn">
+              Add <strong id="add-custom-label"></strong> to plan
+            </button>
+          </form>
+        </div>
         {% for group in suggestion_groups %}
         <div class="plan-suggestions-heading" data-cat="{{ group.key }}">
           <span class="plan-suggestions-chip plan-suggestions-chip--{{ group.key }}">{{ group.icon }} {{ group.label }}</span>
         </div>
-        <div class="plan-suggestions-strip-wrap">
+        <div class="plan-suggestions-strip-wrap" data-cat="{{ group.key }}">
           <div class="plan-suggestions-strip">
             {% for s in group.items %}
-            <div class="plan-suggestion-tile plan-suggestion-tile--{{ group.key }}{% if s.note_match %} plan-suggestion-tile--match{% endif %}">
+            <div class="plan-suggestion-tile plan-suggestion-tile--{{ group.key }}{% if s.note_match %} plan-suggestion-tile--match{% endif %}" data-title="{{ s.page.title|lower }}">
               <div class="plan-suggestion-tile-top">
                 {% if s.image_url %}
                 <div class="plan-suggestion-tile-img" style="background-image:url('{{ s.image_url }}')"></div>
@@ -164,6 +177,44 @@ function toggleConciergeForm(btn) {
   if (hidden) { wrap.removeAttribute('hidden'); btn.classList.add('active'); }
   else { wrap.setAttribute('hidden', ''); btn.classList.remove('active'); }
 }
+
+(function() {
+  var searchInput = document.getElementById('suggestion-search');
+  if (!searchInput) return;
+  var noResults = document.getElementById('suggestion-no-results');
+  var customPath = document.getElementById('add-custom-path');
+  var customLabel = document.getElementById('add-custom-label');
+
+  searchInput.addEventListener('input', function() {
+    var q = searchInput.value.trim().toLowerCase();
+    var totalVisible = 0;
+
+    // Filter tiles and track visibility per category
+    document.querySelectorAll('.plan-suggestions-strip-wrap').forEach(function(wrap) {
+      var cat = wrap.dataset.cat;
+      var heading = document.querySelector('.plan-suggestions-heading[data-cat="' + cat + '"]');
+      var tiles = wrap.querySelectorAll('.plan-suggestion-tile');
+      var catVisible = 0;
+      tiles.forEach(function(tile) {
+        var title = tile.dataset.title || '';
+        var show = !q || title.includes(q);
+        tile.style.display = show ? '' : 'none';
+        if (show) { catVisible++; totalVisible++; }
+      });
+      var showCat = catVisible > 0;
+      if (heading) heading.style.display = showCat ? '' : 'none';
+      wrap.style.display = showCat ? '' : 'none';
+    });
+
+    if (q && totalVisible === 0) {
+      customPath.value = q;
+      customLabel.textContent = q;
+      noResults.removeAttribute('hidden');
+    } else {
+      noResults.setAttribute('hidden', '');
+    }
+  });
+})();
 
 document.querySelectorAll('.plan-note-text').forEach(function(span) {
   span.addEventListener('click', function() {
