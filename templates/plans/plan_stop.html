@@ -77,12 +77,13 @@
       </div>
       {% endfor %}
 
-      {% if suggestions %}
+      {% if suggestion_groups %}
       <div class="plan-suggestions">
-        <div class="plan-suggestions-heading">Suggestions for your trip</div>
+        {% for group in suggestion_groups %}
+        <div class="plan-suggestions-heading">{{ group.label }}</div>
         <div class="plan-suggestions-strip-wrap">
           <div class="plan-suggestions-strip">
-            {% for s in suggestions %}
+            {% for s in group.items %}
             <div class="plan-suggestion-tile{% if s.note_match %} plan-suggestion-tile--match{% endif %}">
               {% if s.image_url %}
               <div class="plan-suggestion-tile-img" style="background-image:url('{{ s.image_url }}')"></div>
@@ -101,6 +102,7 @@
             {% endfor %}
           </div>
         </div>
+        {% endfor %}
       </div>
       {% endif %}
     </div>

@@ -12,6 +12,7 @@
   </nav>
   <div class="plan-header">
     <h1>{{ plan.title }}</h1>
+    {% if plan.budget %}<div class="plan-budget">Budget: {{ plan.budget }}</div>{% endif %}
     <a href="/plans/{{ plan.slug }}/edit/" class="plan-edit-link">Edit</a>
   </div>
 

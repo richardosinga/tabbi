@@ -168,6 +168,15 @@ body:has(.tabbi-page) {
   flex: 1;
 }
 
+.plan-budget {
+  font-size: 0.9rem;
+  color: #666;
+  background: #f5f5f5;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-weight: 500;
+}
+
 /* ── Breadcrumb ──────────────────────────────────────────────────────────── */
 
 .plan-breadcrumb {
@@ -617,6 +626,10 @@ body:has(.tabbi-page) {
   letter-spacing: 0.1em;
   color: #A6A6A6;
   margin-bottom: 12px;
+  margin-top: 20px;
+}
+.plan-suggestions-heading:first-child {
+  margin-top: 0;
 }
 
 .plan-suggestions-strip {

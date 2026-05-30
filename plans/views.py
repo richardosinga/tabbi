@@ -236,7 +236,13 @@ def _parse_plan(path):
         if m:
             keywords = [k.strip().lower() for k in re.split(r"[,;]+", m.group(1)) if k.strip()]
             break
-    return {"slug": slug, "title": title, "body": post.content, "stops": stops, "keywords": keywords}
+    budget = None
+    for line in post.content.splitlines():
+        m = re.match(r"^budget:\s*(.+)$", line.strip(), re.IGNORECASE)
+        if m:
+            budget = m.group(1).strip()
+            break
+    return {"slug": slug, "title": title, "body": post.content, "stops": stops, "keywords": keywords, "budget": budget}
 
 
 def _parse_stops(body, plan_slug):
@@ -456,7 +462,10 @@ def plan_new(request):
             else:
                 passphrase = _generate_passphrase()
                 keywords_raw = request.POST.get("keywords", "").strip()
+                budget_raw = request.POST.get("budget", "").strip()
                 body_lines = []
+                if budget_raw:
+                    body_lines.append(f"budget: {budget_raw}\n")
                 if keywords_raw:
                     body_lines.append(f"interests: {keywords_raw}\n")
                 title_words = re.split(r"[\s,&+]+", title)
@@ -594,6 +603,17 @@ def plan_stop(request, slug, city_slug):
             for exp in _KEYWORD_EXPANSIONS.get(kn, []):
                 expanded_keywords.add(_normalize(exp))
 
+        _FOOD_TAGS = {"eating_out", "restaurant", "food", "market", "cuisine", "dining"}
+        _DRINKS_TAGS = {"bars_and_cafes", "bar", "nightlife", "drinks", "pub", "cafe", "coffee"}
+
+        def _suggestion_category(page_tags):
+            tag_set = {t.lower() for t in page_tags}
+            if tag_set & _DRINKS_TAGS:
+                return "drinks"
+            if tag_set & _FOOD_TAGS:
+                return "food"
+            return "todo"
+
         city_dir = CONTENT_DIR / stop["city_path"]
         for md_file in sorted(city_dir.rglob("*.md")):
             rel = str(md_file.relative_to(CONTENT_DIR).with_suffix(""))
@@ -615,8 +635,20 @@ def plan_stop(request, slug, city_slug):
                 "image_url": f"/content-image/{img}" if img else None,
                 "_score": score,
                 "note_match": note_match or keyword_match,
+                "category": _suggestion_category(page.tags),
             })
         suggestions.sort(key=lambda x: -x["_score"])
+
+    _CATEGORIES = [
+        ("Things to do", "todo"),
+        ("Food", "food"),
+        ("Drinks", "drinks"),
+    ]
+    suggestion_groups = [
+        {"label": label, "items": [s for s in suggestions if s["category"] == key]}
+        for label, key in _CATEGORIES
+        if any(s["category"] == key for s in suggestions)
+    ]
 
     return render(request, "plans/plan_stop.html", {
         "plan": plan,
@@ -624,7 +656,7 @@ def plan_stop(request, slug, city_slug):
         "markers": mark_safe(json.dumps(markers)),
         "city_snippet": city_snippet,
         "city_image_url": city_image_url,
-        "suggestions": suggestions,
+        "suggestion_groups": suggestion_groups,
     })
 
 
