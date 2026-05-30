@@ -97,7 +97,9 @@
                 {% if s.image_url %}
                 <div class="plan-suggestion-tile-img" style="background-image:url('{{ s.image_url }}')"></div>
                 {% else %}
-                <div class="plan-suggestion-tile-img plan-suggestion-tile-img--placeholder"></div>
+                <div class="plan-suggestion-tile-img plan-suggestion-tile-img--placeholder" style="background:{{ s.placeholder_bg }}">
+                  <span class="plan-suggestion-tile-emoji">{{ s.placeholder_emoji }}</span>
+                </div>
                 {% endif %}
               </div>
               <div class="plan-suggestion-tile-body">

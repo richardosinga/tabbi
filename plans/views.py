@@ -593,6 +593,63 @@ def plan_stop(request, slug, city_slug):
         if img:
             city_image_url = f"/content-image/{img}"
 
+    _TAG_EMOJI = {
+        "museum": "🏛️", "museums": "🏛️",
+        "gallery": "🖼️",
+        "park": "🌳",
+        "beach": "🏖️", "beaches": "🏖️",
+        "hiking": "🥾",
+        "nature": "🌿", "wildlife": "🦁",
+        "church": "⛪",
+        "castle": "🏰",
+        "palace": "👑",
+        "market": "🧺",
+        "shopping": "🛍️", "shop": "🛍️",
+        "nightlife": "🎉", "club": "🎉",
+        "bars_and_cafes": "🍺", "bar": "🍺", "pub": "🍺",
+        "restaurant": "🍽️", "eating_out": "🍽️",
+        "food": "🍜", "cuisine": "🍜",
+        "cafe": "☕", "coffee": "☕",
+        "music": "🎵", "jazz": "🎷",
+        "theatre": "🎭", "theater": "🎭", "opera": "🎭",
+        "cinema": "🎬",
+        "architecture": "🏗️",
+        "sport": "⚽",
+        "cycling": "🚴",
+        "swimming": "🏊",
+        "boat": "⛵",
+        "history": "📜", "historic": "📜", "historic_site": "📜", "historical_site": "📜",
+        "heritage": "🏺",
+        "art": "🎨",
+        "garden": "🌸",
+        "zoo": "🦁",
+        "temple": "🛕",
+        "mosque": "🕌",
+        "spa": "🧖",
+        "viewpoint": "👁️",
+        "monument": "🗿",
+        "square": "🏙️",
+        "landmark": "📍", "sight": "📍", "sights": "📍",
+        "neighbourhood": "🏘️",
+        "canal_ring": "🛶",
+        "festival": "🎪", "festivals": "🎪",
+        "day_trips": "🗺️", "day_trip": "🗺️",
+        "things_to_do": "⭐",
+    }
+    _PALETTE = [
+        "#FFF3C4", "#FFE0B2", "#E8F5E9", "#E3F2FD",
+        "#FCE4EC", "#F3E5F5", "#E0F7FA", "#FFF8E1",
+    ]
+
+    def _placeholder(page):
+        tags = [t.lower() for t in page.tags]
+        emoji = next((v for t in tags for k, v in _TAG_EMOJI.items() if t == k), "📍")
+        h = 0
+        for c in page.path:
+            h = (h * 31 + ord(c)) & 0xFFFFFFFF
+        bg = _PALETTE[h % len(_PALETTE)]
+        return emoji, bg
+
     suggestions = []
     if stop.get("city_path"):
         already_added = {item["text"] for item in stop["items"]}
@@ -647,12 +704,15 @@ def plan_stop(request, slug, city_slug):
             note_match = any(n in poi_text or poi_text in n for n in note_needles) if note_needles else False
             keyword_match = any(k in poi_text for k in expanded_keywords) if expanded_keywords else False
             score = (2 if note_match else 0) + (2 if keyword_match else 0) + (1 if img else 0)
+            ph_emoji, ph_bg = _placeholder(page)
             suggestions.append({
                 "page": page,
                 "image_url": f"/content-image/{img}" if img else None,
                 "_score": score,
                 "note_match": note_match or keyword_match,
                 "category": _suggestion_category(page.tags),
+                "placeholder_emoji": ph_emoji,
+                "placeholder_bg": ph_bg,
             })
         suggestions.sort(key=lambda x: -x["_score"])
 

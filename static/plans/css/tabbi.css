@@ -742,9 +742,14 @@ body:has(.tabbi-page) {
   border-bottom: 2px solid #180A0A;
 }
 .plan-suggestion-tile-img--placeholder {
-  background: repeating-linear-gradient(
-    45deg, #F7F7F7, #F7F7F7 6px, #EFEFEF 6px, #EFEFEF 12px
-  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.plan-suggestion-tile-emoji {
+  font-size: 2.8rem;
+  line-height: 1;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.12));
 }
 
 .plan-suggestion-tile-body {
