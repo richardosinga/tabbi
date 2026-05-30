@@ -77,6 +77,12 @@
       </div>
       {% endfor %}
 
+      <div class="plan-budget-section" id="plan-budget"
+           data-save-url="/plans/{{ plan.slug }}/{{ stop.city_slug }}/budget/"
+           data-csrf="{{ csrf_token }}"
+           data-budget="{{ budget_json }}">
+      </div>
+
       {% if suggestion_groups %}
       <div class="plan-suggestions">
         {% for group in suggestion_groups %}
@@ -169,5 +175,92 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
     });
   });
 });
+</script>
+<script>
+(function() {
+  var el = document.getElementById('plan-budget');
+  if (!el) return;
+  var budget = JSON.parse(el.dataset.budget || '{}');
+  var saveUrl = el.dataset.saveUrl;
+  var csrf = el.dataset.csrf;
+  var FIELDS = [
+    ['hotel',      '🛏️ Hotel / stay'],
+    ['food',       '🍜 Food & drinks'],
+    ['activities', '🎒 Activities'],
+    ['travel',     '🚌 Transport'],
+    ['currency',   '💱 Currency'],
+    ['notes',      '📝 Notes'],
+  ];
+
+  function calcTotal() {
+    return ['hotel','food','activities','travel'].reduce(function(s, k) {
+      return s + (parseFloat(budget[k]) || 0);
+    }, 0);
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function render() {
+    var total = calcTotal();
+    var cur = budget.currency || '';
+    var html = '<div class="plan-budget-heading">Budget estimate' +
+      (cur ? ' <span class="plan-budget-currency">(' + escHtml(cur) + ')</span>' : '') + '</div>' +
+      '<div class="plan-budget-rows">';
+    FIELDS.forEach(function(f) {
+      var key = f[0], label = f[1];
+      var val = budget[key] || '';
+      html += '<div class="plan-budget-row">' +
+        '<span class="plan-budget-label">' + label + '</span>' +
+        '<span class="plan-budget-value" data-field="' + key + '" title="Click to edit">' +
+        (val ? escHtml(String(val)) : '<span class="plan-budget-empty">—</span>') +
+        '</span></div>';
+    });
+    if (total > 0) {
+      html += '<div class="plan-budget-row plan-budget-total-row">' +
+        '<span class="plan-budget-label">Total / day</span>' +
+        '<span class="plan-budget-total">' + (cur ? escHtml(cur) + ' ' : '') + total.toFixed(0) + '</span>' +
+        '</div>';
+    }
+    html += '</div>';
+    el.innerHTML = html;
+    el.querySelectorAll('.plan-budget-value').forEach(function(span) {
+      span.addEventListener('click', function() { startEdit(span); });
+    });
+  }
+
+  function startEdit(span) {
+    var key = span.dataset.field;
+    var cur = budget[key] || '';
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'plan-budget-input';
+    input.value = cur;
+    span.replaceWith(input);
+    input.focus();
+    input.select();
+    function commit() {
+      budget[key] = input.value.trim();
+      save();
+      render();
+    }
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); commit(); }
+      if (e.key === 'Escape') { budget[key] = cur; render(); }
+    });
+    input.addEventListener('blur', commit);
+  }
+
+  function save() {
+    fetch(saveUrl, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+      body: JSON.stringify(budget),
+    });
+  }
+
+  render();
+})();
 </script>
 {% endblock %}

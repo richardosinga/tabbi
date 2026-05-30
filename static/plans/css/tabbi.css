@@ -177,6 +177,62 @@ body:has(.tabbi-page) {
   font-weight: 500;
 }
 
+/* ── Budget widget (per-stop + overview total) ───────────────────────────── */
+
+.plan-budget-section {
+  margin: 28px 0 8px;
+  padding: 18px 20px;
+  background: #faf9f7;
+  border: 1px solid #e8e4de;
+  border-radius: 12px;
+}
+.plan-total-budget {
+  margin-top: 28px;
+  padding: 18px 20px;
+  background: #faf9f7;
+  border: 1px solid #e8e4de;
+  border-radius: 12px;
+  max-width: 340px;
+}
+.plan-budget-heading {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #A6A6A6;
+  margin-bottom: 12px;
+}
+.plan-budget-currency { font-weight: 400; }
+.plan-budget-rows { display: table; width: 100%; border-collapse: collapse; }
+.plan-budget-row { display: table-row; }
+.plan-budget-label,
+.plan-budget-value,
+.plan-budget-value-static,
+.plan-budget-total { display: table-cell; padding: 4px 0; vertical-align: middle; }
+.plan-budget-label { color: #888; font-size: 0.85rem; width: 160px; }
+.plan-budget-value {
+  cursor: pointer;
+  border-bottom: 1px dashed transparent;
+}
+.plan-budget-value:hover { border-bottom-color: #bbb; }
+.plan-budget-empty { color: #ccc; }
+.plan-budget-input {
+  width: 100%;
+  font-size: inherit;
+  border: none;
+  border-bottom: 2px solid #FFDE3D;
+  background: transparent;
+  outline: none;
+  padding: 0;
+}
+.plan-budget-total-row .plan-budget-label { padding-top: 10px; font-weight: 600; color: #555; }
+.plan-budget-total {
+  display: table-cell;
+  padding-top: 10px;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
 /* ── Breadcrumb ──────────────────────────────────────────────────────────── */
 
 .plan-breadcrumb {

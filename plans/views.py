@@ -543,9 +543,26 @@ def plan_detail(request, slug):
     if len(plan["stops"]) == 1:
         return HttpResponseRedirect(plan["stops"][0]["url"])
 
+    import frontmatter as _fmb
+    _plan_meta = _fmb.load(str(PLANS_DIR / f"{slug}.md")).metadata
+    all_budgets = _plan_meta.get("budgets") or {}
+    total_budget: dict = {"hotel": 0.0, "food": 0.0, "activities": 0.0, "travel": 0.0}
+    currency = ""
+    for b in all_budgets.values():
+        for k in ("hotel", "food", "activities", "travel"):
+            try:
+                total_budget[k] += float(b.get(k) or 0)
+            except (ValueError, TypeError):
+                pass
+        if not currency and b.get("currency"):
+            currency = b["currency"]
+    total_budget["currency"] = currency
+    total_budget["total"] = sum(total_budget[k] for k in ("hotel", "food", "activities", "travel"))
+
     return render(request, "plans/plan_detail.html", {
         "plan": plan,
         "stop_markers": mark_safe(json.dumps(stop_markers)),
+        "total_budget": total_budget,
     })
 
 
@@ -650,6 +667,10 @@ def plan_stop(request, slug, city_slug):
         if any(s["category"] == key for s in suggestions)
     ]
 
+    import frontmatter as _fmb
+    _plan_meta = _fmb.load(str(PLANS_DIR / f"{plan['slug']}.md")).metadata
+    stop_budget = (_plan_meta.get("budgets") or {}).get(stop["city_slug"]) or {}
+
     return render(request, "plans/plan_stop.html", {
         "plan": plan,
         "stop": stop,
@@ -657,7 +678,35 @@ def plan_stop(request, slug, city_slug):
         "city_snippet": city_snippet,
         "city_image_url": city_image_url,
         "suggestion_groups": suggestion_groups,
+        "budget_json": mark_safe(json.dumps(stop_budget)),
     })
+
+
+def _plan_save_budget(slug, city_slug, budget_data):
+    import frontmatter as fm
+    path = PLANS_DIR / f"{slug}.md"
+    post = fm.load(path)
+    budgets = dict(post.metadata.get("budgets") or {})
+    budgets[city_slug] = {k: v for k, v in budget_data.items() if v is not None}
+    post.metadata["budgets"] = budgets
+    with open(path, "w", encoding="utf-8") as fh:
+        fm.dump(post, fh)
+
+
+@_require_plan_auth
+@csrf_exempt
+def plan_budget_save(request, slug, city_slug):
+    if request.method != "POST":
+        raise Http404
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "invalid JSON"}, status=400)
+    allowed = {"hotel", "food", "activities", "travel", "currency", "notes"}
+    budget = {k: data[k] for k in allowed if k in data}
+    _plan_save_budget(slug, city_slug, budget)
+    total = sum(float(budget.get(k, 0) or 0) for k in ("hotel", "food", "activities", "travel"))
+    return JsonResponse({"ok": True, "total": total})
 
 
 @_require_plan_auth
