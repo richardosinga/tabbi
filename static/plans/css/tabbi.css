@@ -692,7 +692,7 @@ body:has(.tabbi-page) {
   border-radius: 999px;
   border: 2.5px solid currentColor;
 }
-.plan-suggestions-chip--todo  { color: #180A0A; background: #FFDE3D; border-color: #180A0A; }
+.plan-suggestions-chip--todo  { color: #180A0A; background: #e7a328; border-color: #180A0A; }
 .plan-suggestions-chip--food  { color: #7C2D12; background: #FED7AA; border-color: #EA580C; }
 .plan-suggestions-chip--drinks { color: #1E3A5F; background: #BFDBFE; border-color: #2563EB; }
 
@@ -731,7 +731,7 @@ body:has(.tabbi-page) {
 }
 
 /* colored top stripe per category */
-.plan-suggestion-tile--todo  { border-top-color: #F4B028; }
+.plan-suggestion-tile--todo  { border-top-color: #e7a328; }
 .plan-suggestion-tile--food  { border-top-color: #EA580C; }
 .plan-suggestion-tile--drinks { border-top-color: #2563EB; }
 
@@ -771,7 +771,7 @@ body:has(.tabbi-page) {
 .plan-suggestion-btn {
   width: 100%;
   height: 32px;
-  background: #FFDE3D;
+  background: #e7a328;
   border: 2.5px solid #180A0A;
   border-radius: 999px;
   font-size: 1.1rem;
@@ -782,7 +782,7 @@ body:has(.tabbi-page) {
   transition: all 0.12s;
 }
 .plan-suggestion-btn:hover {
-  background: #F4B028;
+  background: #c8891a;
   transform: translate(-1px, -1px);
   box-shadow: 3px 3px 0 #180A0A;
 }
