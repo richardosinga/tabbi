@@ -1392,26 +1392,152 @@ body:has(.tabbi-page) {
   color: #718096;
 }
 .poi-concierge-btn {
-  font-size: 12px;
-  font-weight: 600;
-  padding: 5px 12px;
-  border-radius: 20px;
-  border: 1.5px solid #c0392b;
-  background: transparent;
-  color: #c0392b;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: 2px solid #180A0A;
+  background: #fff;
+  color: #180A0A;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  box-shadow: 2px 2px 0 #180A0A;
+  transition: all 0.12s;
 }
-.poi-concierge-btn:hover, .poi-concierge-btn.active {
-  background: #c0392b;
-  color: #fff;
+.poi-concierge-btn:hover {
+  background: #e7a328;
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 #180A0A;
+}
+.poi-concierge-btn.active {
+  background: #e7a328;
+  box-shadow: 1px 1px 0 #180A0A;
+  transform: translate(1px, 1px);
 }
 .poi-concierge-wrap {
   margin-top: 12px;
-  padding: 16px;
-  background: #fafafa;
+}
+
+/* ── Concierge form (_form.html) ─────────────────────────────────────────── */
+
+.concierge-form {
+  background: #fffdf7;
+  border: 3px solid #180A0A;
+  border-radius: 16px;
+  box-shadow: 5px 5px 0 #180A0A;
+  padding: 20px;
+}
+
+.concierge-form-intro {
+  font-size: 0.82rem;
+  color: #555;
+  margin: 0 0 18px;
+  line-height: 1.5;
+}
+
+.cform-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 16px;
+}
+
+.cform-field { display: flex; flex-direction: column; gap: 5px; }
+.cform-field--narrow { grid-column: span 1; }
+.cform-field--full   { grid-column: span 2; }
+
+.cform-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #180A0A;
+}
+
+.cform-hint {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #999;
+  font-size: 0.7rem;
+}
+
+.cform-input {
+  font-family: inherit;
+  font-size: 0.85rem;
+  color: #180A0A;
+  background: #fff;
+  border: 2.5px solid #180A0A;
   border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  padding: 7px 10px;
+  outline: none;
+  transition: box-shadow 0.12s, border-color 0.12s;
+  width: 100%;
+  box-sizing: border-box;
+}
+.cform-input:focus {
+  border-color: #e7a328;
+  box-shadow: 3px 3px 0 #e7a328;
+}
+.cform-textarea { resize: vertical; min-height: 72px; }
+
+.cform-similar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+.cform-similar-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.cform-similar-item input[type="checkbox"] { accent-color: #e7a328; width: 15px; height: 15px; }
+.cform-similar-name { font-weight: 600; color: #180A0A; }
+.cform-similar-price { color: #888; font-size: 0.75rem; }
+
+.cform-footer {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.cform-submit {
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 800;
+  background: #e7a328;
+  color: #180A0A;
+  border: 2.5px solid #180A0A;
+  border-radius: 999px;
+  padding: 9px 22px;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 #180A0A;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.cform-submit:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 #180A0A;
+}
+.cform-submit:active {
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0 #180A0A;
+}
+
+.cform-footnote {
+  font-size: 0.72rem;
+  color: #999;
+  margin: 0;
+  line-height: 1.4;
+}
+
+@media (max-width: 480px) {
+  .cform-grid { grid-template-columns: 1fr; }
+  .cform-field--full { grid-column: span 1; }
 }
 
 /* ── Concierge session page ─────────────────────────────────────────────────── */
