@@ -7,9 +7,11 @@ from functools import wraps
 from pathlib import Path
 
 from django.conf import settings
-from django.http import Http404, HttpResponseRedirect
+from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import render
 from django.utils.safestring import mark_safe
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 
 from world66_content.models import CONTENT_DIR, load_page, resolve_location_name
 
@@ -778,3 +780,218 @@ def plan_signup(request, slug):
 def plan_logout(request):
     request.session["authenticated_plans"] = []
     return HttpResponseRedirect("/plans/")
+
+
+# ── MCP API endpoints ─────────────────────────────────────────────────────────
+
+def _check_plan_auth(body: dict, plan_slug: str) -> bool:
+    passphrase = body.get("passphrase", "")
+    if not passphrase:
+        return False
+    passwords = _load_passwords()
+    hashed = passwords.get(plan_slug)
+    return bool(hashed and _check_password(passphrase, hashed))
+
+
+def _resolve_stop(destination: str, start_date: str, end_date: str, notes: str) -> dict:
+    from datetime import date as _date
+    dest = destination.strip()
+    if "/" in dest:
+        city_path = dest
+        from world66_content.models import load_page as _load_page
+        city_page = _load_page(dest)
+        city_title = city_page.title if city_page else dest.split("/")[-1].replace("_", " ").title()
+    else:
+        city_path = resolve_location_name(dest) or ""
+        city_page = load_page(city_path) if city_path else None
+        city_title = city_page.title if city_page else dest
+
+    try:
+        s = _date.fromisoformat(start_date)
+        e = _date.fromisoformat(end_date) if end_date else s
+        if s.month == e.month and s.year == e.year:
+            date_str = f"{s.day}–{e.day} {s.strftime('%B %Y')}" if s != e else s.strftime("%-d %B %Y")
+        else:
+            date_str = f"{s.strftime('%-d %B')} – {e.strftime('%-d %B %Y')}"
+    except ValueError:
+        date_str = f"{start_date} – {end_date}" if end_date else start_date
+
+    city_slug = re.sub(r"[^a-z0-9]+", "-", city_title.lower()).strip("-")
+    return {
+        "city_title": city_title,
+        "city_path":  city_path,
+        "city_slug":  city_slug,
+        "date_str":   date_str,
+        "notes":      notes,
+        "start_date": start_date,
+    }
+
+
+@csrf_exempt
+@require_POST
+def api_plan_create(request):
+    import frontmatter as fm
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "invalid JSON"}, status=400)
+
+    raw_stops = body.get("stops") or []
+    if not raw_stops:
+        return JsonResponse({"error": "stops list is required"}, status=400)
+
+    resolved = [_resolve_stop(
+        s.get("destination", ""), s.get("start_date", ""),
+        s.get("end_date", ""), s.get("notes", ""),
+    ) for s in raw_stops]
+
+    trip_title = body.get("title", "").strip() or (
+        f"Trip to {', '.join(r['city_title'] for r in resolved)}"
+    )
+    first = resolved[0]
+    base = re.sub(r"[^\w\s-]", "", first["city_title"].lower()).strip()
+    base = re.sub(r"[\s_]+", "-", base)
+    import secrets as _secrets
+    slug = f"{base}-{first['start_date'][:7]}-{_secrets.token_hex(3)}"
+
+    passphrase = _generate_passphrase()
+    _save_password(slug, passphrase)
+
+    PLANS_DIR.mkdir(exist_ok=True)
+
+    used_slugs: dict = {}
+    for r in resolved:
+        b = r["city_slug"]
+        if b not in used_slugs:
+            used_slugs[b] = 1
+        else:
+            used_slugs[b] += 1
+            r["city_slug"] = f"{b}-{used_slugs[b]}"
+
+    content_lines = []
+    for r in resolved:
+        content_lines.append(f"## {r['city_title']} | {r['date_str']}")
+        if r["notes"]:
+            content_lines.append(f"- {r['notes']}")
+        content_lines.append("")
+
+    post = fm.Post("\n".join(content_lines), title=trip_title)
+    (PLANS_DIR / f"{slug}.md").write_text(fm.dumps(post))
+
+    base_url = request.build_absolute_uri("/").rstrip("/")
+    return JsonResponse({
+        "url":        f"{base_url}/plans/join/?next=/plans/{slug}/",
+        "slug":       slug,
+        "passphrase": passphrase,
+        "cities":     [{"city_title": r["city_title"],
+                        "city_path":  r["city_path"],
+                        "city_slug":  r["city_slug"]} for r in resolved],
+    })
+
+
+@csrf_exempt
+@require_POST
+def api_plan_add_pois(request):
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "invalid JSON"}, status=400)
+
+    plan_slug = body.get("plan_slug", "").strip()
+    city_slug = body.get("city_slug", "").strip()
+    if not plan_slug or not city_slug:
+        return JsonResponse({"error": "plan_slug and city_slug are required"}, status=400)
+    if not _check_plan_auth(body, plan_slug):
+        return JsonResponse({"error": "unauthorized"}, status=403)
+
+    added = 0
+    for path in body.get("poi_paths", []):
+        if isinstance(path, str) and path.strip():
+            if _plan_file_add(plan_slug, city_slug, path.strip()):
+                added += 1
+    return JsonResponse({"added": added})
+
+
+@csrf_exempt
+@require_POST
+def api_research_submit(request):
+    import frontmatter as fm
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "invalid JSON"}, status=400)
+
+    plan_slug  = body.get("plan_slug", "").strip()
+    city_slug  = body.get("city_slug", "").strip()
+    city_path  = body.get("city_path", "").strip().strip("/")
+    city_title = body.get("city_title", "").strip()
+    pois       = body.get("pois", [])
+    intro      = body.get("intro", "").strip()
+
+    if not isinstance(pois, list) or not city_title:
+        return JsonResponse({"error": "city_title and pois are required"}, status=400)
+    if plan_slug and not _check_plan_auth(body, plan_slug):
+        return JsonResponse({"error": "unauthorized"}, status=403)
+
+    if not city_path:
+        city_path = re.sub(r"[^a-z0-9]+", "-", city_title.lower()).strip("-")
+
+    # Write draft POIs to plans/pois/<plan_slug>/<city_path>/
+    poi_prefix = f"{plan_slug}/{city_path}" if plan_slug else city_path
+    city_dir = PLANS_DIR / "pois" / poi_prefix
+    city_dir.mkdir(parents=True, exist_ok=True)
+
+    # Save intro text
+    if intro and plan_slug and city_slug:
+        intro_dir = PLANS_DIR / "intros" / plan_slug
+        intro_dir.mkdir(parents=True, exist_ok=True)
+        (intro_dir / f"{city_slug}.md").write_text(intro)
+
+    def _slugify(text):
+        return re.sub(r"[\s_]+", "-", re.sub(r"[^\w\s-]", "", text.lower()).strip()).strip("-")
+
+    written = 0
+    draft_paths = []
+    for poi in pois:
+        name     = poi.get("name", "").strip()
+        poi_body = poi.get("body", "").strip()
+        if not name or not poi_body:
+            continue
+        slug = _slugify(name)
+        out_path = city_dir / f"{slug}.md"
+        meta = {"title": name, "type": "poi", "category": poi.get("category", "Landmark")}
+        if poi.get("latitude") is not None:
+            meta["latitude"]  = round(float(poi["latitude"]), 7)
+        if poi.get("longitude") is not None:
+            meta["longitude"] = round(float(poi["longitude"]), 7)
+        post = fm.Post(poi_body, **meta)
+        out_path.write_text(fm.dumps(post))
+        draft_paths.append(f"~pois/{poi_prefix}/{slug}")
+        written += 1
+
+    if plan_slug and city_slug:
+        for draft_path in draft_paths:
+            _plan_file_add(plan_slug, city_slug, draft_path)
+
+    return JsonResponse({"written": written, "city_path": city_path})
+
+
+def api_search(request):
+    from world66_content.models import CONTENT_DIR, _load_page_from_file
+    q = request.GET.get("q", "").strip().lower()
+    if not q or len(q) < 2:
+        return JsonResponse({"results": []})
+    results = []
+    for md_file in sorted(CONTENT_DIR.rglob("*.md")):
+        rel = str(md_file.relative_to(CONTENT_DIR).with_suffix(""))
+        if q in rel.lower() or q in md_file.stem.lower():
+            page = _load_page_from_file(md_file, rel)
+            if page:
+                results.append({
+                    "title":     page.title,
+                    "url_path":  rel,
+                    "page_type": page.page_type,
+                })
+        if len(results) >= 20:
+            break
+    return JsonResponse({"results": results})
