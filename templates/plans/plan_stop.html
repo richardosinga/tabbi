@@ -86,14 +86,20 @@
       {% if suggestion_groups %}
       <div class="plan-suggestions">
         {% for group in suggestion_groups %}
-        <div class="plan-suggestions-heading">{{ group.label }}</div>
+        <div class="plan-suggestions-heading" data-cat="{{ group.key }}">
+          <span class="plan-suggestions-chip plan-suggestions-chip--{{ group.key }}">{{ group.icon }} {{ group.label }}</span>
+        </div>
         <div class="plan-suggestions-strip-wrap">
           <div class="plan-suggestions-strip">
             {% for s in group.items %}
-            <div class="plan-suggestion-tile{% if s.note_match %} plan-suggestion-tile--match{% endif %}">
-              {% if s.image_url %}
-              <div class="plan-suggestion-tile-img" style="background-image:url('{{ s.image_url }}')"></div>
-              {% endif %}
+            <div class="plan-suggestion-tile plan-suggestion-tile--{{ group.key }}{% if s.note_match %} plan-suggestion-tile--match{% endif %}">
+              <div class="plan-suggestion-tile-top">
+                {% if s.image_url %}
+                <div class="plan-suggestion-tile-img" style="background-image:url('{{ s.image_url }}')"></div>
+                {% else %}
+                <div class="plan-suggestion-tile-img plan-suggestion-tile-img--placeholder"></div>
+                {% endif %}
+              </div>
               <div class="plan-suggestion-tile-body">
                 <a class="plan-suggestion-title" href="{{ WORLD66_SITE_URL }}/{{ s.page.path }}" target="_blank" rel="noopener">{{ s.page.title }}</a>
                 {% if s.page.meta.snippet %}<p class="plan-suggestion-snippet">{{ s.page.meta.snippet }}</p>{% endif %}
