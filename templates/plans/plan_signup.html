@@ -1,0 +1,14 @@
+{% extends "plans/base.html" %}
+
+{% block title %}Trip not found — Tab.bi{% endblock %}
+
+{% block content %}
+<div class="tabbi-auth-page">
+  <div class="tabbi-auth-card">
+    <h1 class="tabbi-auth-title">Trip not found</h1>
+    <p class="tabbi-auth-sub">This trip doesn't exist yet.</p>
+    <a href="/plans/new/" class="tabbi-btn">+ Start a new trip</a>
+    <p class="tabbi-auth-help">Already have a passphrase? <a href="/plans/join/">Join a trip</a>.</p>
+  </div>
+</div>
+{% endblock %}

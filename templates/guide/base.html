@@ -1,0 +1,30 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Tab.bi{% endblock %}</title>
+  {% block head_extra %}{% endblock %}
+  {% block body_style %}{% endblock %}
+</head>
+<body>
+
+{% block topnav %}{% endblock %}
+
+<div id="page">
+  {% block hero %}{% endblock %}
+  <div id="content">
+    {% block sidebar %}{% endblock %}
+    <main id="main">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  {% block wide_content %}{% endblock %}
+  {% block footer %}{% endblock %}
+</div>
+
+{% block extra_js %}{% endblock %}
+
+</body>
+</html>

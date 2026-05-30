@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Concierge — {{ session.provider_name }}</title>
+  <link rel="stylesheet" href="/static/css/world66.css">
+</head>
+<body>
+  <div class="session-wrap">
+    <div class="session-header">
+      <h1 class="session-title">{{ session.provider_name }}</h1>
+      <p class="session-meta">
+        Started {{ session.created_at|date:"j M Y, H:i" }} ·
+        <span id="status-badge" class="status-badge status-{{ session.status }}">{{ session.get_status_display }}</span>
+        <span id="spinner" class="spinner"{% if session.status in "confirmed cancelled failed" %} style="display:none"{% endif %}></span>
+      </p>
+    </div>
+
+    {% if session.status == "pending_confirmation" %}
+    <div class="offer-card" id="offer-card">
+      <div class="offer-card-label">Offer received</div>
+      <p class="offer-summary">{{ session.proposed_offer.summary }}</p>
+      <div class="offer-details">
+        {% if session.proposed_offer.price %}<span class="offer-chip">{{ session.proposed_offer.price }} per person</span>{% endif %}
+        {% if session.proposed_offer.date %}<span class="offer-chip">{{ session.proposed_offer.date }}</span>{% endif %}
+        {% if session.proposed_offer.details %}<span class="offer-chip">{{ session.proposed_offer.details }}</span>{% endif %}
+      </div>
+      <form method="post" action="{% url 'concierge:confirm_offer' session_id=session.id %}">
+        {% csrf_token %}
+        <button type="submit" class="btn-confirm-offer">Confirm this booking →</button>
+      </form>
+    </div>
+    {% elif session.status == "confirmed" %}
+    <div class="outcome-card outcome-card--confirmed">
+      <div class="outcome-label">Booking confirmed</div>
+      <p class="outcome-summary">{{ session.summary }}</p>
+    </div>
+    {% elif session.status == "cancelled" %}
+    <div class="outcome-card outcome-card--cancelled">
+      <div class="outcome-label">Cancelled</div>
+      <p class="outcome-summary">{{ session.summary }}</p>
+    </div>
+    {% elif session.status == "failed" %}
+    <div class="outcome-card outcome-card--failed">
+      <div class="outcome-label">Negotiation ended</div>
+      <p class="outcome-summary">{{ session.summary }}</p>
+    </div>
+    {% else %}
+    <p class="session-waiting">Your concierge is in contact with {{ session.provider_name }}…</p>
+    {% endif %}
+
+    <div class="thread" id="thread">
+      {% for msg in session.messages.all %}
+      <div class="msg {{ msg.direction }}">
+        {{ msg.body|linebreaksbr }}
+        <div class="ts">{{ msg.timestamp|time:"H:i" }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <script>
+    const sessionUrl = "{{ request.path }}.json";
+    const terminal = ["confirmed", "cancelled", "failed"];
+    let status = "{{ session.status }}";
+
+    function renderOffer(data) {
+      const existing = document.getElementById("offer-card");
+      if (data.status === "pending_confirmation" && data.proposed_offer && data.proposed_offer.summary) {
+        if (!existing) {
+          const waiting = document.querySelector(".session-waiting");
+          if (waiting) waiting.remove();
+          const card = document.createElement("div");
+          card.id = "offer-card";
+          card.className = "offer-card";
+          const offer = data.proposed_offer;
+          let chips = "";
+          if (offer.price) chips += `<span class="offer-chip">${offer.price} per person</span>`;
+          if (offer.date) chips += `<span class="offer-chip">${offer.date}</span>`;
+          if (offer.details) chips += `<span class="offer-chip">${offer.details}</span>`;
+          card.innerHTML = `
+            <div class="offer-card-label">Offer received</div>
+            <p class="offer-summary">${offer.summary}</p>
+            <div class="offer-details">${chips}</div>
+            <form method="post" action="${sessionUrl.replace('.json', '/confirm')}">
+              <input type="hidden" name="csrfmiddlewaretoken" value="${getCookie('csrftoken')}">
+              <button type="submit" class="btn-confirm-offer">Confirm this booking →</button>
+            </form>`;
+          document.querySelector(".session-header").after(card);
+        }
+      } else if (existing && data.status !== "pending_confirmation") {
+        existing.remove();
+      }
+    }
+
+    function getCookie(name) {
+      const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+      return v ? v[2] : '';
+    }
+
+    function renderMessages(messages) {
+      const thread = document.getElementById("thread");
+      thread.innerHTML = messages.map(m => `
+        <div class="msg ${m.direction}">
+          ${m.body.replace(/\n/g, "<br>")}
+          <div class="ts">${new Date(m.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+        </div>
+      `).join("");
+    }
+
+    async function poll() {
+      try {
+        const res = await fetch(sessionUrl);
+        const data = await res.json();
+
+        const badge = document.getElementById("status-badge");
+        const labels = {
+          pending: "Pending", contacting: "Contacting", negotiating: "Negotiating",
+          pending_confirmation: "Offer Pending", confirmed: "Confirmed",
+          cancelled: "Cancelled", failed: "Failed"
+        };
+        badge.textContent = labels[data.status] || data.status;
+        badge.className = "status-badge status-" + data.status;
+        document.getElementById("spinner").style.display =
+          terminal.includes(data.status) ? "none" : "inline-block";
+
+        renderMessages(data.messages);
+        renderOffer(data);
+        status = data.status;
+      } catch (e) {}
+
+      if (!terminal.includes(status)) {
+        setTimeout(poll, 5000);
+      }
+    }
+
+    if (!terminal.includes(status)) {
+      setTimeout(poll, 5000);
+    }
+  </script>
+</body>
+</html>

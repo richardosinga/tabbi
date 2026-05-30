@@ -1,0 +1,7 @@
+Django==6.0.3
+python-frontmatter
+python-dotenv
+anthropic
+twilio
+beautifulsoup4
+gunicorn

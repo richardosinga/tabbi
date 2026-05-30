@@ -747,3 +747,34 @@ def plan_poi_remove(request, slug, city_slug):
     if poi_path:
         _plan_file_remove(slug, poi_path)
     return HttpResponseRedirect(request.POST.get("next", f"/plans/{slug}/{city_slug}/"))
+
+
+# ── Auth views ────────────────────────────────────────────────────────────────
+
+def plan_login(request, slug):
+    passwords = _load_passwords()
+    if slug not in passwords:
+        return HttpResponseRedirect("/plans/new/")
+    error = None
+    if request.method == "POST":
+        pw = request.POST.get("password", "")
+        if _check_password(pw, passwords[slug]):
+            _mark_plan_authenticated(request, slug)
+            next_url = request.GET.get("next", f"/plans/{slug}/")
+            return HttpResponseRedirect(next_url)
+        error = "Incorrect passphrase. Please try again."
+    plan_title_str = _plan_title(slug)
+    return render(request, "plans/plan_login.html", {
+        "slug": slug,
+        "plan_title": plan_title_str,
+        "error": error,
+    })
+
+
+def plan_signup(request, slug):
+    return render(request, "plans/plan_signup.html", {"slug": slug})
+
+
+def plan_logout(request):
+    request.session["authenticated_plans"] = []
+    return HttpResponseRedirect("/plans/")
