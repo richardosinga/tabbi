@@ -147,8 +147,9 @@ def twilio_webhook(request):
 
 
 def session_status(request, session_id):
+    from .agent import _is_demo_mode
     session = get_object_or_404(NegotiationSession, id=session_id)
-    return render(request, "concierge/session.html", {"session": session})
+    return render(request, "concierge/session.html", {"session": session, "demo_mode": _is_demo_mode()})
 
 
 def session_json(request, session_id):
