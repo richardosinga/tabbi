@@ -243,7 +243,8 @@ def _parse_plan(path):
             budget = m.group(1).strip()
             break
     description = post.metadata.get("description", "") or ""
-    return {"slug": slug, "title": title, "description": description, "body": post.content, "stops": stops, "keywords": keywords, "budget": budget}
+    passport_slug = post.metadata.get("passport", "") or ""
+    return {"slug": slug, "title": title, "description": description, "passport_slug": passport_slug, "body": post.content, "stops": stops, "keywords": keywords, "budget": budget}
 
 
 def _parse_stops(body, plan_slug):
@@ -504,6 +505,9 @@ def plan_new(request):
                 meta = {"title": title, "passphrase": passphrase}
                 if description_raw:
                     meta["description"] = description_raw
+                passport_slugs = request.session.get("authenticated_passports", [])
+                if passport_slugs:
+                    meta["passport"] = passport_slugs[0]
                 post = fm.Post(body, **meta)
                 with open(path, "w", encoding="utf-8") as fh:
                     fm.dump(post, fh)
@@ -719,7 +723,18 @@ def plan_stop(request, slug, city_slug):
             "nature": ["nature", "park", "garden", "outdoors"],
         }
         expanded_keywords = set()
-        for k in plan.get("keywords", []):
+        all_keywords = list(plan.get("keywords", []))
+        # Merge passport interests if a passport is linked
+        passport_slug = plan.get("passport_slug", "")
+        if passport_slug:
+            try:
+                from passport.views import _load_passport
+                pp = _load_passport(passport_slug)
+                if pp:
+                    all_keywords = all_keywords + list(pp.get("interests", []))
+            except Exception:
+                pass
+        for k in all_keywords:
             kn = k.lower().strip()
             expanded_keywords.add(_normalize(kn))
             for exp in _KEYWORD_EXPANSIONS.get(kn, []):

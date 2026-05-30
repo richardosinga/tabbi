@@ -18,6 +18,13 @@
     <span class="tabbi-nav-logo-text">Tab<span class="tabbi-nav-logo-dot">.</span>bi</span>
   </a>
   <div class="tabbi-nav-actions">
+    {% if request.session.authenticated_passports %}
+      {% with request.session.authenticated_passports|first as pp_slug %}
+      <a href="/passport/{{ pp_slug }}/" class="tabbi-btn tabbi-btn--ghost">My passport</a>
+      {% endwith %}
+    {% else %}
+      <a href="/passport/new/" class="tabbi-nav-passport-link">Passport</a>
+    {% endif %}
     {% if request.session.authenticated_plans %}
       <a href="/auth/logout/" class="tabbi-btn tabbi-btn--ghost">Sign out</a>
     {% else %}

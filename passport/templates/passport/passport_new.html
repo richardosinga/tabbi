@@ -1,0 +1,28 @@
+{% extends "plans/base.html" %}
+{% load static %}
+{% block title %}Travel passport — Tab.bi{% endblock %}
+{% block content %}
+<div class="tabbi-page login-page">
+  <div class="login-box">
+    <div class="login-logo">
+      <img src="{% static 'plans/tabbi-logo.svg' %}" alt="Tab.bi" style="width:48px;height:48px;border-radius:50%;vertical-align:middle;margin-right:10px;">Tab<span class="logo-dot">.</span>bi
+    </div>
+    <h1>Your travel passport</h1>
+    <p class="passport-intro">A passport lets Tab.bi suggest places you'll actually love — based on where you've been and what you enjoy.</p>
+    {% if error %}<div class="login-error">{{ error }}</div>{% endif %}
+    <form method="post" action="/passport/new/">
+      {% csrf_token %}
+      <label for="name">Your name or nickname</label>
+      <input type="text" id="name" name="name" autofocus autocomplete="name" placeholder="e.g. Alex">
+      <label for="home_city">Home city <span class="plan-new-hint">(optional)</span></label>
+      <input type="text" id="home_city" name="home_city" autocomplete="off" placeholder="e.g. Amsterdam">
+      <label for="nationalities">Nationalities <span class="plan-new-hint">(optional — for visa &amp; entry tips)</span></label>
+      <input type="text" id="nationalities" name="nationalities" autocomplete="off" placeholder="e.g. Dutch, American">
+      <label for="interests">Travel interests <span class="plan-new-hint">(optional — improves suggestions)</span></label>
+      <input type="text" id="interests" name="interests" autocomplete="off" placeholder="e.g. food, hiking, museums, nightlife">
+      <button type="submit">Create passport</button>
+    </form>
+    <p class="tabbi-auth-help" style="margin-top:16px;">Already have a passport? <a href="/passport/join/">Restore with passphrase →</a></p>
+  </div>
+</div>
+{% endblock %}

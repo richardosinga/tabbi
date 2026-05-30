@@ -1,0 +1,20 @@
+{% extends "plans/base.html" %}
+{% load static %}
+{% block title %}Passport created — Tab.bi{% endblock %}
+{% block content %}
+<div class="tabbi-page login-page">
+  <div class="login-box">
+    <div class="login-logo">
+      <img src="{% static 'plans/tabbi-logo.svg' %}" alt="Tab.bi" style="width:48px;height:48px;border-radius:50%;vertical-align:middle;margin-right:10px;">Tab<span class="logo-dot">.</span>bi
+    </div>
+    <h1>Passport ready, {{ passport.name }}!</h1>
+    <p style="color:#535050;margin-bottom:8px;">Save this passphrase — it's the only way to access your passport on another device.</p>
+    <div class="plan-passphrase-box">
+      <span id="passphrase-text">{{ passphrase }}</span>
+      <button type="button" class="plan-passphrase-copy" onclick="navigator.clipboard.writeText('{{ passphrase }}');this.textContent='Copied!'">Copy</button>
+    </div>
+    <a href="/plans/new/" class="plan-passphrase-continue" style="margin-top:12px;display:block;text-align:center;">Start planning a trip →</a>
+    <a href="/passport/{{ passport.slug }}/" style="display:block;text-align:center;margin-top:10px;font-size:0.9rem;color:#535050;">View my passport</a>
+  </div>
+</div>
+{% endblock %}

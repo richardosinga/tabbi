@@ -67,6 +67,8 @@ body:has(.tabbi-page) {
 }
 .tabbi-nav-logo-dot { color: #e7a328; }
 .tabbi-nav-actions { display: flex; gap: 10px; align-items: center; }
+.tabbi-nav-passport-link { font-size: 0.85rem; font-weight: 600; color: #535050; text-decoration: none; }
+.tabbi-nav-passport-link:hover { color: #180A0A; }
 
 /* ── Buttons ──────────────────────────────────────────────────────────────── */
 
@@ -1490,3 +1492,31 @@ body:has(.tabbi-page) {
 .confirm-body { font-size: 0.88rem; line-height: 1.7; color: #535050; margin: 0 0 16px; }
 .confirm-also { font-size: 0.82rem; color: #A6A6A6; margin-bottom: 24px; }
 .confirm-actions { margin-top: 24px; }
+
+/* ── Passport ─────────────────────────────────────────────────────────────── */
+
+.passport-intro { font-size: 0.9rem; color: #535050; margin: -8px 0 20px; line-height: 1.55; }
+
+.passport-card {
+  background: #fff;
+  border: 2.5px solid #180A0A;
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 #180A0A;
+  padding: 24px;
+  max-width: 520px;
+}
+.passport-form { display: flex; flex-direction: column; gap: 18px; }
+.passport-field { display: flex; flex-direction: column; gap: 4px; }
+.passport-label { font-size: 0.82rem; font-weight: 700; color: #180A0A; letter-spacing: 0.02em; text-transform: uppercase; }
+.passport-input {
+  padding: 10px 14px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  border: 2px solid #DCDCDC;
+  border-radius: 8px;
+  outline: none;
+  background: #fff;
+  transition: border-color 0.15s;
+}
+.passport-input:focus { border-color: #e7a328; }
+.passport-hint { font-size: 0.78rem; color: #A6A6A6; }

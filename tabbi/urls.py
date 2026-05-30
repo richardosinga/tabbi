@@ -9,6 +9,7 @@ urlpatterns = [
     path("plans/", include("plans.urls")),
     path("auth/", include("plans.auth_urls")),
     path("concierge/", include("concierge.urls")),
+    path("passport/", include("passport.urls")),
     path("content-image/<path:path>", content_image, name="content_image"),
     path("api/plans/create", api_plan_create, name="api_plan_create"),
     path("api/plan/add-pois", api_plan_add_pois, name="api_plan_add_pois"),

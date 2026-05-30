@@ -1,0 +1,50 @@
+{% extends "plans/base.html" %}
+{% load static %}
+{% block title %}{{ passport.name }}'s passport — Tab.bi{% endblock %}
+{% block content %}
+<div class="tabbi-page plan-page">
+
+  <div class="plan-header">
+    <h1>{{ passport.name }}'s passport</h1>
+  </div>
+
+  <div class="passport-card">
+    <form method="post" action="/passport/{{ passport.slug }}/edit/" class="passport-form">
+      {% csrf_token %}
+
+      <div class="passport-field">
+        <label class="passport-label">Name</label>
+        <input type="text" name="name" class="passport-input" value="{{ passport.name }}">
+      </div>
+
+      <div class="passport-field">
+        <label class="passport-label">Home city</label>
+        <input type="text" name="home_city" class="passport-input" value="{{ passport.home_city }}" placeholder="e.g. Amsterdam">
+      </div>
+
+      <div class="passport-field">
+        <label class="passport-label">Nationalities</label>
+        <input type="text" name="nationalities" class="passport-input"
+               value="{{ passport.nationalities|join:', ' }}"
+               placeholder="e.g. Dutch, American">
+        <span class="passport-hint">Used for visa and entry information</span>
+      </div>
+
+      <div class="passport-field">
+        <label class="passport-label">Travel interests</label>
+        <input type="text" name="interests" class="passport-input"
+               value="{{ passport.interests|join:', ' }}"
+               placeholder="e.g. food, hiking, museums, nightlife">
+        <span class="passport-hint">Shapes suggestions on your trip pages</span>
+      </div>
+
+      <button type="submit" class="tabbi-btn">Save changes</button>
+    </form>
+  </div>
+
+  <div style="margin-top:24px;">
+    <a href="/plans/" class="plan-edit-link">← Back to trips</a>
+  </div>
+
+</div>
+{% endblock %}
