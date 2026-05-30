@@ -216,6 +216,15 @@ function toggleConciergeForm(btn) {
   });
 })();
 
+document.querySelectorAll('.plan-suggestion-add, .plan-suggestions-add-custom').forEach(function(form) {
+  form.addEventListener('submit', function() {
+    var btn = form.querySelector('button[type="submit"]');
+    if (!btn) return;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="tabbi-spinner"></span>';
+  });
+});
+
 document.querySelectorAll('.plan-note-text').forEach(function(span) {
   span.addEventListener('click', function() {
     var form = span.nextElementSibling;

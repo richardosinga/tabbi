@@ -461,27 +461,38 @@ def plan_new(request):
                 error = f"A trip named '{slug}' already exists."
             else:
                 passphrase = _generate_passphrase()
-                keywords_raw = request.POST.get("keywords", "").strip()
+                locations_raw = request.POST.get("locations", "").strip()
                 budget_raw = request.POST.get("budget", "").strip()
                 body_lines = []
                 if budget_raw:
                     body_lines.append(f"budget: {budget_raw}\n")
-                if keywords_raw:
-                    body_lines.append(f"interests: {keywords_raw}\n")
-                title_words = re.split(r"[\s,&+]+", title)
                 city_headings = []
-                i = 0
-                while i < len(title_words):
-                    matched = False
-                    for length in range(min(4, len(title_words) - i), 0, -1):
-                        phrase = " ".join(title_words[i:i+length])
-                        if resolve_location_name(phrase):
-                            city_headings.append(f"## {phrase}")
-                            i += length
-                            matched = True
-                            break
-                    if not matched:
-                        i += 1
+                if locations_raw:
+                    for loc in re.split(r"[,;]+", locations_raw):
+                        loc = loc.strip()
+                        if not loc:
+                            continue
+                        city_path = resolve_location_name(loc)
+                        if city_path:
+                            city_page = load_page(city_path)
+                            city_headings.append(f"## {city_page.title if city_page else loc.title()}")
+                        else:
+                            city_headings.append(f"## {loc.title()}")
+                else:
+                    # Fall back to extracting locations from the trip title
+                    title_words = re.split(r"[\s,&+]+", title)
+                    i = 0
+                    while i < len(title_words):
+                        matched = False
+                        for length in range(min(4, len(title_words) - i), 0, -1):
+                            phrase = " ".join(title_words[i:i+length])
+                            if resolve_location_name(phrase):
+                                city_headings.append(f"## {phrase}")
+                                i += length
+                                matched = True
+                                break
+                        if not matched:
+                            i += 1
                 if city_headings:
                     if body_lines:
                         body_lines.append("")

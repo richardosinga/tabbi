@@ -781,11 +781,25 @@ body:has(.tabbi-page) {
   cursor: pointer;
   box-shadow: 2px 2px 0 #180A0A;
   transition: all 0.12s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .plan-suggestion-btn:hover {
   background: #c8891a;
   transform: translate(-1px, -1px);
   box-shadow: 3px 3px 0 #180A0A;
+}
+
+/* Add spinner */
+@keyframes tabbi-spin { to { transform: rotate(360deg); } }
+.tabbi-spinner {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border: 2.5px solid rgba(24,10,10,0.25);
+  border-top-color: #180A0A;
+  border-radius: 50%;
+  animation: tabbi-spin 0.7s linear infinite;
 }
 
 /* ── External links ───────────────────────────────────────────────────────── */
