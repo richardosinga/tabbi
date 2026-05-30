@@ -784,6 +784,35 @@ def _plan_save_budget(slug, city_slug, budget_data):
         fm.dump(post, fh)
 
 
+def _budget_add_poi_price(slug, city_slug, poi_path):
+    """If the POI has a parseable numeric price, add it to the stop's activities budget."""
+    page = load_page(poi_path)
+    if not page:
+        return
+    raw = str(page.meta.get("price", "") or "")
+    m = re.search(r"[\d]+(?:[.,]\d+)?", raw.replace(",", "."))
+    if not m:
+        return
+    amount = float(m.group().replace(",", "."))
+    import frontmatter as fm
+    path = PLANS_DIR / f"{slug}.md"
+    if not path.is_file():
+        return
+    post = fm.load(path)
+    budgets = dict(post.metadata.get("budgets") or {})
+    stop_budget = dict(budgets.get(city_slug) or {})
+    current = 0.0
+    try:
+        current = float(stop_budget.get("activities") or 0)
+    except (ValueError, TypeError):
+        pass
+    stop_budget["activities"] = round(current + amount, 2)
+    budgets[city_slug] = stop_budget
+    post.metadata["budgets"] = budgets
+    with open(path, "w", encoding="utf-8") as fh:
+        fm.dump(post, fh)
+
+
 @_require_plan_auth
 @csrf_exempt
 def plan_budget_save(request, slug, city_slug):
@@ -895,6 +924,7 @@ def plan_poi_add(request, slug, city_slug=None):
                             break
         if city_slug:
             _plan_file_add(slug, city_slug, poi_path)
+            _budget_add_poi_price(slug, city_slug, poi_path)
     return HttpResponseRedirect(request.POST.get("next", f"/plans/{slug}/"))
 
 
