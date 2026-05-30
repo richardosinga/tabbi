@@ -471,7 +471,7 @@ def plan_new(request):
                     body_lines.extend(city_headings)
                 body = "\n".join(body_lines)
                 post = fm.Post(body, title=title, passphrase=passphrase)
-                with open(path, "wb") as fh:
+                with open(path, "w", encoding="utf-8") as fh:
                     fm.dump(post, fh)
                 _save_password(slug, passphrase)
                 _mark_plan_authenticated(request, slug)
@@ -630,7 +630,7 @@ def plan_edit(request, slug):
         body = request.POST.get("body", "")
         post = fm.load(path)
         post.content = body
-        with open(path, "wb") as fh:
+        with open(path, "w", encoding="utf-8") as fh:
             fm.dump(post, fh)
         return HttpResponseRedirect(f"/plans/{slug}/")
     post = fm.load(path)
@@ -674,7 +674,7 @@ def _plan_file_add(slug, city_slug, poi_path):
         return False
     lines.insert(insert_at, f"- {poi_path}")
     post.content = "\n".join(lines)
-    with open(path, "wb") as fh:
+    with open(path, "w", encoding="utf-8") as fh:
         fm.dump(post, fh)
     return True
 
@@ -688,7 +688,7 @@ def _plan_file_remove(slug, poi_path):
     if len(new_lines) == len(lines):
         return False
     post.content = "\n".join(new_lines)
-    with open(path, "wb") as fh:
+    with open(path, "w", encoding="utf-8") as fh:
         fm.dump(post, fh)
     return True
 
@@ -734,7 +734,7 @@ def plan_note_edit(request, slug, city_slug):
             for l in lines
         ]
         post.content = "\n".join(new_lines)
-        with open(path, "wb") as fh:
+        with open(path, "w", encoding="utf-8") as fh:
             fm.dump(post, fh)
     return HttpResponseRedirect(request.POST.get("next", f"/plans/{slug}/{city_slug}/"))
 
