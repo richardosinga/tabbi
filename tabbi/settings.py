@@ -41,6 +41,7 @@ ROOT_URLCONF = "tabbi.urls"
 # World66 content — set WORLD66_DIR in .env to a cloned copy of the world66 repo
 WORLD66_DIR = Path(os.environ.get("WORLD66_DIR", str(BASE_DIR / "world66")))
 WORLD66_CONTENT_DIR = WORLD66_DIR / "content"
+WORLD66_SITE_URL = os.environ.get("WORLD66_SITE_URL", "https://world66.ai")
 
 TEMPLATES = [
     {
@@ -50,6 +51,7 @@ TEMPLATES = [
         "OPTIONS": {
             "context_processors": [
                 "django.template.context_processors.request",
+                "plans.context_processors.world66_url",
             ],
         },
     },
