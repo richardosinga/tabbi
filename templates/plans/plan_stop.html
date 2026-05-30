@@ -43,6 +43,16 @@
             {% if item.page.meta.snippet %}
             <p class="plan-poi-snippet">{{ item.page.meta.snippet }}</p>
             {% endif %}
+            {% if item.page.meta.booking_url %}
+            <div class="poi-booking-bar">
+              {% if item.page.meta.price %}<span class="poi-booking-price">{{ item.page.meta.price }}</span>{% endif %}
+              {% if item.page.meta.duration %}<span class="poi-booking-duration">{{ item.page.meta.duration }}</span>{% endif %}
+              <button class="poi-concierge-btn" onclick="toggleConciergeForm(this)" type="button">Arrange via Tabbi Concierge</button>
+            </div>
+            <div class="poi-concierge-wrap" hidden>
+              {% include "concierge/_form.html" with provider=item.page similar_pois=None %}
+            </div>
+            {% endif %}
           {% elif item.external_url %}
             <a class="plan-external-link" href="{{ item.external_url }}" target="_blank" rel="noopener">
               <span class="plan-external-label">{{ item.display_label }}</span>
@@ -130,6 +140,13 @@
 })();
 </script>
 <script>
+function toggleConciergeForm(btn) {
+  var wrap = btn.closest('.plan-poi-body').querySelector('.poi-concierge-wrap');
+  var hidden = wrap.hasAttribute('hidden');
+  if (hidden) { wrap.removeAttribute('hidden'); btn.classList.add('active'); }
+  else { wrap.setAttribute('hidden', ''); btn.classList.remove('active'); }
+}
+
 document.querySelectorAll('.plan-note-text').forEach(function(span) {
   span.addEventListener('click', function() {
     var form = span.nextElementSibling;

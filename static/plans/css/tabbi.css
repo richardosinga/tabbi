@@ -1276,3 +1276,111 @@ body:has(.tabbi-page) {
   transition: color 0.15s;
 }
 .tabbi-empty-join-btn:hover { color: #d99b1a; }
+
+/* ── Concierge booking bar on POI cards ────────────────────────────────────── */
+.poi-booking-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.poi-booking-price {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2d3748;
+}
+.poi-booking-duration {
+  font-size: 12px;
+  color: #718096;
+}
+.poi-concierge-btn {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1.5px solid #c0392b;
+  background: transparent;
+  color: #c0392b;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.poi-concierge-btn:hover, .poi-concierge-btn.active {
+  background: #c0392b;
+  color: #fff;
+}
+.poi-concierge-wrap {
+  margin-top: 12px;
+  padding: 16px;
+  background: #fafafa;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+/* ── Concierge session page ─────────────────────────────────────────────────── */
+.concierge-session { max-width: 680px; margin: 0 auto; }
+.session-header { margin-bottom: 24px; }
+.session-title { font-size: 1.5rem; margin: 0 0 6px; }
+.session-meta { font-size: 13px; color: #718096; margin: 0; }
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: #e2e8f0;
+  color: #4a5568;
+}
+.status-badge.status-confirmed { background: #c6f6d5; color: #276749; }
+.status-badge.status-failed    { background: #fed7d7; color: #9b2c2c; }
+.status-badge.status-cancelled { background: #e2e8f0; color: #718096; }
+.status-badge.status-pending_confirmation { background: #fefcbf; color: #744210; }
+.spinner {
+  display: inline-block;
+  width: 12px; height: 12px;
+  border: 2px solid #e2e8f0;
+  border-top-color: #c0392b;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.session-waiting { color: #718096; font-style: italic; }
+
+.offer-card {
+  background: #fffbeb;
+  border: 1.5px solid #f6c90e;
+  border-radius: 10px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+}
+.offer-card-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #b7791f; margin-bottom: 8px; }
+.offer-summary { margin: 0 0 12px; font-size: 15px; color: #2d3748; }
+.offer-details { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.offer-chip { padding: 3px 10px; background: #fef3c7; border-radius: 12px; font-size: 13px; color: #92400e; }
+
+.outcome-card { border-radius: 10px; padding: 20px 24px; margin-bottom: 24px; }
+.outcome-card--confirmed { background: #f0fff4; border: 1.5px solid #68d391; }
+.outcome-card--cancelled { background: #f7fafc; border: 1.5px solid #e2e8f0; }
+.outcome-card--failed    { background: #fff5f5; border: 1.5px solid #fc8181; }
+.outcome-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; color: #4a5568; }
+.outcome-summary { margin: 0; font-size: 15px; color: #2d3748; }
+
+.thread { display: flex; flex-direction: column; gap: 12px; margin-top: 24px; }
+.msg { max-width: 75%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.6; }
+.msg.outbound { background: #c0392b; color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
+.msg.inbound  { background: #f0f4f8; color: #2d3748; align-self: flex-start; border-bottom-left-radius: 4px; }
+.msg .ts { font-size: 10px; opacity: 0.6; margin-top: 4px; text-align: right; }
+.msg.inbound .ts { text-align: left; }
+
+/* ── Concierge confirmation page ────────────────────────────────────────────── */
+.concierge-confirm { max-width: 520px; margin: 60px auto; text-align: center; }
+.confirm-wrap { padding: 0 20px; }
+.confirm-icon { font-size: 2.4rem; margin-bottom: 16px; }
+.confirm-title { font-size: 1.6rem; margin: 0 0 12px; }
+.confirm-body { font-size: 15px; line-height: 1.7; color: #718096; margin: 0 0 16px; }
+.confirm-also { font-size: 14px; color: #718096; margin-bottom: 24px; }
+.confirm-actions { margin-top: 24px; }

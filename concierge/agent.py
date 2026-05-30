@@ -24,13 +24,13 @@ def _notify_user(session):
         subject = f"No longer needed — {session.provider_name}"
         outcome = "We've cancelled this negotiation because a deal was reached with another provider."
     else:
-        subject = f"Update from your world66 Concierge — {session.provider_name}"
+        subject = f"Update from your Tabbi Concierge — {session.provider_name}"
         outcome = "The negotiation has ended."
     body = (
         f"Hi {session.user_name},\n\n"
         f"{outcome}\n\n"
         f"{session.summary}\n\n"
-        f"— world66 Concierge\n"
+        f"— Tabbi Concierge\n"
     )
     send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [session.user_email], fail_silently=True)
 
@@ -44,7 +44,7 @@ def _notify_user_offer(session):
     subject = f"Offer received from {session.provider_name} — confirm?"
     body = (
         f"Hi {session.user_name},\n\n"
-        f"Your world66 Concierge has received an offer from {session.provider_name}:\n\n"
+        f"Your Tabbi Concierge has received an offer from {session.provider_name}:\n\n"
         f"{offer.get('summary', '')}\n"
     )
     if offer.get("price"):
@@ -53,7 +53,7 @@ def _notify_user_offer(session):
         body += f"\nDate: {offer['date']}"
     body += (
         f"\n\nTo confirm this booking, visit:\n{session_url}\n\n"
-        f"— world66 Concierge\n"
+        f"— Tabbi Concierge\n"
     )
     send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [session.user_email], fail_silently=True)
 
@@ -72,7 +72,7 @@ def _cancel_siblings(confirmed_session):
             body = (
                 "Hi, thank you very much for your time! We've managed to arrange something "
                 "with another provider for this occasion. We hope to be in touch another time. "
-                "Best regards, world66 Concierge."
+                "Best regards, Tabbi Concierge."
             )
             try:
                 sid = send_message(sibling.provider_whatsapp, body)
@@ -90,7 +90,7 @@ def _cancel_siblings(confirmed_session):
 def _build_system_prompt(session):
     p = session.prefs
     lines = [
-        "You are the world66 Concierge. You contact travel providers on WhatsApp on behalf of travellers.",
+        "You are the Tabbi Concierge. You contact travel providers on WhatsApp on behalf of travellers.",
         f"You are arranging a booking with {session.provider_name} for {session.user_name}.",
         "",
         "Traveller preferences:",
@@ -117,7 +117,7 @@ def _build_system_prompt(session):
     lines += [
         "",
         "Rules:",
-        "- Always present yourself as 'world66 Concierge', not as the traveller.",
+        "- Always present yourself as 'Tabbi Concierge', not as the traveller.",
         "- Be friendly, concise, and professional.",
         "- NEVER accept an offer from the provider yourself. When they make a concrete offer "
         "  (date, price, programme), always call propose_to_user so the traveller can confirm.",
