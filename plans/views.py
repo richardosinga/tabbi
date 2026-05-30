@@ -13,7 +13,13 @@ from django.utils.safestring import mark_safe
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
+from django.conf import settings as _settings
 from world66_content.models import CONTENT_DIR, load_page, resolve_location_name
+
+def _w66_url(path):
+    """Return an absolute world66.ai URL for a content path."""
+    base = getattr(_settings, "WORLD66_SITE_URL", "https://world66.ai")
+    return f"{base}/{path}"
 
 PLANS_DIR = Path(settings.BASE_DIR) / "plans"
 _PASSWORDS_FILE = PLANS_DIR / ".passwords.json"
@@ -191,7 +197,7 @@ def _stop_markers(stop):
         if lat and lng:
             markers.append({
                 "lat": float(lat), "lng": float(lng),
-                "title": page.title, "url": page.get_absolute_url(),
+                "title": page.title, "url": _w66_url(page.path),
             })
         elif page.path not in geocache:
             result = _geocode_nominatim(f"{page.title}, {city_name}")
@@ -200,13 +206,13 @@ def _stop_markers(stop):
             if result:
                 markers.append({
                     "lat": result[0], "lng": result[1],
-                    "title": page.title, "url": page.get_absolute_url(),
+                    "title": page.title, "url": _w66_url(page.path),
                 })
         elif geocache[page.path]:
             lat, lng = geocache[page.path]
             markers.append({
                 "lat": lat, "lng": lng,
-                "title": page.title, "url": page.get_absolute_url(),
+                "title": page.title, "url": _w66_url(page.path),
             })
 
     if cache_dirty:
@@ -317,12 +323,12 @@ def _parse_stops(body, plan_slug):
 
     for stop in stops:
         if stop.get("city_path"):
-            stop["destination_url"] = "/" + stop["city_path"]
+            stop["destination_url"] = _w66_url(stop["city_path"])
         else:
             dest_url = None
             for item in stop["items"]:
                 if item["page"] and "/" in item["page"].path:
-                    dest_url = "/" + item["page"].path.rsplit("/", 1)[0]
+                    dest_url = _w66_url(item["page"].path.rsplit("/", 1)[0])
                     break
             stop["destination_url"] = dest_url
 

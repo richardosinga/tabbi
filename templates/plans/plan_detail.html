@@ -30,7 +30,7 @@
           <div class="plan-dest-tile-count">{{ stop.items|length }} place{% if stop.items|length != 1 %}s{% endif %}</div>
         </div>
         {% if stop.destination_url %}
-        <a href="{{ WORLD66_SITE_URL }}{{ stop.destination_url }}" class="plan-dest-tile-explore" target="_blank" rel="noopener" onclick="event.stopPropagation()">Explore ›</a>
+        <a href="{{ stop.destination_url }}" class="plan-dest-tile-explore" target="_blank" rel="noopener" onclick="event.stopPropagation()">Explore ›</a>
         {% endif %}
       </div>
     </div>
