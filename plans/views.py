@@ -784,16 +784,23 @@ def _plan_save_budget(slug, city_slug, budget_data):
         fm.dump(post, fh)
 
 
-def _budget_add_poi_price(slug, city_slug, poi_path):
-    """If the POI has a parseable numeric price, add it to the stop's activities budget."""
+def _parse_poi_price(poi_path):
+    """Return the numeric price of a POI, or None if it has no parseable price."""
     page = load_page(poi_path)
     if not page:
-        return
+        return None
     raw = str(page.meta.get("price", "") or "")
-    m = re.search(r"[\d]+(?:[.,]\d+)?", raw.replace(",", "."))
+    m = re.search(r"\d+(?:[.,]\d+)?", raw.replace(",", "."))
     if not m:
+        return None
+    return float(m.group().replace(",", "."))
+
+
+def _budget_add_poi_price(slug, city_slug, poi_path):
+    """If the POI has a parseable numeric price, add it to the stop's activities budget."""
+    amount = _parse_poi_price(poi_path)
+    if amount is None:
         return
-    amount = float(m.group().replace(",", "."))
     import frontmatter as fm
     path = PLANS_DIR / f"{slug}.md"
     if not path.is_file():
@@ -807,6 +814,34 @@ def _budget_add_poi_price(slug, city_slug, poi_path):
     except (ValueError, TypeError):
         pass
     stop_budget["activities"] = round(current + amount, 2)
+    budgets[city_slug] = stop_budget
+    post.metadata["budgets"] = budgets
+    with open(path, "w", encoding="utf-8") as fh:
+        fm.dump(post, fh)
+
+
+def _budget_remove_poi_price(slug, city_slug, poi_path):
+    """If the POI has a parseable numeric price, subtract it from the stop's activities budget."""
+    amount = _parse_poi_price(poi_path)
+    if amount is None:
+        return
+    import frontmatter as fm
+    path = PLANS_DIR / f"{slug}.md"
+    if not path.is_file():
+        return
+    post = fm.load(path)
+    budgets = dict(post.metadata.get("budgets") or {})
+    stop_budget = dict(budgets.get(city_slug) or {})
+    current = 0.0
+    try:
+        current = float(stop_budget.get("activities") or 0)
+    except (ValueError, TypeError):
+        pass
+    new_val = round(max(0.0, current - amount), 2)
+    if new_val == 0:
+        stop_budget.pop("activities", None)
+    else:
+        stop_budget["activities"] = new_val
     budgets[city_slug] = stop_budget
     post.metadata["budgets"] = budgets
     with open(path, "w", encoding="utf-8") as fh:
@@ -956,6 +991,7 @@ def plan_poi_remove(request, slug, city_slug):
     poi_path = request.POST.get("poi_path", "").strip()
     if poi_path:
         _plan_file_remove(slug, poi_path)
+        _budget_remove_poi_price(slug, city_slug, poi_path)
     return HttpResponseRedirect(request.POST.get("next", f"/plans/{slug}/{city_slug}/"))
 
 
