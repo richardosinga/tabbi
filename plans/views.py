@@ -593,57 +593,88 @@ def plan_stop(request, slug, city_slug):
         if img:
             city_image_url = f"/content-image/{img}"
 
-    _TAG_EMOJI = {
-        "museum": "🏛️", "museums": "🏛️",
-        "gallery": "🖼️",
-        "park": "🌳",
-        "beach": "🏖️", "beaches": "🏖️",
-        "hiking": "🥾",
-        "nature": "🌿", "wildlife": "🦁",
-        "church": "⛪",
-        "castle": "🏰",
-        "palace": "👑",
-        "market": "🧺",
-        "shopping": "🛍️", "shop": "🛍️",
-        "nightlife": "🎉", "club": "🎉",
-        "bars_and_cafes": "🍺", "bar": "🍺", "pub": "🍺",
-        "restaurant": "🍽️", "eating_out": "🍽️",
-        "food": "🍜", "cuisine": "🍜",
-        "cafe": "☕", "coffee": "☕",
-        "music": "🎵", "jazz": "🎷",
-        "theatre": "🎭", "theater": "🎭", "opera": "🎭",
-        "cinema": "🎬",
-        "architecture": "🏗️",
-        "sport": "⚽",
-        "cycling": "🚴",
-        "swimming": "🏊",
-        "boat": "⛵",
-        "history": "📜", "historic": "📜", "historic_site": "📜", "historical_site": "📜",
-        "heritage": "🏺",
-        "art": "🎨",
-        "garden": "🌸",
-        "zoo": "🦁",
-        "temple": "🛕",
-        "mosque": "🕌",
-        "spa": "🧖",
-        "viewpoint": "👁️",
-        "monument": "🗿",
-        "square": "🏙️",
-        "landmark": "📍", "sight": "📍", "sights": "📍",
-        "neighbourhood": "🏘️",
-        "canal_ring": "🛶",
-        "festival": "🎪", "festivals": "🎪",
-        "day_trips": "🗺️", "day_trip": "🗺️",
-        "things_to_do": "⭐",
-    }
+    # Checked in priority order — specific beats generic, so things_to_do last
+    _TAG_PRIORITY = [
+        ("museum", "🏛️"), ("museums", "🏛️"), ("gallery", "🖼️"),
+        ("beach", "🏖️"), ("beaches", "🏖️"),
+        ("hiking", "🥾"),
+        ("castle", "🏰"), ("palace", "👑"),
+        ("church", "⛪"), ("cathedral", "⛪"),
+        ("temple", "🛕"), ("mosque", "🕌"),
+        ("market", "🧺"),
+        ("shopping", "🛍️"), ("shop", "🛍️"),
+        ("nightlife", "🎉"), ("club", "🎉"),
+        ("bars_and_cafes", "🍺"), ("bar", "🍺"), ("pub", "🍺"),
+        ("restaurant", "🍽️"), ("eating_out", "🍽️"),
+        ("food", "🍜"), ("cuisine", "🍜"),
+        ("cafe", "☕"), ("coffee", "☕"),
+        ("jazz", "🎷"), ("music", "🎵"),
+        ("theatre", "🎭"), ("theater", "🎭"), ("opera", "🎭"),
+        ("cinema", "🎬"),
+        ("architecture", "🏗️"),
+        ("sport", "⚽"), ("cycling", "🚴"), ("swimming", "🏊"),
+        ("boat", "⛵"), ("canal_ring", "🛶"),
+        ("historic_site", "📜"), ("historical_site", "📜"), ("history", "📜"), ("historic", "📜"),
+        ("heritage", "🏺"),
+        ("art", "🎨"),
+        ("garden", "🌸"), ("park", "🌳"),
+        ("zoo", "🦁"), ("wildlife", "🦁"),
+        ("nature", "🌿"),
+        ("spa", "🧖"),
+        ("viewpoint", "👁️"),
+        ("monument", "🗿"),
+        ("square", "🏙️"), ("neighbourhood", "🏘️"),
+        ("festival", "🎪"), ("festivals", "🎪"),
+        ("day_trips", "🗺️"), ("day_trip", "🗺️"),
+        ("landmark", "📍"), ("sight", "📍"), ("sights", "📍"),
+        ("things_to_do", "📍"),  # generic catch-all, last
+    ]
+    # Title/slug keywords for content-specific icons (pizza → 🍕 etc.)
+    _TITLE_KEYWORDS = [
+        ("pizza", "🍕"), ("burger", "🍔"), ("steak", "🥩"),
+        ("sushi", "🍱"), ("ramen", "🍜"), ("noodle", "🍜"),
+        ("taco", "🌮"), ("pasta", "🍝"), ("paella", "🥘"),
+        ("tapas", "🫒"), ("kebab", "🥙"),
+        ("bakery", "🥐"), ("bread", "🥖"), ("cake", "🎂"),
+        ("ice cream", "🍦"), ("gelato", "🍦"),
+        ("chocolate", "🍫"),
+        ("wine", "🍷"), ("cocktail", "🍸"), ("gin", "🍸"),
+        ("whisky", "🥃"), ("whiskey", "🥃"),
+        ("beer", "🍺"), ("brewery", "🍺"),
+        ("tea", "🍵"),
+        ("jazz", "🎷"), ("blues", "🎵"), ("rock", "🎸"),
+        ("museum", "🏛️"), ("gallery", "🖼️"),
+        ("park", "🌳"), ("garden", "🌸"),
+        ("beach", "🏖️"), ("surf", "🏄"),
+        ("market", "🧺"), ("bazaar", "🧺"),
+        ("castle", "🏰"), ("palace", "👑"), ("fort", "🏰"),
+        ("cathedral", "⛪"), ("church", "⛪"),
+        ("mosque", "🕌"), ("temple", "🛕"),
+        ("hammam", "🧖"), ("spa", "🧖"),
+        ("aquarium", "🐠"), ("zoo", "🦁"),
+        ("boat", "⛵"), ("kayak", "🛶"), ("canoe", "🛶"),
+        ("bike", "🚴"), ("cycling", "🚴"),
+        ("tower", "🗼"), ("bridge", "🌉"),
+        ("waterfall", "💧"), ("lake", "🏞️"),
+        ("library", "📚"), ("bookshop", "📚"),
+        ("theatre", "🎭"), ("theater", "🎭"), ("opera", "🎭"),
+        ("cinema", "🎬"), ("film", "🎬"),
+        ("statue", "🗿"), ("monument", "🗿"),
+    ]
     _PALETTE = [
         "#FFF3C4", "#FFE0B2", "#E8F5E9", "#E3F2FD",
         "#FCE4EC", "#F3E5F5", "#E0F7FA", "#FFF8E1",
     ]
 
     def _placeholder(page):
-        tags = [t.lower() for t in page.tags]
-        emoji = next((v for t in tags for k, v in _TAG_EMOJI.items() if t == k), "📍")
+        # Check title + slug for content keywords first
+        slug_words = page.path.split("/")[-1].replace("_", " ").replace("-", " ")
+        search = page.title.lower() + " " + slug_words.lower()
+        emoji = next((e for kw, e in _TITLE_KEYWORDS if kw in search), None)
+        # Fall back to priority-ordered tag matching (specific tags win over generic)
+        if not emoji:
+            tag_set = {t.lower() for t in page.tags}
+            emoji = next((e for k, e in _TAG_PRIORITY if k in tag_set), "📍")
         h = 0
         for c in page.path:
             h = (h * 31 + ord(c)) & 0xFFFFFFFF
