@@ -39,7 +39,10 @@ DISPLAY_PROPERTIES = {
 def _load_md(path):
     if not path.is_file():
         return None
-    post = frontmatter.load(path)
+    try:
+        post = frontmatter.load(path)
+    except Exception:
+        return None
     return post.metadata, post.content
 
 
