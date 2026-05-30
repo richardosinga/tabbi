@@ -110,13 +110,15 @@
 
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
 <script>
 (function() {
   const markers = {{ markers }};
   const map = L.map('plan-stop-map', {scrollWheelZoom: false, zoomControl: true});
   L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {maxZoom: 18}).addTo(map);
 
-  const W66_RED = '#c0392b';
   markers.forEach(function(m, i) {
     const icon = L.divIcon({
       className: 'plan-stop-marker',
@@ -126,7 +128,7 @@
     });
     L.marker([m.lat, m.lng], {icon: icon})
       .bindTooltip(m.title, {direction: 'top'})
-      .on('click', function() { window.location = m.url; })
+      .on('click', function() { window.open(m.url, '_blank'); })
       .addTo(map);
   });
 
