@@ -242,7 +242,8 @@ def _parse_plan(path):
         if m:
             budget = m.group(1).strip()
             break
-    return {"slug": slug, "title": title, "body": post.content, "stops": stops, "keywords": keywords, "budget": budget}
+    description = post.metadata.get("description", "") or ""
+    return {"slug": slug, "title": title, "description": description, "body": post.content, "stops": stops, "keywords": keywords, "budget": budget}
 
 
 def _parse_stops(body, plan_slug):
@@ -425,6 +426,7 @@ def plan_list(request):
         plans.append({
             "slug": slug,
             "title": plan["title"],
+            "description": plan.get("description", ""),
             "stop_count": len(stops),
             "place_count": total_places,
             "cities": cities,
@@ -461,6 +463,7 @@ def plan_new(request):
                 error = f"A trip named '{slug}' already exists."
             else:
                 passphrase = _generate_passphrase()
+                description_raw = request.POST.get("description", "").strip()
                 locations_raw = request.POST.get("locations", "").strip()
                 budget_raw = request.POST.get("budget", "").strip()
                 body_lines = []
@@ -498,7 +501,10 @@ def plan_new(request):
                         body_lines.append("")
                     body_lines.extend(city_headings)
                 body = "\n".join(body_lines)
-                post = fm.Post(body, title=title, passphrase=passphrase)
+                meta = {"title": title, "passphrase": passphrase}
+                if description_raw:
+                    meta["description"] = description_raw
+                post = fm.Post(body, **meta)
                 with open(path, "w", encoding="utf-8") as fh:
                     fm.dump(post, fh)
                 _save_password(slug, passphrase)

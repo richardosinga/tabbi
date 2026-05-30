@@ -43,6 +43,7 @@
       </div>
       <div class="plan-card-body">
         <div class="plan-card-title">{{ plan.title }}</div>
+        {% if plan.description %}<div class="plan-card-description">{{ plan.description }}</div>{% endif %}
         {% if plan.date_range %}
         <div class="plan-card-dates">{{ plan.date_range }}</div>
         {% endif %}
