@@ -1,0 +1,34 @@
+server {
+    listen 80;
+    server_name tab.bi www.tab.bi;
+
+    # Redirect HTTP to HTTPS (after certbot sets up the cert)
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name tab.bi www.tab.bi;
+
+    # Let certbot manage these:
+    # ssl_certificate     /etc/letsencrypt/live/tab.bi/fullchain.pem;
+    # ssl_certificate_key /etc/letsencrypt/live/tab.bi/privkey.pem;
+    # include /etc/letsencrypt/options-ssl-nginx.conf;
+
+    client_max_body_size 10M;
+
+    location /static/ {
+        alias /home/tabi/tabbi/staticfiles/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location / {
+        proxy_pass http://unix:/run/tabbi.sock;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;
+    }
+}

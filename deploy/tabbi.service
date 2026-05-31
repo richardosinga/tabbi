@@ -1,0 +1,25 @@
+[Unit]
+Description=Tabbi gunicorn
+After=network.target
+
+[Service]
+User=tabi
+Group=tabi
+WorkingDirectory=/home/tabi/tabbi
+EnvironmentFile=/home/tabi/tabbi/.env
+ExecStart=/home/tabi/tabbi/venv/bin/gunicorn \
+    --workers 3 \
+    --bind unix:/run/tabbi.sock \
+    --timeout 120 \
+    --access-logfile /home/tabi/tabbi/logs/access.log \
+    --error-logfile /home/tabi/tabbi/logs/error.log \
+    tabbi.wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+RuntimeDirectory=tabbi
+RuntimeDirectoryMode=0755
+
+[Install]
+WantedBy=multi-user.target
