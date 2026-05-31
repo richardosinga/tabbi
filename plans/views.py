@@ -323,9 +323,12 @@ def _parse_stops(body, plan_slug):
                     page = _find_poi_in_city(text, current["city_path"])
             image_url = None
             if page:
-                img = _image_path(page)
-                if img:
-                    image_url = f"/content-image/{img}"
+                if page.meta.get("image_url"):
+                    image_url = page.meta["image_url"]
+                else:
+                    img = _image_path(page)
+                    if img:
+                        image_url = f"/content-image/{img}"
             current["items"].append({
                 "text": text,
                 "page": page,
