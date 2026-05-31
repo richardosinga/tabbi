@@ -30,7 +30,7 @@ fi
 
 # ── 3. Python venv & deps ────────────────────────────────────────────────────
 echo "==> Installing dependencies…"
-python3 -m venv "$VENV"
+virtualenv "$VENV"
 "$VENV/bin/pip" install --upgrade pip wheel
 "$VENV/bin/pip" install -r "$APP_DIR/requirements.txt"
 
