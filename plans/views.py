@@ -796,6 +796,13 @@ def plan_stop(request, slug, city_slug):
         if any(s["category"] == key for s in suggestions)
     ]
 
+    for item in stop["items"]:
+        p = item.get("page")
+        item["is_local"] = bool(
+            p and not p.meta.get("external_url") and not p.meta.get("source_url")
+            and not p.path.startswith("~pois/")
+        )
+
     import frontmatter as _fmb
     _plan_meta = _fmb.load(str(PLANS_DIR / f"{plan['slug']}.md")).metadata
     stop_budget = (_plan_meta.get("budgets") or {}).get(stop["city_slug"]) or {}

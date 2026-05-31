@@ -37,8 +37,7 @@
       </div>
       {% endif %}
       {% for item in stop.items %}
-      {% with is_local=item.page and not item.page.meta.external_url and not item.page.meta.source_url and not item.page.path|slice:":6" == "~pois/" %}
-      <div class="plan-poi-card{% if not item.page and not item.external_url %} plan-poi-card-note{% endif %}{% if is_local %} plan-poi-card--expandable{% endif %}"{% if is_local %} onclick="togglePoiCard(event, this)"{% endif %}>
+      <div class="plan-poi-card{% if not item.page and not item.external_url %} plan-poi-card-note{% endif %}{% if item.is_local %} plan-poi-card--expandable{% endif %}"{% if item.is_local %} onclick="togglePoiCard(event, this)"{% endif %}>
         {% if item.image_url %}
         <div class="plan-poi-image" style="background-image: url('{{ item.image_url }}')"></div>
         {% endif %}
@@ -51,7 +50,7 @@
             {% else %}
             <span class="plan-poi-title plan-poi-title--local">{{ item.page.title }}</span>
             {% endif %}
-            {% if is_local %}
+            {% if item.is_local %}
               {% if item.page.meta.snippet %}
               <p class="plan-poi-tagline">{{ item.page.meta.snippet }}</p>
               {% endif %}
@@ -100,7 +99,6 @@
           <button type="submit" class="plan-remove-btn" title="Remove from plan" onclick="event.stopPropagation()">−</button>
         </form>
       </div>
-      {% endwith %}
       {% endfor %}
 
       <div class="plan-budget-toggle-row">
