@@ -145,7 +145,11 @@ TOOLS = [
         "name": "submit_pois",
         "description": (
             "Submit researched places to Tabbi as plan entries. "
-            "Call after research_city once you've written up the missing places."
+            "Call after research_city once you've written up the missing places. "
+            "IMPORTANT: latitude and longitude are required for every POI. "
+            "Do NOT guess or estimate coordinates — look them up via web search or "
+            "the Nominatim API (https://nominatim.openstreetmap.org/search?q=<name>&format=json) "
+            "before submitting. Wrong coordinates break the map."
         ),
         "inputSchema": {
             "type": "object",
@@ -164,13 +168,14 @@ TOOLS = [
                     "items": {
                         "type": "object",
                         "properties": {
-                            "name":     {"type": "string"},
-                            "category": {"type": "string", "description": "Landmark|Museum|Restaurant|Market|Park|Neighbourhood|Viewpoint|Bar|Gallery"},
-                            "body":     {"type": "string", "description": "2-4 paragraphs, under 280 words"},
-                            "latitude": {"type": "number"},
-                            "longitude":{"type": "number"},
+                            "name":      {"type": "string"},
+                            "category":  {"type": "string", "description": "Landmark|Museum|Restaurant|Market|Park|Neighbourhood|Viewpoint|Bar|Gallery"},
+                            "body":      {"type": "string", "description": "2-4 paragraphs, under 280 words"},
+                            "latitude":  {"type": "number", "description": "REQUIRED. Must be geocoded via search — never estimated."},
+                            "longitude": {"type": "number", "description": "REQUIRED. Must be geocoded via search — never estimated."},
+                            "image_url": {"type": "string", "description": "Direct image URL from Wikimedia Commons or similar free source."},
                         },
-                        "required": ["name", "body"],
+                        "required": ["name", "body", "latitude", "longitude"],
                     },
                 },
             },
@@ -342,7 +347,10 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
         f"3. Write 2-4 new places not already listed above. For each:\n"
         f"   - 2-4 paragraphs of prose, under 280 words, per the style guide below\n"
         f"   - One category: Landmark|Museum|Restaurant|Market|Park|Neighbourhood|Viewpoint|Bar|Gallery\n"
-        f"   - Latitude/longitude coordinates\n"
+        f"   - Exact latitude/longitude — geocode each place via Nominatim:\n"
+        f"     https://nominatim.openstreetmap.org/search?q=<place+name>&format=json&limit=1\n"
+        f"     NEVER guess or estimate coordinates. Wrong coords break the map.\n"
+        f"   - A direct image_url from Wikimedia Commons if one exists\n"
         f"4. Write a 2-4 sentence intro for the city stop.\n"
         f"5. Call submit_pois with the intro and all new places."
     )
