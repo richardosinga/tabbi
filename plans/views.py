@@ -958,7 +958,14 @@ def _plan_file_add(slug, city_slug, poi_path):
             else:
                 break
     if insert_at is None:
-        return False
+        # Stop doesn't exist yet — append a new section
+        city_title = city_slug.replace("-", " ").title()
+        lines.append(f"## {city_title}")
+        lines.append(f"- {poi_path}")
+        post.content = "\n".join(lines)
+        with open(path, "w", encoding="utf-8") as fh:
+            fm.dump(post, fh)
+        return True
     if any(l.strip().lstrip("-* ") == poi_path for l in lines):
         return False
     lines.insert(insert_at, f"- {poi_path}")
