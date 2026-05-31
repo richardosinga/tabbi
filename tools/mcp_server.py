@@ -118,6 +118,8 @@ TOOLS = [
             "properties": {
                 "city_path":  {"type": "string", "description": "World66 content path (e.g. 'europe/spain/catalonia/barcelona'). Use the city_path returned by plan_trip."},
                 "city_title": {"type": "string", "description": "Human-readable city name (e.g. 'Barcelona')"},
+                "city_slug":  {"type": "string", "description": "City slug (e.g. 'barcelona'). Use the city_slug returned by open_plan or plan_trip."},
+                "plan_slug":  {"type": "string", "description": "Plan slug, so existing plan items are shown and not duplicated."},
             },
             "required": ["city_title"],
         },
@@ -221,19 +223,33 @@ def tool_open_plan(passphrase: str) -> str:
     except RuntimeError as e:
         return f"Failed to open plan: {e}"
 
+    plan_slug = result["slug"]
+    plan_items = _read_plan_items(plan_slug)
+
     lines = [
         f"**Opened plan: {result['title']}**", "",
         f"**Plan URL:** {result['url']}",
         f"**Passphrase:** `{result['passphrase']}`", "",
-        "You can now add places to this trip. Call research_city for any stop:",
+        "Here are the stops and what's already in the plan:",
     ]
     for city in result.get("cities", []):
+        city_slug = city["city_slug"]
+        existing = plan_items.get(city_slug, [])
         poi_count = _count_existing_pois(city.get("city_path", ""))
-        coverage = f"{poi_count} place(s) already in the guide" if poi_count else "ready to research"
+        guide_note = f"{poi_count} place(s) in the world66 guide" if poi_count else "no world66 content"
         lines.append(
-            f"- **{city['city_title']}**: city_path={city['city_path']!r}, "
-            f"city_slug={city['city_slug']!r} — {coverage}"
+            f"\n- **{city['city_title']}**: city_path={city['city_path']!r}, "
+            f"city_slug={city_slug!r} — {guide_note}"
         )
+        if existing:
+            lines.append(f"  Already in plan ({len(existing)}): {', '.join(existing)}")
+        else:
+            lines.append("  Nothing added yet.")
+    lines += [
+        "",
+        "Call research_city for each stop you want to fill in. "
+        "Do NOT re-add places already listed above.",
+    ]
     return "\n".join(lines)
 
 
@@ -265,7 +281,7 @@ def tool_plan_trip(stops=None, title="", destination="", start_date="", end_date
     return "\n".join(lines)
 
 
-def tool_research_city(city_title: str, city_path: str = "") -> str:
+def tool_research_city(city_title: str, city_path: str = "", city_slug: str = "", plan_slug: str = "") -> str:
     style_md = ""
     style_file = WORLD66_DIR / "STYLE.md"
     if style_file.exists():
@@ -289,18 +305,41 @@ def tool_research_city(city_title: str, city_path: str = "") -> str:
                 except Exception:
                     pass
 
+    # What's already in the plan for this city
+    already_in_plan: list[str] = []
+    if plan_slug and city_slug:
+        plan_items = _read_plan_items(plan_slug)
+        already_in_plan = plan_items.get(city_slug, [])
+    elif plan_slug and city_title:
+        plan_items = _read_plan_items(plan_slug)
+        slug_guess = city_title.lower().replace(" ", "-")
+        already_in_plan = plan_items.get(slug_guess, [])
+
     sections = [f"## What we have for {city_title}"]
+
+    if already_in_plan:
+        sections.append(
+            f"### Already in the plan ({len(already_in_plan)}) — do NOT add these again\n"
+            + "\n".join(f"- {item}" for item in already_in_plan)
+        )
+
     if existing_pois:
         place_lines = "\n".join(f"- {p['title']} (`{p['path']}`)" for p in existing_pois)
-        sections.append(f"### Places ({len(existing_pois)})\n{place_lines}")
+        sections.append(f"### World66 guide places ({len(existing_pois)})\n{place_lines}")
     else:
-        sections.append(f"No existing content for {city_title} — research from scratch.")
+        sections.append(f"No existing world66 content for {city_title} — research from scratch.")
+
+    # Filter out world66 POIs already in the plan so add_pois_to_plan only gets new ones
+    already_titles = {a.lower() for a in already_in_plan}
+    new_pois = [p for p in existing_pois if p["title"].lower() not in already_titles]
 
     sections.append(
         "## Instructions\n"
-        f"1. Call add_pois_to_plan with ALL paths above to add existing content.\n"
-        f"2. Use web search to find what's notable in {city_title}.\n"
-        f"3. Write 2-4 new places not already in the list above. For each:\n"
+        + (f"1. Call add_pois_to_plan with these {len(new_pois)} NOT-yet-added world66 path(s):\n"
+           + "\n".join(f"   - `{p['path']}`" for p in new_pois)
+           + "\n" if new_pois else "1. No new world66 POIs to add.\n")
+        + f"2. Use web search to find what's notable in {city_title}.\n"
+        f"3. Write 2-4 new places not already listed above. For each:\n"
         f"   - 2-4 paragraphs of prose, under 280 words, per the style guide below\n"
         f"   - One category: Landmark|Museum|Restaurant|Market|Park|Neighbourhood|Viewpoint|Bar|Gallery\n"
         f"   - Latitude/longitude coordinates\n"
@@ -355,6 +394,34 @@ def tool_search_world66(query: str) -> str:
             f"{r.get('page_type', '')}" + (f", {r['location']}" if r.get('location') else "")
         )
     return "\n".join(lines)
+
+
+def _read_plan_items(plan_slug: str) -> dict[str, list[str]]:
+    """Return {city_slug: [poi title or path, ...]} for what's already in the plan."""
+    plan_file = REPO_PATH / "plans" / f"{plan_slug}.md"
+    if not plan_file.exists():
+        return {}
+    items_by_city: dict[str, list[str]] = {}
+    current_city = None
+    for line in plan_file.read_text(encoding="utf-8", errors="ignore").splitlines():
+        line = line.rstrip()
+        if line.startswith("## "):
+            heading = line[3:].strip()
+            city_part = heading.split("|")[0].strip()
+            if "/" in city_part:
+                current_city = city_part.split("/")[-1].replace("_", " ").lower().replace(" ", "-")
+            else:
+                current_city = city_part.lower().replace(" ", "-")
+            items_by_city.setdefault(current_city, [])
+        elif line.startswith("- ") and current_city is not None:
+            entry = line[2:].strip()
+            # strip markdown links, keep the label
+            if entry.startswith("["):
+                label = entry[1:entry.index("]")] if "]" in entry else entry
+            else:
+                label = entry.split("](")[0].lstrip("[") if "](" in entry else entry
+            items_by_city[current_city].append(label)
+    return items_by_city
 
 
 def _count_existing_pois(city_path: str) -> int:
@@ -414,7 +481,10 @@ def _handle(message: dict) -> dict | None:
                     end_date=args.get("end_date", ""), notes=args.get("notes", ""),
                 )
             elif name == "research_city":
-                text = tool_research_city(city_title=args["city_title"], city_path=args.get("city_path", ""))
+                text = tool_research_city(
+                    city_title=args["city_title"], city_path=args.get("city_path", ""),
+                    city_slug=args.get("city_slug", ""), plan_slug=args.get("plan_slug", ""),
+                )
             elif name == "add_pois_to_plan":
                 text = tool_add_pois_to_plan(
                     plan_slug=args["plan_slug"], passphrase=args["passphrase"],

@@ -277,7 +277,7 @@ def _parse_stops(body, plan_slug):
                 city_name = city_part.split("/")[-1].replace("_", " ").title()
             else:
                 city_name = city_part
-                hint = plan_slug + " " + " ".join(s.get("city_path", "") for s in stops)
+                hint = plan_slug + " " + " ".join(s.get("city_path") or "" for s in stops)
                 city_path = resolve_location_name(city_part, hint)
             city_slug = city_name.lower().replace(" ", "-")
             current = {
@@ -429,7 +429,7 @@ def plan_list(request):
         all_dates = [s["dates"] for s in stops if s.get("dates")]
         date_range = (f"{all_dates[0].split('–')[0].strip()} – {all_dates[-1].split('–')[-1].strip()}"
                       if len(all_dates) > 1 else (all_dates[0] if all_dates else None))
-        cities = [s["city"] for s in stops]
+        cities = [s["city"] for s in stops if s.get("city")]
         plans.append({
             "slug": slug,
             "title": plan["title"],
