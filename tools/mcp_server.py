@@ -54,6 +54,24 @@ WORLD66_DIR = Path(os.environ.get("WORLD66_DIR", str(REPO_PATH / "world66")))
 
 TOOLS = [
     {
+        "name": "open_plan",
+        "description": (
+            "Open an existing Tabbi trip plan using a passphrase. "
+            "Use this when the user provides a passphrase for a trip they already created. "
+            "Returns the plan URL, slug, title, and city stops — then call research_city for each stop to add more places."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "passphrase": {
+                    "type": "string",
+                    "description": "The trip passphrase (e.g. 'scarlet-cobalt-swift')",
+                },
+            },
+            "required": ["passphrase"],
+        },
+    },
+    {
         "name": "plan_trip",
         "description": (
             "Create a Tabbi trip plan. Supports single or multi-city trips. "
@@ -196,6 +214,28 @@ def _http_get(url: str) -> dict:
 # ---------------------------------------------------------------------------
 # Tool implementations
 # ---------------------------------------------------------------------------
+
+def tool_open_plan(passphrase: str) -> str:
+    try:
+        result = _http_post(f"{TABBI_BASE_URL}/api/plans/open", {"passphrase": passphrase})
+    except RuntimeError as e:
+        return f"Failed to open plan: {e}"
+
+    lines = [
+        f"**Opened plan: {result['title']}**", "",
+        f"**Plan URL:** {result['url']}",
+        f"**Passphrase:** `{result['passphrase']}`", "",
+        "You can now add places to this trip. Call research_city for any stop:",
+    ]
+    for city in result.get("cities", []):
+        poi_count = _count_existing_pois(city.get("city_path", ""))
+        coverage = f"{poi_count} place(s) already in the guide" if poi_count else "ready to research"
+        lines.append(
+            f"- **{city['city_title']}**: city_path={city['city_path']!r}, "
+            f"city_slug={city['city_slug']!r} — {coverage}"
+        )
+    return "\n".join(lines)
+
 
 def tool_plan_trip(stops=None, title="", destination="", start_date="", end_date="", notes="") -> str:
     if not stops:
@@ -365,7 +405,9 @@ def _handle(message: dict) -> dict | None:
         name = params.get("name", "")
         args = params.get("arguments", {})
         try:
-            if name == "plan_trip":
+            if name == "open_plan":
+                text = tool_open_plan(passphrase=args["passphrase"])
+            elif name == "plan_trip":
                 text = tool_plan_trip(
                     stops=args.get("stops"), title=args.get("title", ""),
                     destination=args.get("destination", ""), start_date=args.get("start_date", ""),

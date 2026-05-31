@@ -1,3 +1,10 @@
 venv/
 *.pyc
 __pycache__/
+.env
+*.db
+plans/*.md
+plans/pois/
+plans/.passwords.json
+plans/.geocache.json
+passports/

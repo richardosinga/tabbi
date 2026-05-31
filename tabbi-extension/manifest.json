@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Tabbi Trip Planner",
+  "version": "1.0",
+  "description": "Add places to your Tabbi trips while browsing",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Add to Tabbi Trip"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": false
+  },
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["<all_urls>"]
+}

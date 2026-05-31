@@ -1,0 +1,181 @@
+{% extends "plans/base.html" %}
+{% block title %}Your experiences — {{ passport.title }}{% endblock %}
+{% block content %}
+<style>
+.pp-step-wrap { max-width: 560px; margin: 40px auto; padding: 0 24px 80px; }
+.pp-step-dots { display: flex; gap: 8px; margin-bottom: 40px; }
+.pp-step-dot { width: 32px; height: 4px; border-radius: 2px; background: #DCDCDC; }
+.pp-step-dot.active { background: #e7a328; }
+.pp-step-dot.done   { background: #e7a328; opacity: .4; }
+
+.card-stage { perspective: 1200px; height: 420px; position: relative; }
+
+.exp-card {
+  position: absolute; inset: 0;
+  background: #fff;
+  border: 2px solid #DCDCDC;
+  border-radius: 20px; padding: 40px;
+  box-shadow: 4px 4px 0 #180A0A;
+  display: flex; flex-direction: column; justify-content: flex-start;
+  transform-style: preserve-3d; backface-visibility: hidden;
+  transition: transform .55s cubic-bezier(.4,0,.2,1), opacity .55s ease;
+  will-change: transform, opacity;
+}
+.exp-card.state-right  { transform: translateX(60px) rotateY(-8deg); opacity: 0; pointer-events: none; }
+.exp-card.state-active { transform: translateX(0) rotateY(0deg); opacity: 1; pointer-events: all; }
+.exp-card.state-left   { transform: translateX(-60px) rotateY(8deg); opacity: 0; pointer-events: none; }
+
+.card-counter { font-size: .75rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #e7a328; margin-bottom: 20px; }
+.card-question { font-size: 1.4rem; font-weight: 600; color: #180A0A; line-height: 1.35; margin-bottom: 24px; }
+.pp-label { display: block; font-weight: 600; font-size: .85rem; margin-bottom: 6px; color: #535050; }
+.pp-input, .pp-textarea {
+  width: 100%; padding: 11px 15px;
+  border: 2px solid #DCDCDC; border-radius: 8px;
+  font-size: 1rem; font-family: inherit; background: #fff; color: #180A0A;
+  box-sizing: border-box;
+}
+.pp-textarea { resize: none; height: 90px; }
+.pp-input:focus, .pp-textarea:focus { outline: none; border-color: #e7a328; }
+.pp-field-row { margin-bottom: 16px; }
+.card-actions {
+  margin-top: auto; display: flex;
+  align-items: center; justify-content: space-between; padding-top: 20px;
+}
+.pp-next-btn {
+  background: #e7a328; color: #180A0A;
+  border: 2.5px solid #180A0A; border-radius: 8px;
+  box-shadow: 3px 3px 0 #180A0A;
+  padding: 12px 28px; font-size: .95rem; font-weight: 700; cursor: pointer;
+  font-family: inherit;
+}
+.pp-next-btn:hover { background: #c8891a; }
+.pp-skip-link { font-size: .85rem; color: #535050; cursor: pointer; background: none; border: none; padding: 0; font-family: inherit; }
+.pp-skip-link:hover { color: #180A0A; }
+
+.dot-row { display: flex; gap: 8px; justify-content: center; margin-top: 24px; }
+.dot-step { width: 8px; height: 8px; border-radius: 50%; background: #DCDCDC; transition: background .25s; }
+.dot-step.active { background: #e7a328; }
+.dot-step.done   { background: #e7a328; opacity: .45; }
+
+.pp-err { color: #c0392b; font-size: .85rem; margin-top: 6px; display: none; }
+.pp-err.visible { display: block; }
+</style>
+<div class="pp-step-wrap">
+  <div class="pp-step-dots">
+    <div class="pp-step-dot active"></div>
+    <div class="pp-step-dot"></div>
+    <div class="pp-step-dot"></div>
+    <div class="pp-step-dot"></div>
+  </div>
+
+  <form method="post" id="expForm">
+    {% csrf_token %}
+    <div class="card-stage" id="cardStage">
+
+      <div class="exp-card state-active" id="card-1">
+        <div class="card-counter">Experience 1 of 3</div>
+        <h2 class="card-question">What's a trip that changed you?</h2>
+        <div class="pp-field-row">
+          <label class="pp-label" for="title_1">Where or what was it?</label>
+          <input class="pp-input" type="text" id="title_1" name="title_1" placeholder="e.g. Cycling through the Mekong Delta at dawn" autocomplete="off">
+          <div class="pp-err" id="err-1">Please give this experience a title.</div>
+        </div>
+        <div class="pp-field-row">
+          <label class="pp-label" for="description_1">What made it unforgettable? <span style="font-weight:400">(optional)</span></label>
+          <textarea class="pp-textarea" id="description_1" name="description_1" placeholder="A sentence about the moment, the feeling, why it stuck with you…"></textarea>
+        </div>
+        <div class="card-actions">
+          <button type="button" class="pp-skip-link" onclick="advance(1, true)">Skip</button>
+          <button type="button" class="pp-next-btn" onclick="advance(1, false)">Next &rarr;</button>
+        </div>
+      </div>
+
+      <div class="exp-card state-right" id="card-2">
+        <div class="card-counter">Experience 2 of 3</div>
+        <h2 class="card-question">A place you dream of going back to?</h2>
+        <div class="pp-field-row">
+          <label class="pp-label" for="title_2">Where or what was it?</label>
+          <input class="pp-input" type="text" id="title_2" name="title_2" placeholder="e.g. Cocktails on a rooftop in Berlin at 2am" autocomplete="off">
+          <div class="pp-err" id="err-2">Please give this experience a title.</div>
+        </div>
+        <div class="pp-field-row">
+          <label class="pp-label" for="description_2">What made it unforgettable? <span style="font-weight:400">(optional)</span></label>
+          <textarea class="pp-textarea" id="description_2" name="description_2" placeholder="A sentence about the moment, the feeling, why it stuck with you…"></textarea>
+        </div>
+        <div class="card-actions">
+          <button type="button" class="pp-skip-link" onclick="advance(2, true)">Skip</button>
+          <button type="button" class="pp-next-btn" onclick="advance(2, false)">Next &rarr;</button>
+        </div>
+      </div>
+
+      <div class="exp-card state-right" id="card-3">
+        <div class="card-counter">Experience 3 of 3</div>
+        <h2 class="card-question">One moment you'll tell people about forever?</h2>
+        <div class="pp-field-row">
+          <label class="pp-label" for="title_3">Where or what was it?</label>
+          <input class="pp-input" type="text" id="title_3" name="title_3" placeholder="e.g. Standing alone in front of Klimt's The Kiss in Vienna" autocomplete="off">
+          <div class="pp-err" id="err-3">Please give this experience a title.</div>
+        </div>
+        <div class="pp-field-row">
+          <label class="pp-label" for="description_3">What made it unforgettable? <span style="font-weight:400">(optional)</span></label>
+          <textarea class="pp-textarea" id="description_3" name="description_3" placeholder="A sentence about the moment, the feeling, why it stuck with you…"></textarea>
+        </div>
+        <div class="card-actions">
+          <button type="button" class="pp-skip-link" onclick="submitForm()">Skip &amp; finish</button>
+          <button type="button" class="pp-next-btn" onclick="advance(3, false)">Finish &rarr;</button>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="dot-row">
+      <div class="dot-step active" id="dot-1"></div>
+      <div class="dot-step" id="dot-2"></div>
+      <div class="dot-step" id="dot-3"></div>
+    </div>
+  </form>
+</div>
+
+<script>
+var current = 1;
+
+function advance(from, skip) {
+  if (!skip) {
+    var titleEl = document.getElementById('title_' + from);
+    var errEl = document.getElementById('err-' + from);
+    if (!titleEl.value.trim()) {
+      errEl.classList.add('visible');
+      titleEl.focus();
+      return;
+    }
+    errEl.classList.remove('visible');
+  }
+  if (from >= 3) { submitForm(); return; }
+  var outCard = document.getElementById('card-' + from);
+  var inCard  = document.getElementById('card-' + (from + 1));
+  outCard.classList.remove('state-active');
+  outCard.classList.add('state-left');
+  inCard.classList.remove('state-right');
+  inCard.classList.add('state-active');
+  document.getElementById('dot-' + from).classList.remove('active');
+  document.getElementById('dot-' + from).classList.add('done');
+  document.getElementById('dot-' + (from + 1)).classList.add('active');
+  current = from + 1;
+  setTimeout(function() {
+    var inp = inCard.querySelector('input[type=text]');
+    if (inp) inp.focus();
+  }, 300);
+}
+
+function submitForm() {
+  document.getElementById('expForm').submit();
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+    e.preventDefault();
+    advance(current, false);
+  }
+});
+</script>
+{% endblock %}

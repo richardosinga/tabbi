@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Tabbi Extension Settings</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Lexend+Exa:wght@400;700&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Lexend Exa', sans-serif;
+      font-size: 14px;
+      background: #F7F7F7;
+      color: #180A0A;
+      padding: 40px 32px;
+      max-width: 480px;
+    }
+    h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 24px; }
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #535050;
+      margin-bottom: 5px;
+    }
+    .field { margin-bottom: 20px; }
+    input[type="text"] {
+      width: 100%;
+      padding: 10px 12px;
+      border: 2px solid #DCDCDC;
+      border-radius: 6px;
+      font-family: 'Lexend Exa', sans-serif;
+      font-size: 13px;
+      background: #fff;
+      color: #180A0A;
+    }
+    input[type="text"]:focus { outline: none; border-color: #e7a328; }
+    .hint { font-size: 11px; color: #535050; margin-top: 4px; }
+    .btn {
+      padding: 10px 20px;
+      background: #e7a328;
+      color: #180A0A;
+      border: 2px solid #180A0A;
+      border-radius: 6px;
+      box-shadow: 3px 3px 0 #180A0A;
+      font-family: 'Lexend Exa', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn:hover { background: #c8891a; }
+    .btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #180A0A; }
+    .saved { color: #2a7a2a; font-size: 12px; margin-left: 10px; display: none; }
+  </style>
+</head>
+<body>
+  <h1>Tab.bi Settings</h1>
+
+  <div class="field">
+    <label>Tabbi server URL</label>
+    <input type="text" id="tabbi-url" placeholder="http://localhost:8001">
+    <p class="hint">The URL where your Tabbi app is running.</p>
+  </div>
+
+  <button class="btn" id="save-btn">Save</button>
+  <span class="saved" id="saved-msg">Saved!</span>
+
+  <script src="options.js"></script>
+</body>
+</html>

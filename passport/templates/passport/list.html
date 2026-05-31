@@ -1,0 +1,81 @@
+{% extends "plans/base.html" %}
+{% block title %}My Travel Passports — Tab.bi{% endblock %}
+{% block content %}
+<style>
+.pp-hero {
+  background: #180A0A; color: #fff;
+  padding: 64px 32px; text-align: center;
+  margin: -40px -32px 0;
+}
+.pp-hero h1 { font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 700; margin-bottom: 12px; }
+.pp-hero p { color: rgba(255,255,255,.7); font-size: 1.1rem; }
+.pp-wrap { max-width: 800px; margin: 48px auto; padding: 0 24px; }
+.pp-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px; margin-bottom: 40px;
+}
+.pp-card-link {
+  background: #fff;
+  border: 2.5px solid #180A0A; border-radius: 12px;
+  box-shadow: 4px 4px 0 #180A0A;
+  padding: 28px; text-decoration: none; color: #180A0A;
+  display: flex; flex-direction: column; gap: 8px;
+  transition: box-shadow .15s, transform .15s;
+}
+.pp-card-link:hover { box-shadow: 6px 6px 0 #180A0A; transform: translateY(-2px); text-decoration: none; }
+.pp-card-link h2 { font-size: 1.3rem; font-weight: 700; }
+.pp-card-link .meta { font-size: .85rem; color: #535050; }
+.step-badge {
+  display: inline-block; font-size: .75rem; font-weight: 600;
+  padding: 3px 10px; border-radius: 20px; background: #f5f5f5; color: #535050;
+}
+.step-badge.done { background: #d4edda; color: #155724; }
+.pp-new-btn {
+  display: inline-block;
+  background: #e7a328; color: #180A0A;
+  border: 2.5px solid #180A0A; border-radius: 8px;
+  box-shadow: 3px 3px 0 #180A0A;
+  padding: 14px 32px; font-weight: 700; font-size: 1rem; text-decoration: none;
+}
+.pp-new-btn:hover { background: #c8891a; color: #180A0A; text-decoration: none; }
+.pp-empty { text-align: center; padding: 48px 0; }
+.pp-empty p { color: #535050; margin-bottom: 24px; font-size: 1.05rem; }
+</style>
+
+<div class="pp-hero">
+  <h1>Travel Passports</h1>
+  <p>Your personal travel identity — experiences, photos, and what you love.</p>
+</div>
+
+<div class="pp-wrap">
+  {% if passports %}
+    <div class="pp-grid">
+      {% for p in passports %}
+        <a href="/passport/{{ p.slug }}" class="pp-card-link">
+          <h2>{{ p.title }}</h2>
+          <span class="meta">{{ p.created_at|slice:":10" }}</span>
+          {% if p.step >= 4 %}
+            <span class="step-badge done">Complete</span>
+          {% elif p.step == 3 %}
+            <span class="step-badge">Step 4: Scenarios</span>
+          {% elif p.step == 2 %}
+            <span class="step-badge">Step 3: Places</span>
+          {% elif p.step == 1 %}
+            <span class="step-badge">Step 2: Photos</span>
+          {% else %}
+            <span class="step-badge">Step 1: Experiences</span>
+          {% endif %}
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="pp-empty">
+      <p>You don't have any travel passports yet. Create one to capture your travel identity.</p>
+    </div>
+  {% endif %}
+
+  <div style="text-align:center">
+    <a href="/passport/new" class="pp-new-btn">+ Create a new passport</a>
+  </div>
+</div>
+{% endblock %}
