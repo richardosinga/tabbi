@@ -415,6 +415,7 @@ body:has(.tabbi-nav) select {
   border: 3px solid #180A0A;
   box-shadow: 6px 6px 0 #180A0A;
   overflow: hidden;
+  position: relative;
 }
 
 .plan-dest-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
@@ -509,6 +510,7 @@ body:has(.tabbi-nav) select {
   border: 3px solid #180A0A;
   box-shadow: 6px 6px 0 #180A0A;
   overflow: hidden;
+  position: relative;
 }
 
 /* Map mode toggle button */
