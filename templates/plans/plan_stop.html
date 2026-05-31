@@ -31,7 +31,7 @@
       <div class="plan-city-intro">
         <div>
           <p class="plan-city-intro-text">{{ city_snippet }}</p>
-          {% if stop.destination_url %}<a href="{{ stop.destination_url }}" class="plan-city-explore" target="_blank" rel="noopener">Read more on world66 ↗</a>{% endif %}
+          {% if stop.destination_url %}<a href="{{ stop.destination_url }}" class="plan-city-explore" target="_blank" rel="noopener">Read more on world66</a>{% endif %}
         </div>
       </div>
       {% endif %}
@@ -77,7 +77,7 @@
                 {% endif %}
                 <p class="plan-poi-full-body">{{ item.page.body }}</p>
                 {% if not item.page.path|slice:":6" == "~pois/" %}
-                <a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Read more on world66 ↗</a>
+                <a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Read more on world66</a>
                 {% endif %}
               </div>
             {% else %}

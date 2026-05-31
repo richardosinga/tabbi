@@ -645,27 +645,15 @@ body:has(.tabbi-nav) select {
 }
 .plan-poi-card--highlight { animation: poi-highlight 1.2s ease; }
 .plan-city-explore {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 10px;
-  font-size: 0.75rem;
-  font-weight: 800;
-  color: #180A0A;
-  background: #e7a328;
-  border: 2px solid #180A0A;
-  border-radius: 999px;
-  padding: 5px 14px;
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #888;
   text-decoration: none;
-  box-shadow: 2px 2px 0 #180A0A;
-  transition: all 0.12s;
+  transition: color 0.12s;
 }
-.plan-city-explore::after { content: " ↪"; font-weight: 400; }
-.plan-city-explore:hover {
-  background: #c8891a;
-  transform: translate(-1px, -1px);
-  box-shadow: 3px 3px 0 #180A0A;
-}
+.plan-city-explore:hover { color: #e7a328; }
 
 /* ── POI list ─────────────────────────────────────────────────────────────── */
 
@@ -761,12 +749,12 @@ span.plan-poi-title--draft::after { content: none; }
   white-space: pre-wrap;
 }
 .plan-poi-full-link {
-  font-size: 0.75rem;
-  color: #e7a328;
+  font-size: 0.72rem;
+  color: #888;
   text-decoration: none;
   font-weight: 600;
 }
-.plan-poi-full-link:hover { text-decoration: underline; }
+.plan-poi-full-link:hover { color: #e7a328; }
 .plan-poi-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
 .plan-poi-tag {
   font-size: 0.68rem;
