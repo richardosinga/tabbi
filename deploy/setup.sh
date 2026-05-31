@@ -32,7 +32,7 @@ fi
 echo "==> Installing dependencies…"
 python3 -m virtualenv "$VENV"
 "$VENV/bin/pip" install --upgrade pip wheel
-"$VENV/bin/pip" install -r "$APP_DIR/requirements.txt"
+"$VENV/bin/pip" install -r "$APP_DIR/requirements.in"
 
 # ── 4. .env file (create once; skip if already exists) ───────────────────────
 if [ ! -f "$APP_DIR/.env" ]; then
