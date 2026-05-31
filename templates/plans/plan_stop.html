@@ -37,7 +37,8 @@
       </div>
       {% endif %}
       {% for item in stop.items %}
-      <div class="plan-poi-card{% if not item.page and not item.external_url %} plan-poi-card-note{% endif %}">
+      {% with is_local=item.page and not item.page.meta.external_url and not item.page.meta.source_url and not item.page.path|slice:":6" == "~pois/" %}
+      <div class="plan-poi-card{% if not item.page and not item.external_url %} plan-poi-card-note{% endif %}{% if is_local %} plan-poi-card--expandable{% endif %}"{% if is_local %} onclick="togglePoiCard(event, this)"{% endif %}>
         {% if item.image_url %}
         <div class="plan-poi-image" style="background-image: url('{{ item.image_url }}')"></div>
         {% endif %}
@@ -48,12 +49,24 @@
             {% elif item.page.path|slice:":6" == "~pois/" %}
             <span class="plan-poi-title plan-poi-title--draft">{{ item.page.title }}</span>
             {% else %}
-            <a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener">{{ item.page.title }}</a>
+            <span class="plan-poi-title plan-poi-title--local">{{ item.page.title }}</span>
             {% endif %}
-            {% if item.page.meta.snippet %}
-            <p class="plan-poi-snippet">{{ item.page.meta.snippet }}</p>
-            {% elif item.page.body %}
-            <p class="plan-poi-snippet">{{ item.page.body }}</p>
+            {% if is_local %}
+              {% if item.page.meta.snippet %}
+              <p class="plan-poi-tagline">{{ item.page.meta.snippet }}</p>
+              {% endif %}
+              {% if item.page.body %}
+              <div class="plan-poi-full" hidden>
+                <p class="plan-poi-full-body">{{ item.page.body }}</p>
+                <a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Read more ↗</a>
+              </div>
+              {% endif %}
+            {% else %}
+              {% if item.page.meta.snippet %}
+              <p class="plan-poi-snippet">{{ item.page.meta.snippet }}</p>
+              {% elif item.page.body %}
+              <p class="plan-poi-snippet">{{ item.page.body }}</p>
+              {% endif %}
             {% endif %}
             {% if item.page.meta.booking_url %}
             <div class="poi-booking-bar">
@@ -84,9 +97,10 @@
           {% csrf_token %}
           <input type="hidden" name="poi_path" value="{{ item.text }}">
           <input type="hidden" name="next" value="{{ request.path }}">
-          <button type="submit" class="plan-remove-btn" title="Remove from plan">−</button>
+          <button type="submit" class="plan-remove-btn" title="Remove from plan" onclick="event.stopPropagation()">−</button>
         </form>
       </div>
+      {% endwith %}
       {% endfor %}
 
       <div class="plan-budget-toggle-row">
@@ -216,6 +230,15 @@ function toggleBudget() {
     btn.textContent = '＋ Budget';
     btn.classList.remove('plan-budget-toggle-btn--open');
   }
+}
+
+function togglePoiCard(event, card) {
+  if (event.target.closest('form, a, button')) return;
+  var full = card.querySelector('.plan-poi-full');
+  if (!full) return;
+  var expanded = card.classList.toggle('plan-poi-card--expanded');
+  if (expanded) full.removeAttribute('hidden');
+  else full.setAttribute('hidden', '');
 }
 
 function toggleConciergeForm(btn) {

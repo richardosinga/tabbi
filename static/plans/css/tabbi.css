@@ -680,6 +680,51 @@ body:has(.tabbi-nav) select {
 span.plan-poi-title--draft::after { content: none; }
 .plan-poi-title:hover { color: #e7a328; }
 .plan-poi-snippet { font-size: 0.78rem; color: #A6A6A6; margin-top: 3px; line-height: 1.45; }
+
+/* Expandable local POI cards */
+.plan-poi-card--expandable { cursor: pointer; }
+.plan-poi-title--local {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #180A0A;
+  display: block;
+  letter-spacing: -0.01em;
+}
+.plan-poi-title--local::after {
+  content: " ›";
+  color: #e7a328;
+  font-size: 1em;
+  font-weight: 400;
+  transition: transform 0.2s;
+  display: inline-block;
+}
+.plan-poi-card--expanded .plan-poi-title--local::after { content: " ‹"; }
+.plan-poi-tagline {
+  font-size: 0.78rem;
+  color: #A6A6A6;
+  margin-top: 3px;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.plan-poi-card--expanded .plan-poi-tagline { display: none; }
+.plan-poi-full { margin-top: 10px; border-top: 1.5px solid #f0ece3; padding-top: 10px; }
+.plan-poi-full-body {
+  font-size: 0.82rem;
+  color: #444;
+  line-height: 1.6;
+  margin: 0 0 8px;
+  white-space: pre-wrap;
+}
+.plan-poi-full-link {
+  font-size: 0.75rem;
+  color: #e7a328;
+  text-decoration: none;
+  font-weight: 600;
+}
+.plan-poi-full-link:hover { text-decoration: underline; }
 .plan-poi-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
 .plan-poi-tag {
   font-size: 0.68rem;
