@@ -587,24 +587,63 @@ body:has(.tabbi-nav) select {
 /* ── City intro ───────────────────────────────────────────────────────────── */
 
 .plan-city-intro {
-  display: flex;
-  gap: 14px;
   padding: 16px;
   border-radius: 14px;
   background: #fffdf7;
   border: 2.5px solid #180A0A;
   box-shadow: 4px 4px 0 #180A0A;
-  margin-bottom: 16px;
-}
-.plan-city-intro-image {
-  width: 90px;
-  height: 90px;
-  border-radius: 10px;
-  border: 2px solid #180A0A;
-  object-fit: cover;
-  flex-shrink: 0;
+  margin-bottom: 12px;
 }
 .plan-city-intro-text { font-size: 0.82rem; color: #535050; line-height: 1.55; }
+
+/* Image inspiration strip */
+.plan-inspo-strip {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  margin-bottom: 16px;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+.plan-inspo-strip::-webkit-scrollbar { display: none; }
+.plan-inspo-tile {
+  flex-shrink: 0;
+  width: 130px;
+  cursor: pointer;
+}
+.plan-inspo-img {
+  width: 130px;
+  height: 90px;
+  border-radius: 10px;
+  border: 2.5px solid #180A0A;
+  background-size: cover;
+  background-position: center;
+  box-shadow: 3px 3px 0 #180A0A;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+.plan-inspo-tile:hover .plan-inspo-img {
+  transform: translate(-1px, -2px);
+  box-shadow: 4px 5px 0 #180A0A;
+}
+.plan-inspo-label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #180A0A;
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 130px;
+}
+
+/* Card highlight flash when scrolled to from strip */
+@keyframes poi-highlight {
+  0%   { box-shadow: 3px 3px 0 #180A0A; }
+  30%  { box-shadow: 0 0 0 3px #e7a328, 3px 3px 0 #180A0A; }
+  100% { box-shadow: 3px 3px 0 #180A0A; }
+}
+.plan-poi-card--highlight { animation: poi-highlight 1.2s ease; }
 .plan-city-explore {
   display: inline-flex;
   align-items: center;
@@ -653,17 +692,6 @@ body:has(.tabbi-nav) select {
   box-shadow: none;
 }
 
-.plan-poi-image {
-  width: 80px;
-  height: 80px;
-  border-radius: 10px;
-  border: 2px solid #180A0A;
-  flex-shrink: 0;
-  background: #e7a328;
-  background-size: cover;
-  background-position: center;
-}
-.plan-poi-card--expanded .plan-poi-image { display: none; }
 .plan-poi-body { flex: 1; min-width: 0; }
 .plan-poi-title {
   font-size: 0.9rem;

@@ -27,20 +27,37 @@
     </div>
 
     <div class="plan-poi-list">
-      {% if city_snippet or city_image_url %}
+      {% if city_snippet %}
       <div class="plan-city-intro">
-        {% if city_image_url %}<img src="{{ city_image_url }}" alt="{{ stop.city }}" class="plan-city-intro-image">{% endif %}
         <div>
-          {% if city_snippet %}<p class="plan-city-intro-text">{{ city_snippet }}</p>{% endif %}
-          {% if stop.destination_url %}<a href="{{ stop.destination_url }}" class="plan-city-explore" target="_blank" rel="noopener">Explore {{ stop.city }}</a>{% endif %}
+          <p class="plan-city-intro-text">{{ city_snippet }}</p>
+          {% if stop.destination_url %}<a href="{{ stop.destination_url }}" class="plan-city-explore" target="_blank" rel="noopener">Read more on world66 ↗</a>{% endif %}
         </div>
       </div>
       {% endif %}
-      {% for item in stop.items %}
-      <div class="plan-poi-card{% if not item.page and not item.external_url %} plan-poi-card-note{% endif %}{% if item.is_expandable %} plan-poi-card--expandable{% endif %}"{% if item.is_expandable %} onclick="togglePoiCard(event, this)"{% endif %}>
-        {% if item.image_url %}
-        <div class="plan-poi-image" style="background-image: url('{{ item.image_url }}')"></div>
+
+      {% comment %}Image inspiration strip{% endcomment %}
+      {% if city_image_url or stop.items %}
+      <div class="plan-inspo-strip">
+        {% if city_image_url %}
+        <div class="plan-inspo-tile">
+          <div class="plan-inspo-img" style="background-image:url('{{ city_image_url }}')"></div>
+          <span class="plan-inspo-label">{{ stop.city }}</span>
+        </div>
         {% endif %}
+        {% for item in stop.items %}
+          {% if item.image_url %}
+          <div class="plan-inspo-tile" onclick="scrollToCard({{ forloop.counter0 }})">
+            <div class="plan-inspo-img" style="background-image:url('{{ item.image_url }}')"></div>
+            {% if item.page %}<span class="plan-inspo-label">{{ item.page.title }}</span>{% endif %}
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% for item in stop.items %}
+      <div class="plan-poi-card{% if not item.page and not item.external_url %} plan-poi-card-note{% endif %}{% if item.is_expandable %} plan-poi-card--expandable{% endif %}" data-card-index="{{ forloop.counter0 }}"{% if item.is_expandable %} onclick="togglePoiCard(event, this)"{% endif %}>
         <div class="plan-poi-body">
           {% if item.page %}
             {% if item.page.meta.external_url or item.page.meta.source_url %}
@@ -229,6 +246,14 @@ function toggleBudget() {
     btn.textContent = '＋ Budget';
     btn.classList.remove('plan-budget-toggle-btn--open');
   }
+}
+
+function scrollToCard(index) {
+  var card = document.querySelector('[data-card-index="' + index + '"]');
+  if (!card) return;
+  card.scrollIntoView({behavior: 'smooth', block: 'center'});
+  card.classList.add('plan-poi-card--highlight');
+  setTimeout(function() { card.classList.remove('plan-poi-card--highlight'); }, 1200);
 }
 
 function togglePoiCard(event, card) {
