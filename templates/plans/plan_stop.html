@@ -55,6 +55,9 @@
               <p class="plan-poi-tagline">{{ item.page.meta.snippet }}</p>
               {% endif %}
               <div class="plan-poi-full" hidden>
+                {% if item.image_url %}
+                <div class="plan-poi-full-image" style="background-image:url('{{ item.image_url }}')"></div>
+                {% endif %}
                 <p class="plan-poi-full-body">{{ item.page.body }}</p>
                 {% if not item.page.path|slice:":6" == "~pois/" %}
                 <a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Read more on world66 ↗</a>
@@ -175,7 +178,7 @@
   const markers = {{ markers }};
   const map = L.map('plan-stop-map', {scrollWheelZoom: false, zoomControl: true});
 
-  const tileDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_matter/{z}/{x}/{y}{r}.png', {maxZoom: 19, attribution: '&copy; <a href="https://carto.com/">CARTO</a>'});
+  const tileDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {maxZoom: 19, attribution: '&copy; <a href="https://carto.com/">CARTO</a>'});
   const tileLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {maxZoom: 19, attribution: '&copy; <a href="https://carto.com/">CARTO</a>'});
   var mapDark = localStorage.getItem('tabbi_map_dark') !== 'false';
   (mapDark ? tileDark : tileLight).addTo(map);
