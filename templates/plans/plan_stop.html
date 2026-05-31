@@ -37,7 +37,7 @@
       </div>
       {% endif %}
       {% for item in stop.items %}
-      <div class="plan-poi-card{% if not item.page and not item.external_url %} plan-poi-card-note{% endif %}{% if item.is_local %} plan-poi-card--expandable{% endif %}"{% if item.is_local %} onclick="togglePoiCard(event, this)"{% endif %}>
+      <div class="plan-poi-card{% if not item.page and not item.external_url %} plan-poi-card-note{% endif %}{% if item.is_expandable %} plan-poi-card--expandable{% endif %}"{% if item.is_expandable %} onclick="togglePoiCard(event, this)"{% endif %}>
         {% if item.image_url %}
         <div class="plan-poi-image" style="background-image: url('{{ item.image_url }}')"></div>
         {% endif %}
@@ -48,23 +48,21 @@
             {% elif item.page.path|slice:":6" == "~pois/" %}
             <span class="plan-poi-title plan-poi-title--draft">{{ item.page.title }}</span>
             {% else %}
-            <span class="plan-poi-title plan-poi-title--local">{{ item.page.title }}</span>
+            <a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.page.title }}</a>
             {% endif %}
-            {% if item.is_local %}
+            {% if item.is_expandable %}
               {% if item.page.meta.snippet %}
               <p class="plan-poi-tagline">{{ item.page.meta.snippet }}</p>
               {% endif %}
-              {% if item.page.body %}
               <div class="plan-poi-full" hidden>
                 <p class="plan-poi-full-body">{{ item.page.body }}</p>
-                <a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Read more ↗</a>
+                {% if not item.page.path|slice:":6" == "~pois/" %}
+                <a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Read more on world66 ↗</a>
+                {% endif %}
               </div>
-              {% endif %}
             {% else %}
               {% if item.page.meta.snippet %}
               <p class="plan-poi-snippet">{{ item.page.meta.snippet }}</p>
-              {% elif item.page.body %}
-              <p class="plan-poi-snippet">{{ item.page.body }}</p>
               {% endif %}
             {% endif %}
             {% if item.page.meta.booking_url %}

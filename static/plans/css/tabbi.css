@@ -641,6 +641,7 @@ body:has(.tabbi-nav) select {
   border: 2.5px solid #180A0A;
   box-shadow: 3px 3px 0 #180A0A;
   transition: transform 0.12s, box-shadow 0.12s;
+  position: relative;
 }
 .plan-poi-card:hover {
   transform: translate(-1px, -2px);
@@ -681,24 +682,19 @@ span.plan-poi-title--draft::after { content: none; }
 .plan-poi-title:hover { color: #e7a328; }
 .plan-poi-snippet { font-size: 0.78rem; color: #A6A6A6; margin-top: 3px; line-height: 1.45; }
 
-/* Expandable local POI cards */
+/* Expandable POI cards */
 .plan-poi-card--expandable { cursor: pointer; }
-.plan-poi-title--local {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #180A0A;
-  display: block;
-  letter-spacing: -0.01em;
-}
-.plan-poi-title--local::after {
-  content: " ›";
+.plan-poi-card--expandable .plan-poi-body::after {
+  content: "›";
+  position: absolute;
+  right: 14px;
+  top: 14px;
   color: #e7a328;
-  font-size: 1em;
-  font-weight: 400;
-  transition: transform 0.2s;
-  display: inline-block;
+  font-size: 1rem;
+  font-weight: 700;
+  pointer-events: none;
 }
-.plan-poi-card--expanded .plan-poi-title--local::after { content: " ‹"; }
+.plan-poi-card--expanded .plan-poi-body::after { content: "‹"; }
 .plan-poi-tagline {
   font-size: 0.78rem;
   color: #A6A6A6;

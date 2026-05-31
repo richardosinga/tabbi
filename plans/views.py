@@ -798,10 +798,7 @@ def plan_stop(request, slug, city_slug):
 
     for item in stop["items"]:
         p = item.get("page")
-        item["is_local"] = bool(
-            p and not p.meta.get("external_url") and not p.meta.get("source_url")
-            and not p.path.startswith("~pois/")
-        )
+        item["is_expandable"] = bool(p and p.body and not p.meta.get("external_url") and not p.meta.get("source_url"))
 
     import frontmatter as _fmb
     _plan_meta = _fmb.load(str(PLANS_DIR / f"{plan['slug']}.md")).metadata
