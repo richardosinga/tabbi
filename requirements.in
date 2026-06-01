@@ -5,3 +5,4 @@ anthropic
 twilio
 beautifulsoup4
 gunicorn
+mcp[cli]
