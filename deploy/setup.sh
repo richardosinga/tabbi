@@ -12,11 +12,11 @@ VENV="$APP_DIR/venv"
 if [ -d "$APP_DIR/.git" ]; then
   echo "==> Pulling latest…"
   git -C "$APP_DIR" fetch origin
-  git -C "$APP_DIR" checkout feature/travel-passport
+  git -C "$APP_DIR" checkout main
   git -C "$APP_DIR" pull --ff-only
 else
   echo "==> Cloning repo…"
-  git clone -b feature/travel-passport "$REPO" "$APP_DIR"
+  git clone -b main "$REPO" "$APP_DIR"
 fi
 
 # ── 2. World66 content ───────────────────────────────────────────────────────
