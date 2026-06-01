@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+"""
+Flow 1: Copy draft POIs from plans/pois/ to world66/content/ and open a PR.
+
+Usage:
+  python deploy/pois-to-world66.py           # dry-run, shows what would be copied
+  python deploy/pois-to-world66.py --apply   # actually copies and opens PR
+"""
+
+import argparse
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+CONTINENTS = {"africa", "asia", "australiaandpacific", "europe", "northamerica", "southamerica"}
+
+REPO_DIR = Path(__file__).resolve().parent.parent
+POIS_DIR = REPO_DIR / "plans" / "pois"
+
+dotenv = REPO_DIR / ".env"
+if dotenv.exists():
+    for line in dotenv.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            k, _, v = line.partition("=")
+            os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+
+WORLD66_DIR = Path(os.environ.get("WORLD66_DIR", str(REPO_DIR / "world66")))
+WORLD66_CONTENT = WORLD66_DIR / "content"
+
+
+def find_city_dir(city_slug: str) -> Path | None:
+    """Search world66 for a directory matching city_slug."""
+    matches = [p for p in WORLD66_CONTENT.rglob(city_slug) if p.is_dir()]
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1:
+        print(f"  WARNING: multiple matches for '{city_slug}': {[str(m.relative_to(WORLD66_CONTENT)) for m in matches]} — skipping")
+    return None
+
+
+def collect_copies() -> list[tuple[Path, Path]]:
+    """Return list of (src, dst) pairs to copy."""
+    copies = []
+    if not POIS_DIR.exists():
+        return copies
+
+    for src in sorted(POIS_DIR.rglob("*.md")):
+        rel = src.relative_to(POIS_DIR)
+        parts = rel.parts
+        plan_slug = parts[0]
+        rest = Path(*parts[1:])  # path within plan's pois dir
+
+        first_segment = parts[1]
+
+        if first_segment in CONTINENTS:
+            # Full world66 path — copy directly
+            dst = WORLD66_CONTENT / rest
+        else:
+            # Short path — first segment is a city slug, resolve it
+            city_slug = first_segment
+            city_dir = find_city_dir(city_slug)
+            if not city_dir:
+                print(f"  SKIP (city not found in world66): {rel}")
+                continue
+            poi_filename = Path(*parts[2:])
+            dst = city_dir / poi_filename
+
+        if dst.exists():
+            print(f"  SKIP (already exists): {dst.relative_to(WORLD66_CONTENT)}")
+            continue
+
+        copies.append((src, dst))
+
+    # Deduplicate: if multiple sources map to the same destination, keep the full-path version
+    seen: dict[Path, tuple[Path, Path]] = {}
+    for src, dst in copies:
+        if dst in seen:
+            print(f"  DEDUP: {src.relative_to(POIS_DIR)} supersedes {seen[dst][0].relative_to(POIS_DIR)}")
+        seen[dst] = (src, dst)
+    return list(seen.values())
+
+
+def run(cmd: list[str], cwd: Path) -> str:
+    result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"Error running {' '.join(cmd)}:\n{result.stderr}")
+        sys.exit(1)
+    return result.stdout.strip()
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--apply", action="store_true", help="Actually copy files and open PR")
+    args = parser.parse_args()
+
+    if not WORLD66_CONTENT.exists():
+        print(f"Error: world66 content not found at {WORLD66_CONTENT}")
+        sys.exit(1)
+
+    copies = collect_copies()
+
+    if not copies:
+        print("Nothing to copy — all draft POIs already exist in world66 or no draft POIs found.")
+        return
+
+    print(f"{'Would copy' if not args.apply else 'Copying'} {len(copies)} POI(s) to world66:\n")
+    for src, dst in copies:
+        print(f"  {src.relative_to(POIS_DIR)}  →  {dst.relative_to(WORLD66_CONTENT)}")
+
+    if not args.apply:
+        print("\nRun with --apply to copy files and open a PR.")
+        return
+
+    # Copy files
+    for src, dst in copies:
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dst)
+        print(f"  Copied: {dst.relative_to(WORLD66_CONTENT)}")
+
+    # Git: create branch, commit, push, PR
+    from datetime import date
+    branch = f"tabbi-pois-{date.today()}"
+
+    # Check if branch already exists
+    existing = run(["git", "branch", "--list", branch], cwd=WORLD66_DIR)
+    if existing:
+        branch = f"{branch}-{date.today().strftime('%H%M')}"
+
+    run(["git", "checkout", "-b", branch], cwd=WORLD66_DIR)
+    run(["git", "add", "."], cwd=WORLD66_DIR)
+    run(["git", "commit", "-m", f"Add {len(copies)} POI(s) from Tabbi trips"], cwd=WORLD66_DIR)
+    run(["git", "push", "origin", branch], cwd=WORLD66_DIR)
+
+    pr_url = run([
+        "gh", "pr", "create",
+        "--title", f"POIs from Tabbi trips ({date.today()})",
+        "--body", f"Adds {len(copies)} place(s) researched via Tabbi trip planning.\n\nAuto-generated by `deploy/pois-to-world66.py`.",
+    ], cwd=WORLD66_DIR)
+
+    print(f"\nPR created: {pr_url}")
+    print("\nNext: review and merge the PR, then run `deploy/update-plan-refs.py --apply`")
+
+
+if __name__ == "__main__":
+    main()
