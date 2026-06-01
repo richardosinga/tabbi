@@ -1,7 +1,7 @@
 (async () => {
   const store = chrome.storage.local;
   let stored = await store.get(['tabbiUrl', 'passphrases']);
-  let tabbiUrl = (stored.tabbiUrl || '').replace(/\/$/, '');
+  let tabbiUrl = (stored.tabbiUrl || 'https://tab.bi').replace(/\/$/, '');
   let passphrases = stored.passphrases || {};
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });

@@ -1,5 +1,5 @@
 (async () => {
-  const { tabbiUrl = '' } = await chrome.storage.local.get('tabbiUrl');
+  const { tabbiUrl = 'https://tab.bi' } = await chrome.storage.local.get('tabbiUrl');
   document.getElementById('tabbi-url').value = tabbiUrl;
 
   document.getElementById('save-btn').onclick = async () => {
