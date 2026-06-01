@@ -6,6 +6,7 @@ Usage:
   python deploy/pois-to-world66.py           # dry-run, shows what would be copied
   python deploy/pois-to-world66.py --apply   # actually copies and opens PR
 """
+from __future__ import annotations
 
 import argparse
 import os
@@ -130,7 +131,8 @@ def main():
         branch = f"{branch}-{date.today().strftime('%H%M')}"
 
     run(["git", "checkout", "-b", branch], cwd=WORLD66_DIR)
-    run(["git", "add", "."], cwd=WORLD66_DIR)
+    for _, dst in copies:
+        run(["git", "add", str(dst)], cwd=WORLD66_DIR)
     run(["git", "commit", "-m", f"Add {len(copies)} POI(s) from Tabbi trips"], cwd=WORLD66_DIR)
     run(["git", "push", "origin", branch], cwd=WORLD66_DIR)
 
