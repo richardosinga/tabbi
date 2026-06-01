@@ -54,6 +54,24 @@ WORLD66_DIR = Path(os.environ.get("WORLD66_DIR", str(REPO_PATH / "world66")))
 
 TOOLS = [
     {
+        "name": "open_plan",
+        "description": (
+            "Open an existing Tabbi trip plan using a passphrase. "
+            "Use this when the user provides a passphrase for a trip they already created. "
+            "Returns the plan URL, slug, title, and city stops — then call research_city for each stop to add more places."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "passphrase": {
+                    "type": "string",
+                    "description": "The trip passphrase (e.g. 'scarlet-cobalt-swift')",
+                },
+            },
+            "required": ["passphrase"],
+        },
+    },
+    {
         "name": "plan_trip",
         "description": (
             "Create a Tabbi trip plan. Supports single or multi-city trips. "
@@ -100,6 +118,8 @@ TOOLS = [
             "properties": {
                 "city_path":  {"type": "string", "description": "World66 content path (e.g. 'europe/spain/catalonia/barcelona'). Use the city_path returned by plan_trip."},
                 "city_title": {"type": "string", "description": "Human-readable city name (e.g. 'Barcelona')"},
+                "city_slug":  {"type": "string", "description": "City slug (e.g. 'barcelona'). Use the city_slug returned by open_plan or plan_trip."},
+                "plan_slug":  {"type": "string", "description": "Plan slug, so existing plan items are shown and not duplicated."},
             },
             "required": ["city_title"],
         },
@@ -125,7 +145,11 @@ TOOLS = [
         "name": "submit_pois",
         "description": (
             "Submit researched places to Tabbi as plan entries. "
-            "Call after research_city once you've written up the missing places."
+            "Call after research_city once you've written up the missing places. "
+            "IMPORTANT: latitude and longitude are required for every POI. "
+            "Do NOT guess or estimate coordinates — look them up via web search or "
+            "the Nominatim API (https://nominatim.openstreetmap.org/search?q=<name>&format=json) "
+            "before submitting. Wrong coordinates break the map."
         ),
         "inputSchema": {
             "type": "object",
@@ -144,13 +168,14 @@ TOOLS = [
                     "items": {
                         "type": "object",
                         "properties": {
-                            "name":     {"type": "string"},
-                            "category": {"type": "string", "description": "Landmark|Museum|Restaurant|Market|Park|Neighbourhood|Viewpoint|Bar|Gallery"},
-                            "body":     {"type": "string", "description": "2-4 paragraphs, under 280 words"},
-                            "latitude": {"type": "number"},
-                            "longitude":{"type": "number"},
+                            "name":      {"type": "string"},
+                            "category":  {"type": "string", "description": "Landmark|Museum|Restaurant|Market|Park|Neighbourhood|Viewpoint|Bar|Gallery"},
+                            "body":      {"type": "string", "description": "2-4 paragraphs, under 280 words"},
+                            "latitude":  {"type": "number", "description": "REQUIRED. Must be geocoded via search — never estimated."},
+                            "longitude": {"type": "number", "description": "REQUIRED. Must be geocoded via search — never estimated."},
+                            "image_url": {"type": "string", "description": "Direct image URL from Wikimedia Commons or similar free source."},
                         },
-                        "required": ["name", "body"],
+                        "required": ["name", "body", "latitude", "longitude"],
                     },
                 },
             },
@@ -197,6 +222,42 @@ def _http_get(url: str) -> dict:
 # Tool implementations
 # ---------------------------------------------------------------------------
 
+def tool_open_plan(passphrase: str) -> str:
+    try:
+        result = _http_post(f"{TABBI_BASE_URL}/api/plans/open", {"passphrase": passphrase})
+    except RuntimeError as e:
+        return f"Failed to open plan: {e}"
+
+    plan_slug = result["slug"]
+    plan_items = _read_plan_items(plan_slug)
+
+    lines = [
+        f"**Opened plan: {result['title']}**", "",
+        f"**Plan URL:** {result['url']}",
+        f"**Passphrase:** `{result['passphrase']}`", "",
+        "Here are the stops and what's already in the plan:",
+    ]
+    for city in result.get("cities", []):
+        city_slug = city["city_slug"]
+        existing = plan_items.get(city_slug, [])
+        poi_count = _count_existing_pois(city.get("city_path", ""))
+        guide_note = f"{poi_count} place(s) in the world66 guide" if poi_count else "no world66 content"
+        lines.append(
+            f"\n- **{city['city_title']}**: city_path={city['city_path']!r}, "
+            f"city_slug={city_slug!r} — {guide_note}"
+        )
+        if existing:
+            lines.append(f"  Already in plan ({len(existing)}): {', '.join(existing)}")
+        else:
+            lines.append("  Nothing added yet.")
+    lines += [
+        "",
+        "Call research_city for each stop you want to fill in. "
+        "Do NOT re-add places already listed above.",
+    ]
+    return "\n".join(lines)
+
+
 def tool_plan_trip(stops=None, title="", destination="", start_date="", end_date="", notes="") -> str:
     if not stops:
         if not destination:
@@ -225,7 +286,7 @@ def tool_plan_trip(stops=None, title="", destination="", start_date="", end_date
     return "\n".join(lines)
 
 
-def tool_research_city(city_title: str, city_path: str = "") -> str:
+def tool_research_city(city_title: str, city_path: str = "", city_slug: str = "", plan_slug: str = "") -> str:
     style_md = ""
     style_file = WORLD66_DIR / "STYLE.md"
     if style_file.exists():
@@ -249,21 +310,47 @@ def tool_research_city(city_title: str, city_path: str = "") -> str:
                 except Exception:
                     pass
 
+    # What's already in the plan for this city
+    already_in_plan: list[str] = []
+    if plan_slug and city_slug:
+        plan_items = _read_plan_items(plan_slug)
+        already_in_plan = plan_items.get(city_slug, [])
+    elif plan_slug and city_title:
+        plan_items = _read_plan_items(plan_slug)
+        slug_guess = city_title.lower().replace(" ", "-")
+        already_in_plan = plan_items.get(slug_guess, [])
+
     sections = [f"## What we have for {city_title}"]
+
+    if already_in_plan:
+        sections.append(
+            f"### Already in the plan ({len(already_in_plan)}) — do NOT add these again\n"
+            + "\n".join(f"- {item}" for item in already_in_plan)
+        )
+
     if existing_pois:
         place_lines = "\n".join(f"- {p['title']} (`{p['path']}`)" for p in existing_pois)
-        sections.append(f"### Places ({len(existing_pois)})\n{place_lines}")
+        sections.append(f"### World66 guide places ({len(existing_pois)})\n{place_lines}")
     else:
-        sections.append(f"No existing content for {city_title} — research from scratch.")
+        sections.append(f"No existing world66 content for {city_title} — research from scratch.")
+
+    # Filter out world66 POIs already in the plan so add_pois_to_plan only gets new ones
+    already_titles = {a.lower() for a in already_in_plan}
+    new_pois = [p for p in existing_pois if p["title"].lower() not in already_titles]
 
     sections.append(
         "## Instructions\n"
-        f"1. Call add_pois_to_plan with ALL paths above to add existing content.\n"
-        f"2. Use web search to find what's notable in {city_title}.\n"
-        f"3. Write 2-4 new places not already in the list above. For each:\n"
+        + (f"1. Call add_pois_to_plan with these {len(new_pois)} NOT-yet-added world66 path(s):\n"
+           + "\n".join(f"   - `{p['path']}`" for p in new_pois)
+           + "\n" if new_pois else "1. No new world66 POIs to add.\n")
+        + f"2. Use web search to find what's notable in {city_title}.\n"
+        f"3. Write 2-4 new places not already listed above. For each:\n"
         f"   - 2-4 paragraphs of prose, under 280 words, per the style guide below\n"
         f"   - One category: Landmark|Museum|Restaurant|Market|Park|Neighbourhood|Viewpoint|Bar|Gallery\n"
-        f"   - Latitude/longitude coordinates\n"
+        f"   - Exact latitude/longitude — geocode each place via Nominatim:\n"
+        f"     https://nominatim.openstreetmap.org/search?q=<place+name>&format=json&limit=1\n"
+        f"     NEVER guess or estimate coordinates. Wrong coords break the map.\n"
+        f"   - A direct image_url from Wikimedia Commons if one exists\n"
         f"4. Write a 2-4 sentence intro for the city stop.\n"
         f"5. Call submit_pois with the intro and all new places."
     )
@@ -317,6 +404,34 @@ def tool_search_world66(query: str) -> str:
     return "\n".join(lines)
 
 
+def _read_plan_items(plan_slug: str) -> dict[str, list[str]]:
+    """Return {city_slug: [poi title or path, ...]} for what's already in the plan."""
+    plan_file = REPO_PATH / "plans" / f"{plan_slug}.md"
+    if not plan_file.exists():
+        return {}
+    items_by_city: dict[str, list[str]] = {}
+    current_city = None
+    for line in plan_file.read_text(encoding="utf-8", errors="ignore").splitlines():
+        line = line.rstrip()
+        if line.startswith("## "):
+            heading = line[3:].strip()
+            city_part = heading.split("|")[0].strip()
+            if "/" in city_part:
+                current_city = city_part.split("/")[-1].replace("_", " ").lower().replace(" ", "-")
+            else:
+                current_city = city_part.lower().replace(" ", "-")
+            items_by_city.setdefault(current_city, [])
+        elif line.startswith("- ") and current_city is not None:
+            entry = line[2:].strip()
+            # strip markdown links, keep the label
+            if entry.startswith("["):
+                label = entry[1:entry.index("]")] if "]" in entry else entry
+            else:
+                label = entry.split("](")[0].lstrip("[") if "](" in entry else entry
+            items_by_city[current_city].append(label)
+    return items_by_city
+
+
 def _count_existing_pois(city_path: str) -> int:
     if not city_path:
         return 0
@@ -365,14 +480,19 @@ def _handle(message: dict) -> dict | None:
         name = params.get("name", "")
         args = params.get("arguments", {})
         try:
-            if name == "plan_trip":
+            if name == "open_plan":
+                text = tool_open_plan(passphrase=args["passphrase"])
+            elif name == "plan_trip":
                 text = tool_plan_trip(
                     stops=args.get("stops"), title=args.get("title", ""),
                     destination=args.get("destination", ""), start_date=args.get("start_date", ""),
                     end_date=args.get("end_date", ""), notes=args.get("notes", ""),
                 )
             elif name == "research_city":
-                text = tool_research_city(city_title=args["city_title"], city_path=args.get("city_path", ""))
+                text = tool_research_city(
+                    city_title=args["city_title"], city_path=args.get("city_path", ""),
+                    city_slug=args.get("city_slug", ""), plan_slug=args.get("plan_slug", ""),
+                )
             elif name == "add_pois_to_plan":
                 text = tool_add_pois_to_plan(
                     plan_slug=args["plan_slug"], passphrase=args["passphrase"],
@@ -401,7 +521,83 @@ def _handle(message: dict) -> dict | None:
     return err(-32601, f"Method not found: {method}")
 
 
+def _run_http(host: str = "0.0.0.0", port: int = 8002):
+    from mcp.server.fastmcp import FastMCP
+
+    server = FastMCP("tabbi", host=host, port=port, stateless_http=True)
+
+    @server.tool(description=TOOLS[0]["description"])
+    def open_plan(passphrase: str) -> str:
+        return tool_open_plan(passphrase=passphrase)
+
+    @server.tool(description=TOOLS[1]["description"])
+    def plan_trip(
+        title: str = "",
+        stops: list | None = None,
+        destination: str = "",
+        start_date: str = "",
+        end_date: str = "",
+        notes: str = "",
+    ) -> str:
+        return tool_plan_trip(
+            stops=stops, title=title, destination=destination,
+            start_date=start_date, end_date=end_date, notes=notes,
+        )
+
+    @server.tool(description=TOOLS[2]["description"])
+    def research_city(
+        city_title: str,
+        city_path: str = "",
+        city_slug: str = "",
+        plan_slug: str = "",
+    ) -> str:
+        return tool_research_city(
+            city_title=city_title, city_path=city_path,
+            city_slug=city_slug, plan_slug=plan_slug,
+        )
+
+    @server.tool(description=TOOLS[3]["description"])
+    def add_pois_to_plan(
+        plan_slug: str,
+        passphrase: str,
+        city_slug: str,
+        poi_paths: list,
+    ) -> str:
+        return tool_add_pois_to_plan(
+            plan_slug=plan_slug, passphrase=passphrase,
+            city_slug=city_slug, poi_paths=poi_paths,
+        )
+
+    @server.tool(description=TOOLS[4]["description"])
+    def submit_pois(
+        city_title: str,
+        pois: list,
+        plan_slug: str,
+        passphrase: str,
+        city_path: str = "",
+        city_slug: str = "",
+        intro: str = "",
+    ) -> str:
+        return tool_submit_pois(
+            city_title=city_title, pois=pois, plan_slug=plan_slug,
+            passphrase=passphrase, city_path=city_path,
+            city_slug=city_slug, intro=intro,
+        )
+
+    @server.tool(description=TOOLS[5]["description"])
+    def search_world66(query: str) -> str:
+        return tool_search_world66(query=query)
+
+    server.run(transport="streamable-http")
+
+
 def main():
+    if "--http" in sys.argv:
+        idx = sys.argv.index("--http")
+        port = int(sys.argv[idx + 1]) if idx + 1 < len(sys.argv) else 8002
+        _run_http(port=port)
+        return
+
     for raw_line in sys.stdin:
         raw_line = raw_line.strip()
         if not raw_line:

@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "plans",
     "concierge",
+    "passport",
 ]
 
 MIDDLEWARE = [

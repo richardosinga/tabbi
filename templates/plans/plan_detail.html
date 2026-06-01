@@ -12,11 +12,17 @@
   </nav>
   <div class="plan-header">
     <h1>{{ plan.title }}</h1>
+    {% if plan.budget %}<div class="plan-budget">Budget: {{ plan.budget }}</div>{% endif %}
     <a href="/plans/{{ plan.slug }}/edit/" class="plan-edit-link">Edit</a>
   </div>
+  {% if plan.description %}<p class="plan-description">{{ plan.description }}</p>{% endif %}
 
   <div class="plan-overview-layout">
-    <div id="plan-overview-map"></div>
+    <div class="plan-map-wrap">
+      <div id="plan-overview-map">
+        <button class="plan-map-toggle" id="plan-map-toggle" title="Toggle map style">🌙</button>
+      </div>
+    </div>
 
     <div class="plan-dest-grid">
     {% for stop in plan.stops %}
@@ -38,6 +44,22 @@
     </div><!-- /.plan-dest-grid -->
   </div><!-- /.plan-overview-layout -->
 
+  {% if total_budget.total %}
+  <div class="plan-total-budget">
+    <div class="plan-budget-heading">Total trip budget estimate</div>
+    <div class="plan-budget-rows">
+      {% if total_budget.hotel %}<div class="plan-budget-row"><span class="plan-budget-label">🛏️ Hotel</span><span class="plan-budget-value-static">{{ total_budget.hotel|floatformat:0 }}</span></div>{% endif %}
+      {% if total_budget.food %}<div class="plan-budget-row"><span class="plan-budget-label">🍜 Food</span><span class="plan-budget-value-static">{{ total_budget.food|floatformat:0 }}</span></div>{% endif %}
+      {% if total_budget.activities %}<div class="plan-budget-row"><span class="plan-budget-label">🎒 Activities</span><span class="plan-budget-value-static">{{ total_budget.activities|floatformat:0 }}</span></div>{% endif %}
+      {% if total_budget.travel %}<div class="plan-budget-row"><span class="plan-budget-label">🚌 Transport</span><span class="plan-budget-value-static">{{ total_budget.travel|floatformat:0 }}</span></div>{% endif %}
+      <div class="plan-budget-row plan-budget-total-row">
+        <span class="plan-budget-label">Total / day</span>
+        <span class="plan-budget-total">{% if total_budget.currency %}{{ total_budget.currency }} {% endif %}{{ total_budget.total|floatformat:0 }}</span>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
 </div>
 
 {% endblock %}
@@ -47,15 +69,29 @@
 (function() {
   const stops = {{ stop_markers }};
   const map = L.map('plan-overview-map', {scrollWheelZoom: false, zoomControl: true});
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {maxZoom: 18}).addTo(map);
 
-  const W66_RED = '#c0392b';
+  const tileDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {maxZoom: 19, attribution: '&copy; <a href="https://carto.com/">CARTO</a>'});
+  const tileLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {maxZoom: 19, attribution: '&copy; <a href="https://carto.com/">CARTO</a>'});
+  var mapDark = localStorage.getItem('tabbi_map_dark') !== 'false';
+  (mapDark ? tileDark : tileLight).addTo(map);
+  var toggleBtn = document.getElementById('plan-map-toggle');
+  if (toggleBtn) {
+    toggleBtn.textContent = mapDark ? '☀️' : '🌙';
+    toggleBtn.addEventListener('click', function() {
+      mapDark = !mapDark;
+      localStorage.setItem('tabbi_map_dark', mapDark);
+      map.removeLayer(mapDark ? tileLight : tileDark);
+      (mapDark ? tileDark : tileLight).addTo(map);
+      toggleBtn.textContent = mapDark ? '☀️' : '🌙';
+    });
+  }
+
   stops.forEach(function(s, i) {
     const icon = L.divIcon({
       className: 'plan-stop-marker',
-      html: '<span style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;">' + (i+1) + '</span>',
-      iconSize: [28, 28],
-      iconAnchor: [14, 14],
+      html: '<span>' + (i+1) + '</span>',
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
     });
     L.marker([s.lat, s.lng], {icon: icon})
       .bindTooltip('<strong>' + s.title + '</strong>' + (s.dates ? '<br>' + s.dates : ''), {direction: 'top'})
@@ -64,7 +100,7 @@
   });
 
   if (stops.length > 1) {
-    L.polyline(stops.map(s => [s.lat, s.lng]), {color: W66_RED, weight: 2, opacity: 0.5, dashArray: '6,6'}).addTo(map);
+    L.polyline(stops.map(s => [s.lat, s.lng]), {color: '#e7a328', weight: 2, opacity: 0.6, dashArray: '6,8'}).addTo(map);
     map.fitBounds(L.latLngBounds(stops.map(s => [s.lat, s.lng])).pad(0.2));
   } else if (stops.length === 1) {
     map.setView([stops[0].lat, stops[0].lng], 8);

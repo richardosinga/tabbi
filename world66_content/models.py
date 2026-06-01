@@ -6,6 +6,7 @@ Set WORLD66_CONTENT_DIR in Django settings (Path object) to point at the
 cloned world66/content/ directory.
 """
 
+import re
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
@@ -253,7 +254,7 @@ def load_page(path):
 
 @lru_cache(maxsize=1)
 def _location_index():
-    """Build {normalized_name: content_path} for all location-type pages. Built once per process."""
+    """Build {normalized_name: [content_path, ...]} for all location-type pages."""
     index = {}
     if not CONTENT_DIR.is_dir():
         return index
@@ -267,13 +268,35 @@ def _location_index():
         rel = str(md_file.relative_to(CONTENT_DIR).with_suffix(""))
         stem = md_file.stem
         title = meta.get("title", stem)
-        index[stem.lower()] = rel
-        index[title.lower()] = rel
+        for key in {stem.lower(), title.lower()}:
+            index.setdefault(key, []).append(rel)
     return index
 
 
-def resolve_location_name(name):
-    """Return the content path for a location matching name or slug, or None."""
+def resolve_location_name(name, hint=""):
+    """Return the best-matching content path for a location name, or None.
+
+    hint — free text (e.g. plan title + other stop paths) used to prefer
+    candidates whose continent/country appears in the hint.
+    """
     if not name or not name.strip():
         return None
-    return _location_index().get(name.lower().strip())
+    candidates = _location_index().get(name.lower().strip(), [])
+    if not candidates:
+        return None
+    if len(candidates) == 1:
+        return candidates[0]
+    if hint:
+        hint_words = set(re.sub(r"[^a-z0-9]", " ", hint.lower()).split())
+        def _score(path):
+            parts = set(path.replace("_", " ").replace("-", " ").split("/")[:-1])
+            return len(parts & hint_words)
+        ranked = sorted(candidates, key=_score, reverse=True)
+        if _score(ranked[0]) > _score(ranked[1]):
+            return ranked[0]
+    # Prefer Europe/Asia/Africa over North America as a tiebreak for common city names
+    _prefer = ("europe/", "asia/", "africa/", "south-america/", "oceania/", "middle-east/")
+    for c in candidates:
+        if any(c.startswith(p) for p in _prefer):
+            return c
+    return candidates[0]

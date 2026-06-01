@@ -1,0 +1,98 @@
+{% extends "plans/base.html" %}
+{% block title %}Your passphrase — {{ passport.title }}{% endblock %}
+{% block content %}
+<style>
+.pp-wrap { max-width: 520px; margin: 64px auto; padding: 0 24px; }
+.pp-card {
+  background: #fff;
+  border: 2.5px solid #180A0A;
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 #180A0A;
+  padding: 48px;
+}
+.pp-card h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; color: #180A0A; }
+.pp-card .subtitle { color: #535050; margin-bottom: 32px; }
+.phrase-box {
+  background: #180A0A; color: #fff;
+  border-radius: 12px; padding: 28px 24px;
+  text-align: center; margin-bottom: 20px; position: relative;
+}
+.phrase-words { font-size: 1.5rem; font-weight: 300; letter-spacing: .02em; line-height: 1.4; word-spacing: .15em; }
+.phrase-words span { display: inline-block; padding: 2px 4px; border-radius: 4px; }
+.copy-btn {
+  display: block; margin: 12px auto 0;
+  background: transparent; border: 1px solid rgba(255,255,255,.3);
+  color: rgba(255,255,255,.7); padding: 6px 16px; border-radius: 20px;
+  font-size: .8rem; cursor: pointer; font-family: inherit;
+}
+.copy-btn:hover { background: rgba(255,255,255,.1); color: #fff; }
+.copy-btn.copied { color: #7ec8a0; border-color: #7ec8a0; }
+.warning-note {
+  background: #fef9ec; border: 1px solid #f0d060;
+  border-radius: 8px; padding: 14px 16px;
+  font-size: .88rem; color: #7a6010; margin-bottom: 28px;
+}
+.warning-note strong { color: #5a4508; }
+.confirm-check { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 24px; cursor: pointer; }
+.confirm-check input[type=checkbox] { margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; accent-color: #e7a328; }
+.confirm-check label { font-size: .95rem; color: #180A0A; cursor: pointer; }
+.pp-btn {
+  width: 100%; padding: 14px;
+  background: #e7a328; color: #180A0A;
+  border: 2.5px solid #180A0A; border-radius: 8px;
+  box-shadow: 3px 3px 0 #180A0A;
+  font-size: 1rem; font-weight: 700; cursor: pointer;
+  font-family: inherit; opacity: .4; transition: opacity .15s;
+}
+.pp-btn:not(:disabled) { opacity: 1; }
+.pp-btn:not(:disabled):hover { background: #c8891a; }
+</style>
+<div class="pp-wrap">
+  <div class="pp-card">
+    <h1>Your passphrase</h1>
+    <p class="subtitle">This is your key to <strong>{{ passport.title }}</strong>. Write it down — you'll need it to open this passport later.</p>
+
+    <div class="phrase-box">
+      <div class="phrase-words" id="phraseWords">
+        {% for word in phrase.split %}
+          <span>{{ word }}</span>{% if not forloop.last %}&nbsp;{% endif %}
+        {% endfor %}
+      </div>
+      <button class="copy-btn" id="copyBtn" type="button" onclick="copyPhrase()">Copy to clipboard</button>
+    </div>
+
+    <div class="warning-note">
+      <strong>Save this now.</strong> We don't store it anywhere readable — only a one-way hash. If you lose it, your passport is locked forever.
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="confirm-check">
+        <input type="checkbox" id="confirmed" onchange="toggleSubmit(this)">
+        <label for="confirmed">I've written down my passphrase and I understand I can't recover it if I lose it.</label>
+      </div>
+      <button type="submit" class="pp-btn" id="submitBtn" disabled>
+        I'm ready — open my passport &rarr;
+      </button>
+    </form>
+  </div>
+</div>
+
+<script>
+function toggleSubmit(cb) {
+  document.getElementById('submitBtn').disabled = !cb.checked;
+}
+function copyPhrase() {
+  var text = '{{ phrase }}';
+  navigator.clipboard.writeText(text).then(function() {
+    var btn = document.getElementById('copyBtn');
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(function() {
+      btn.textContent = 'Copy to clipboard';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+</script>
+{% endblock %}

@@ -12,6 +12,7 @@
       Started {{ session.created_at|date:"j M Y, H:i" }} ·
       <span id="status-badge" class="status-badge status-{{ session.status }}">{{ session.get_status_display }}</span>
       <span id="spinner" class="spinner"{% if session.status in "confirmed cancelled failed" %} style="display:none"{% endif %}></span>
+      {% if demo_mode %}<span class="demo-badge">Demo — no real WhatsApp sent</span>{% endif %}
     </p>
   </div>
 

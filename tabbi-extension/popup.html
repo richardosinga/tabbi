@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Lexend+Exa:wght@400;700&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    [hidden] { display: none !important; }
+    body {
+      width: 300px;
+      font-family: 'Lexend Exa', sans-serif;
+      font-size: 13px;
+      background: #F7F7F7;
+      color: #180A0A;
+    }
+    .header {
+      background: #180A0A;
+      color: #F7F7F7;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo { font-size: 15px; font-weight: 700; letter-spacing: -0.03em; }
+    .cog-btn {
+      background: none; border: none; color: #888;
+      cursor: pointer; font-size: 15px; padding: 0; line-height: 1;
+    }
+    .cog-btn:hover { color: #e7a328; }
+
+    .body { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+
+    label {
+      display: block;
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      color: #535050; margin-bottom: 4px;
+    }
+    select, input[type="text"] {
+      width: 100%; padding: 8px 10px;
+      border: 1.5px solid #DCDCDC; border-radius: 6px;
+      font-family: 'Lexend Exa', sans-serif; font-size: 13px;
+      background: #fff; color: #180A0A;
+      appearance: none; -webkit-appearance: none;
+    }
+    select:focus, input:focus { outline: none; border-color: #e7a328; }
+    .select-wrap { position: relative; }
+    .select-wrap::after {
+      content: "▾"; position: absolute; right: 10px; top: 50%;
+      transform: translateY(-50%); pointer-events: none;
+      color: #535050; font-size: 11px;
+    }
+
+    .btn {
+      width: 100%; padding: 10px 14px;
+      background: #e7a328; color: #180A0A;
+      border: 2px solid #180A0A; border-radius: 6px;
+      box-shadow: 3px 3px 0 #180A0A;
+      font-family: 'Lexend Exa', sans-serif; font-size: 13px; font-weight: 700;
+      cursor: pointer; text-align: center;
+    }
+    .btn:hover { background: #c8891a; }
+    .btn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 #180A0A; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; box-shadow: 3px 3px 0 #180A0A; }
+    .btn-ghost {
+      background: #fff; border-color: #DCDCDC; box-shadow: 2px 2px 0 #DCDCDC; color: #535050;
+    }
+    .btn-ghost:hover { background: #f7f7f7; }
+
+    .msg { padding: 10px 12px; border-radius: 6px; font-size: 12px; line-height: 1.5; }
+    .msg-err   { background: #fff3f0; border: 1.5px solid #f9c0b3; color: #c0392b; }
+    .msg-ok    { background: #f0faf0; border: 1.5px solid #b2dfb2; }
+    .msg-info  { background: #fafafa; border: 1.5px solid #DCDCDC; color: #535050; }
+    .msg strong { font-weight: 700; display: block; margin-bottom: 4px; }
+    .msg ul { list-style: none; padding: 0; }
+    .msg li { padding: 2px 0; }
+    .city {
+      font-size: 10px; color: #535050;
+      background: #F7F7F7; border: 1px solid #DCDCDC;
+      border-radius: 4px; padding: 1px 5px; margin-left: 4px;
+    }
+
+    /* settings panel */
+    .settings-panel {
+      background: #fff;
+      border: 1.5px solid #DCDCDC;
+      border-radius: 8px;
+      padding: 12px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .server-row { display: flex; gap: 6px; }
+    .server-row input { flex: 1; }
+    .server-save {
+      width: auto; padding: 8px 12px; font-size: 12px; white-space: nowrap;
+    }
+
+    .spinner {
+      display: inline-block; width: 12px; height: 12px;
+      border: 2px solid #180A0A; border-top-color: transparent;
+      border-radius: 50%; animation: spin 0.6s linear infinite;
+      margin-right: 6px; vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="logo">Tab.bi</span>
+    <button class="cog-btn" id="cog-btn" title="Settings">⚙</button>
+  </div>
+
+  <div class="body">
+
+    <!-- result shown at top -->
+    <div id="msg" class="msg" hidden></div>
+
+    <!-- settings panel (hidden behind cog) -->
+    <div id="settings-panel" class="settings-panel" hidden>
+      <label>Tabbi server URL</label>
+      <div class="server-row">
+        <input type="text" id="server-url" placeholder="https://tab.bi" spellcheck="false">
+        <button class="btn server-save" id="server-save">Save</button>
+      </div>
+    </div>
+
+    <!-- trip picker (shown once ≥1 trip unlocked) -->
+    <div id="plan-section" hidden>
+      <label>Trip</label>
+      <div class="select-wrap">
+        <select id="plan-select"></select>
+      </div>
+    </div>
+
+    <!-- passphrase unlock (shown initially or when "Add trip" selected) -->
+    <div id="unlock-section">
+      <label>Passphrase</label>
+      <input type="text" id="phrase-input" placeholder="word-word-word-word" autocomplete="off" spellcheck="false">
+    </div>
+    <button class="btn btn-ghost" id="unlock-btn">Unlock trip</button>
+
+    <!-- main action (shown once ≥1 trip unlocked) -->
+    <button class="btn" id="add-btn" hidden>Add to trip</button>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

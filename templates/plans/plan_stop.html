@@ -20,28 +20,70 @@
 
   <div class="plan-stop-layout">
 
-    <div id="plan-stop-map"></div>
+    <div class="plan-map-wrap">
+      <div id="plan-stop-map">
+        <button class="plan-map-toggle" id="plan-map-toggle" title="Toggle map style">🌙</button>
+      </div>
+    </div>
 
     <div class="plan-poi-list">
-      {% if city_snippet or city_image_url %}
+      {% if city_snippet %}
       <div class="plan-city-intro">
-        {% if city_image_url %}<img src="{{ city_image_url }}" alt="{{ stop.city }}" class="plan-city-intro-image">{% endif %}
         <div>
-          {% if city_snippet %}<p class="plan-city-intro-text">{{ city_snippet }}</p>{% endif %}
-          {% if stop.destination_url %}<a href="{{ stop.destination_url }}" class="plan-city-explore" target="_blank" rel="noopener">Explore {{ stop.city }}</a>{% endif %}
+          <p class="plan-city-intro-text">{{ city_snippet }}</p>
+          {% if stop.destination_url %}<a href="{{ stop.destination_url }}" class="plan-city-explore" target="_blank" rel="noopener">Read more on world66</a>{% endif %}
         </div>
       </div>
       {% endif %}
-      {% for item in stop.items %}
-      <div class="plan-poi-card{% if not item.page and not item.external_url %} plan-poi-card-note{% endif %}">
-        {% if item.image_url %}
-        <div class="plan-poi-image" style="background-image: url('{{ item.image_url }}')"></div>
+
+      {% comment %}Image inspiration strip{% endcomment %}
+      {% if city_image_url or stop.items %}
+      <div class="plan-inspo-strip">
+        {% if city_image_url %}
+        <div class="plan-inspo-tile">
+          <div class="plan-inspo-img" style="background-image:url('{{ city_image_url }}')"></div>
+          <span class="plan-inspo-label">{{ stop.city }}</span>
+        </div>
         {% endif %}
+        {% for item in stop.items %}
+          {% if item.image_url %}
+          <div class="plan-inspo-tile" onclick="scrollToCard({{ forloop.counter0 }})">
+            <div class="plan-inspo-img" style="background-image:url('{{ item.image_url }}')"></div>
+            {% if item.page %}<span class="plan-inspo-label">{{ item.page.title }}</span>{% endif %}
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% for item in stop.items %}
+      <div class="plan-poi-card{% if not item.page and not item.external_url %} plan-poi-card-note{% endif %}{% if item.is_expandable %} plan-poi-card--expandable{% endif %}" data-card-index="{{ forloop.counter0 }}"{% if item.is_expandable %} onclick="togglePoiCard(event, this)"{% endif %}>
         <div class="plan-poi-body">
           {% if item.page %}
-            <a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener">{{ item.page.title }}</a>
-            {% if item.page.meta.snippet %}
-            <p class="plan-poi-snippet">{{ item.page.meta.snippet }}</p>
+            {% if item.page.meta.external_url or item.page.meta.source_url %}
+            <a class="plan-poi-title plan-poi-title--draft" href="{{ item.page.meta.external_url|default:item.page.meta.source_url }}" target="_blank" rel="noopener">{{ item.page.title }}</a>
+            {% elif item.page.path|slice:":6" == "~pois/" %}
+            <span class="plan-poi-title plan-poi-title--draft">{{ item.page.title }}</span>
+            {% else %}
+            <a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.page.title }}</a>
+            {% endif %}
+            {% if item.is_expandable %}
+              {% if item.page.meta.snippet %}
+              <p class="plan-poi-tagline">{{ item.page.meta.snippet }}</p>
+              {% endif %}
+              <div class="plan-poi-full" hidden>
+                {% if item.image_url %}
+                <div class="plan-poi-full-image" style="background-image:url('{{ item.image_url }}')"></div>
+                {% endif %}
+                <p class="plan-poi-full-body">{{ item.page.body }}</p>
+                {% if not item.page.path|slice:":6" == "~pois/" %}
+                <a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Read more on world66</a>
+                {% endif %}
+              </div>
+            {% else %}
+              {% if item.page.meta.snippet %}
+              <p class="plan-poi-snippet">{{ item.page.meta.snippet }}</p>
+              {% endif %}
             {% endif %}
             {% if item.page.meta.booking_url %}
             <div class="poi-booking-bar">
@@ -72,21 +114,56 @@
           {% csrf_token %}
           <input type="hidden" name="poi_path" value="{{ item.text }}">
           <input type="hidden" name="next" value="{{ request.path }}">
-          <button type="submit" class="plan-remove-btn" title="Remove from plan">−</button>
+          <button type="submit" class="plan-remove-btn" title="Remove from plan" onclick="event.stopPropagation()">−</button>
         </form>
       </div>
       {% endfor %}
 
-      {% if suggestions %}
+      <div class="plan-budget-toggle-row">
+        <button type="button" class="plan-budget-toggle-btn" id="budget-toggle-btn" onclick="toggleBudget()">＋ Budget</button>
+      </div>
+      <div class="plan-budget-section" id="plan-budget"
+           data-save-url="/plans/{{ plan.slug }}/{{ stop.city_slug }}/budget/"
+           data-csrf="{{ csrf_token }}"
+           data-budget="{{ budget_json }}"
+           hidden>
+      </div>
+
       <div class="plan-suggestions">
-        <div class="plan-suggestions-heading">Suggestions for your trip</div>
-        <div class="plan-suggestions-strip-wrap">
+        {% if suggestion_groups %}
+        <div class="plan-suggestions-search-row">
+          <input type="text" id="suggestion-search" class="plan-suggestions-search" placeholder="Search or add anything…" autocomplete="off">
+        </div>
+        {% endif %}
+        <div id="suggestion-no-results" class="plan-suggestions-no-results"{% if suggestion_groups %} hidden{% endif %}>
+          <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/add/" class="plan-custom-spot-form">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <div class="plan-custom-spot-fields">
+              <input type="text" name="custom_title" id="add-custom-title" class="plan-custom-spot-input" placeholder="Name of the spot" autocomplete="off">
+              <input type="text" name="custom_desc" id="add-custom-desc" class="plan-custom-spot-input" placeholder="Notes (optional)" autocomplete="off">
+              <input type="text" name="custom_url" id="add-custom-url" class="plan-custom-spot-input" placeholder="Link (optional, e.g. booking page)" autocomplete="off">
+            </div>
+            <button type="submit" class="plan-custom-spot-btn">＋ Add to plan</button>
+          </form>
+        </div>
+        {% for group in suggestion_groups %}
+        <div class="plan-suggestions-heading" data-cat="{{ group.key }}">
+          <span class="plan-suggestions-chip plan-suggestions-chip--{{ group.key }}">{{ group.icon }} {{ group.label }}</span>
+        </div>
+        <div class="plan-suggestions-strip-wrap" data-cat="{{ group.key }}">
           <div class="plan-suggestions-strip">
-            {% for s in suggestions %}
-            <div class="plan-suggestion-tile{% if s.note_match %} plan-suggestion-tile--match{% endif %}">
-              {% if s.image_url %}
-              <div class="plan-suggestion-tile-img" style="background-image:url('{{ s.image_url }}')"></div>
-              {% endif %}
+            {% for s in group.items %}
+            <div class="plan-suggestion-tile plan-suggestion-tile--{{ group.key }}{% if s.note_match %} plan-suggestion-tile--match{% endif %}" data-title="{{ s.page.title|lower }}">
+              <div class="plan-suggestion-tile-top">
+                {% if s.image_url %}
+                <div class="plan-suggestion-tile-img" style="background-image:url('{{ s.image_url }}')"></div>
+                {% else %}
+                <div class="plan-suggestion-tile-img plan-suggestion-tile-img--placeholder" style="background:{{ s.placeholder_bg }}">
+                  <span class="plan-suggestion-tile-emoji">{{ s.placeholder_emoji }}</span>
+                </div>
+                {% endif %}
+              </div>
               <div class="plan-suggestion-tile-body">
                 <a class="plan-suggestion-title" href="{{ WORLD66_SITE_URL }}/{{ s.page.path }}" target="_blank" rel="noopener">{{ s.page.title }}</a>
                 {% if s.page.meta.snippet %}<p class="plan-suggestion-snippet">{{ s.page.meta.snippet }}</p>{% endif %}
@@ -101,8 +178,8 @@
             {% endfor %}
           </div>
         </div>
+        {% endfor %}
       </div>
-      {% endif %}
     </div>
 
   </div>
@@ -110,23 +187,40 @@
 
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
 <script>
 (function() {
   const markers = {{ markers }};
   const map = L.map('plan-stop-map', {scrollWheelZoom: false, zoomControl: true});
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {maxZoom: 18}).addTo(map);
 
-  const W66_RED = '#c0392b';
+  const tileDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {maxZoom: 19, attribution: '&copy; <a href="https://carto.com/">CARTO</a>'});
+  const tileLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {maxZoom: 19, attribution: '&copy; <a href="https://carto.com/">CARTO</a>'});
+  var mapDark = localStorage.getItem('tabbi_map_dark') !== 'false';
+  (mapDark ? tileDark : tileLight).addTo(map);
+  var toggleBtn = document.getElementById('plan-map-toggle');
+  if (toggleBtn) {
+    toggleBtn.textContent = mapDark ? '☀️' : '🌙';
+    toggleBtn.addEventListener('click', function() {
+      mapDark = !mapDark;
+      localStorage.setItem('tabbi_map_dark', mapDark);
+      map.removeLayer(mapDark ? tileLight : tileDark);
+      (mapDark ? tileDark : tileLight).addTo(map);
+      toggleBtn.textContent = mapDark ? '☀️' : '🌙';
+    });
+  }
+
   markers.forEach(function(m, i) {
     const icon = L.divIcon({
       className: 'plan-stop-marker',
-      html: '<span style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;">' + (i+1) + '</span>',
-      iconSize: [28, 28],
-      iconAnchor: [14, 14],
+      html: '<span>' + (i+1) + '</span>',
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
     });
     L.marker([m.lat, m.lng], {icon: icon})
       .bindTooltip(m.title, {direction: 'top'})
-      .on('click', function() { window.location = m.url; })
+      .on('click', function() { window.open(m.url, '_blank'); })
       .addTo(map);
   });
 
@@ -140,12 +234,99 @@
 })();
 </script>
 <script>
+function toggleBudget() {
+  var section = document.getElementById('plan-budget');
+  var btn = document.getElementById('budget-toggle-btn');
+  if (section.hasAttribute('hidden')) {
+    section.removeAttribute('hidden');
+    btn.textContent = '− Budget';
+    btn.classList.add('plan-budget-toggle-btn--open');
+  } else {
+    section.setAttribute('hidden', '');
+    btn.textContent = '＋ Budget';
+    btn.classList.remove('plan-budget-toggle-btn--open');
+  }
+}
+
+function scrollToCard(index) {
+  var card = document.querySelector('[data-card-index="' + index + '"]');
+  if (!card) return;
+  card.scrollIntoView({behavior: 'smooth', block: 'center'});
+  card.classList.add('plan-poi-card--highlight');
+  setTimeout(function() { card.classList.remove('plan-poi-card--highlight'); }, 1200);
+}
+
+function togglePoiCard(event, card) {
+  if (event.target.closest('form, a, button')) return;
+  var full = card.querySelector('.plan-poi-full');
+  if (!full) return;
+  var expanded = card.classList.toggle('plan-poi-card--expanded');
+  if (expanded) full.removeAttribute('hidden');
+  else full.setAttribute('hidden', '');
+}
+
 function toggleConciergeForm(btn) {
   var wrap = btn.closest('.plan-poi-body').querySelector('.poi-concierge-wrap');
   var hidden = wrap.hasAttribute('hidden');
   if (hidden) { wrap.removeAttribute('hidden'); btn.classList.add('active'); }
   else { wrap.setAttribute('hidden', ''); btn.classList.remove('active'); }
 }
+
+(function() {
+  var searchInput = document.getElementById('suggestion-search');
+  if (!searchInput) return;
+  var noResults = document.getElementById('suggestion-no-results');
+  var customPath = document.getElementById('add-custom-path');
+  var customLabel = document.getElementById('add-custom-label');
+
+  searchInput.addEventListener('input', function() {
+    var q = searchInput.value.trim().toLowerCase();
+    var totalVisible = 0;
+
+    // Filter tiles and track visibility per category
+    document.querySelectorAll('.plan-suggestions-strip-wrap').forEach(function(wrap) {
+      var cat = wrap.dataset.cat;
+      var heading = document.querySelector('.plan-suggestions-heading[data-cat="' + cat + '"]');
+      var tiles = wrap.querySelectorAll('.plan-suggestion-tile');
+      var catVisible = 0;
+      tiles.forEach(function(tile) {
+        var title = tile.dataset.title || '';
+        var show = !q || title.includes(q);
+        tile.style.display = show ? '' : 'none';
+        if (show) { catVisible++; totalVisible++; }
+      });
+      var showCat = catVisible > 0;
+      if (heading) heading.style.display = showCat ? '' : 'none';
+      wrap.style.display = showCat ? '' : 'none';
+    });
+
+    if (q && totalVisible === 0) {
+      var titleInput = document.getElementById('add-custom-title');
+      if (titleInput && !titleInput._userEdited) titleInput.value = searchInput.value.trim();
+      noResults.removeAttribute('hidden');
+    } else {
+      noResults.setAttribute('hidden', '');
+    }
+  });
+})();
+
+document.querySelectorAll('.plan-suggestion-add, .plan-custom-spot-form').forEach(function(form) {
+  form.addEventListener('submit', function() {
+    var btn = form.querySelector('button[type="submit"]');
+    if (!btn) return;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="tabbi-spinner"></span>';
+  });
+});
+
+// Mark custom title as user-edited so search doesn't overwrite it
+(function() {
+  var titleInput = document.getElementById('add-custom-title');
+  if (titleInput) {
+    titleInput.addEventListener('input', function() { titleInput._userEdited = true; });
+    titleInput.addEventListener('focus', function() { titleInput._userEdited = true; });
+  }
+})();
 
 document.querySelectorAll('.plan-note-text').forEach(function(span) {
   span.addEventListener('click', function() {
@@ -165,5 +346,100 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
     });
   });
 });
+</script>
+<script>
+(function() {
+  var el = document.getElementById('plan-budget');
+  if (!el) return;
+  var budget = JSON.parse(el.dataset.budget || '{}');
+  var saveUrl = el.dataset.saveUrl;
+  var csrf = el.dataset.csrf;
+  var FIELDS = [
+    ['hotel',      '🛏️ Hotel / stay'],
+    ['food',       '🍜 Food & drinks'],
+    ['activities', '🎒 Activities'],
+    ['travel',     '🚌 Transport'],
+    ['currency',   '💱 Currency'],
+    ['notes',      '📝 Notes'],
+  ];
+
+  function calcTotal() {
+    return ['hotel','food','activities','travel'].reduce(function(s, k) {
+      return s + (parseFloat(budget[k]) || 0);
+    }, 0);
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function render() {
+    var total = calcTotal();
+    var cur = budget.currency || '';
+    var html = '<div class="plan-budget-heading">Budget estimate' +
+      (cur ? ' <span class="plan-budget-currency">(' + escHtml(cur) + ')</span>' : '') + '</div>' +
+      '<div class="plan-budget-rows">';
+    FIELDS.forEach(function(f) {
+      var key = f[0], label = f[1];
+      var val = budget[key] || '';
+      html += '<div class="plan-budget-row">' +
+        '<span class="plan-budget-label">' + label + '</span>' +
+        '<span class="plan-budget-value" data-field="' + key + '" title="Click to edit">' +
+        (val ? escHtml(String(val)) : '<span class="plan-budget-empty">—</span>') +
+        '</span></div>';
+    });
+    if (total > 0) {
+      html += '<div class="plan-budget-row plan-budget-total-row">' +
+        '<span class="plan-budget-label">Total / day</span>' +
+        '<span class="plan-budget-total">' + (cur ? escHtml(cur) + ' ' : '') + total.toFixed(0) + '</span>' +
+        '</div>';
+    }
+    html += '</div>';
+    el.innerHTML = html;
+    el.querySelectorAll('.plan-budget-value').forEach(function(span) {
+      span.addEventListener('click', function() { startEdit(span); });
+    });
+  }
+
+  function startEdit(span) {
+    var key = span.dataset.field;
+    var cur = budget[key] || '';
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'plan-budget-input';
+    input.value = cur;
+    span.replaceWith(input);
+    input.focus();
+    input.select();
+    function commit() {
+      budget[key] = input.value.trim();
+      save();
+      render();
+    }
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); commit(); }
+      if (e.key === 'Escape') { budget[key] = cur; render(); }
+    });
+    input.addEventListener('blur', commit);
+  }
+
+  function save() {
+    fetch(saveUrl, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+      body: JSON.stringify(budget),
+    });
+  }
+
+  render();
+
+  // Auto-open budget section if there's already data
+  var hasData = Object.keys(budget).some(function(k) { return budget[k]; });
+  if (hasData) {
+    el.removeAttribute('hidden');
+    var toggleBtn = document.getElementById('budget-toggle-btn');
+    if (toggleBtn) { toggleBtn.textContent = '− Budget'; toggleBtn.classList.add('plan-budget-toggle-btn--open'); }
+  }
+})();
 </script>
 {% endblock %}

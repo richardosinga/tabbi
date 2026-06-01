@@ -236,7 +236,15 @@ def _parse_plan(path):
         if m:
             keywords = [k.strip().lower() for k in re.split(r"[,;]+", m.group(1)) if k.strip()]
             break
-    return {"slug": slug, "title": title, "body": post.content, "stops": stops, "keywords": keywords}
+    budget = None
+    for line in post.content.splitlines():
+        m = re.match(r"^budget:\s*(.+)$", line.strip(), re.IGNORECASE)
+        if m:
+            budget = m.group(1).strip()
+            break
+    description = post.metadata.get("description", "") or ""
+    passport_slug = post.metadata.get("passport", "") or ""
+    return {"slug": slug, "title": title, "description": description, "passport_slug": passport_slug, "body": post.content, "stops": stops, "keywords": keywords, "budget": budget}
 
 
 def _parse_stops(body, plan_slug):
@@ -269,7 +277,8 @@ def _parse_stops(body, plan_slug):
                 city_name = city_part.split("/")[-1].replace("_", " ").title()
             else:
                 city_name = city_part
-                city_path = resolve_location_name(city_part)
+                hint = plan_slug + " " + " ".join(s.get("city_path") or "" for s in stops)
+                city_path = resolve_location_name(city_part, hint)
             city_slug = city_name.lower().replace(" ", "-")
             current = {
                 "city": city_name,
@@ -300,6 +309,11 @@ def _parse_stops(body, plan_slug):
                 display_label = display_path or display_domain
             elif text.startswith("/"):
                 page = load_page(text.lstrip("/"))
+            elif text.startswith("~pois/"):
+                from world66_content.models import _load_page_from_file
+                poi_file = PLANS_DIR / "pois" / (text[6:] + ".md")
+                if poi_file.is_file():
+                    page = _load_page_from_file(poi_file, text)
             elif re.match(r"^[\w/_-]+$", text):
                 page = load_page(text)
                 if not page and current.get("city_path"):
@@ -309,9 +323,12 @@ def _parse_stops(body, plan_slug):
                     page = _find_poi_in_city(text, current["city_path"])
             image_url = None
             if page:
-                img = _image_path(page)
-                if img:
-                    image_url = f"/content-image/{img}"
+                if page.meta.get("image_url"):
+                    image_url = page.meta["image_url"]
+                else:
+                    img = _image_path(page)
+                    if img:
+                        image_url = f"/content-image/{img}"
             current["items"].append({
                 "text": text,
                 "page": page,
@@ -415,10 +432,11 @@ def plan_list(request):
         all_dates = [s["dates"] for s in stops if s.get("dates")]
         date_range = (f"{all_dates[0].split('–')[0].strip()} – {all_dates[-1].split('–')[-1].strip()}"
                       if len(all_dates) > 1 else (all_dates[0] if all_dates else None))
-        cities = [s["city"] for s in stops]
+        cities = [s["city"] for s in stops if s.get("city")]
         plans.append({
             "slug": slug,
             "title": plan["title"],
+            "description": plan.get("description", ""),
             "stop_count": len(stops),
             "place_count": total_places,
             "cities": cities,
@@ -455,30 +473,51 @@ def plan_new(request):
                 error = f"A trip named '{slug}' already exists."
             else:
                 passphrase = _generate_passphrase()
-                keywords_raw = request.POST.get("keywords", "").strip()
+                description_raw = request.POST.get("description", "").strip()
+                locations_raw = request.POST.get("locations", "").strip()
+                budget_raw = request.POST.get("budget", "").strip()
                 body_lines = []
-                if keywords_raw:
-                    body_lines.append(f"interests: {keywords_raw}\n")
-                title_words = re.split(r"[\s,&+]+", title)
+                if budget_raw:
+                    body_lines.append(f"budget: {budget_raw}\n")
                 city_headings = []
-                i = 0
-                while i < len(title_words):
-                    matched = False
-                    for length in range(min(4, len(title_words) - i), 0, -1):
-                        phrase = " ".join(title_words[i:i+length])
-                        if resolve_location_name(phrase):
-                            city_headings.append(f"## {phrase}")
-                            i += length
-                            matched = True
-                            break
-                    if not matched:
-                        i += 1
+                if locations_raw:
+                    for loc in re.split(r"[,;]+", locations_raw):
+                        loc = loc.strip()
+                        if not loc:
+                            continue
+                        city_path = resolve_location_name(loc, title)
+                        if city_path:
+                            city_page = load_page(city_path)
+                            city_headings.append(f"## {city_page.title if city_page else loc.title()}")
+                        else:
+                            city_headings.append(f"## {loc.title()}")
+                else:
+                    # Fall back to extracting locations from the trip title
+                    title_words = re.split(r"[\s,&+]+", title)
+                    i = 0
+                    while i < len(title_words):
+                        matched = False
+                        for length in range(min(4, len(title_words) - i), 0, -1):
+                            phrase = " ".join(title_words[i:i+length])
+                            if resolve_location_name(phrase, title):
+                                city_headings.append(f"## {phrase}")
+                                i += length
+                                matched = True
+                                break
+                        if not matched:
+                            i += 1
                 if city_headings:
                     if body_lines:
                         body_lines.append("")
                     body_lines.extend(city_headings)
                 body = "\n".join(body_lines)
-                post = fm.Post(body, title=title, passphrase=passphrase)
+                meta = {"title": title, "passphrase": passphrase}
+                if description_raw:
+                    meta["description"] = description_raw
+                passport_slugs = request.session.get("authenticated_passports", [])
+                if passport_slugs:
+                    meta["passport"] = passport_slugs[0]
+                post = fm.Post(body, **meta)
                 with open(path, "w", encoding="utf-8") as fh:
                     fm.dump(post, fh)
                 _save_password(slug, passphrase)
@@ -534,9 +573,26 @@ def plan_detail(request, slug):
     if len(plan["stops"]) == 1:
         return HttpResponseRedirect(plan["stops"][0]["url"])
 
+    import frontmatter as _fmb
+    _plan_meta = _fmb.load(str(PLANS_DIR / f"{slug}.md")).metadata
+    all_budgets = _plan_meta.get("budgets") or {}
+    total_budget: dict = {"hotel": 0.0, "food": 0.0, "activities": 0.0, "travel": 0.0}
+    currency = ""
+    for b in all_budgets.values():
+        for k in ("hotel", "food", "activities", "travel"):
+            try:
+                total_budget[k] += float(b.get(k) or 0)
+            except (ValueError, TypeError):
+                pass
+        if not currency and b.get("currency"):
+            currency = b["currency"]
+    total_budget["currency"] = currency
+    total_budget["total"] = sum(total_budget[k] for k in ("hotel", "food", "activities", "travel"))
+
     return render(request, "plans/plan_detail.html", {
         "plan": plan,
         "stop_markers": mark_safe(json.dumps(stop_markers)),
+        "total_budget": total_budget,
     })
 
 
@@ -567,6 +623,94 @@ def plan_stop(request, slug, city_slug):
         if img:
             city_image_url = f"/content-image/{img}"
 
+    # Checked in priority order — specific beats generic, so things_to_do last
+    _TAG_PRIORITY = [
+        ("museum", "🏛️"), ("museums", "🏛️"), ("gallery", "🖼️"),
+        ("beach", "🏖️"), ("beaches", "🏖️"),
+        ("hiking", "🥾"),
+        ("castle", "🏰"), ("palace", "👑"),
+        ("church", "⛪"), ("cathedral", "⛪"),
+        ("temple", "🛕"), ("mosque", "🕌"),
+        ("market", "🧺"),
+        ("shopping", "🛍️"), ("shop", "🛍️"),
+        ("nightlife", "🎉"), ("club", "🎉"),
+        ("bars_and_cafes", "🍺"), ("bar", "🍺"), ("pub", "🍺"),
+        ("restaurant", "🍽️"), ("eating_out", "🍽️"),
+        ("food", "🍜"), ("cuisine", "🍜"),
+        ("cafe", "☕"), ("coffee", "☕"),
+        ("jazz", "🎷"), ("music", "🎵"),
+        ("theatre", "🎭"), ("theater", "🎭"), ("opera", "🎭"),
+        ("cinema", "🎬"),
+        ("architecture", "🏗️"),
+        ("sport", "⚽"), ("cycling", "🚴"), ("swimming", "🏊"),
+        ("boat", "⛵"), ("canal_ring", "🛶"),
+        ("historic_site", "📜"), ("historical_site", "📜"), ("history", "📜"), ("historic", "📜"),
+        ("heritage", "🏺"),
+        ("art", "🎨"),
+        ("garden", "🌸"), ("park", "🌳"),
+        ("zoo", "🦁"), ("wildlife", "🦁"),
+        ("nature", "🌿"),
+        ("spa", "🧖"),
+        ("viewpoint", "👁️"),
+        ("monument", "🗿"),
+        ("square", "🏙️"), ("neighbourhood", "🏘️"),
+        ("festival", "🎪"), ("festivals", "🎪"),
+        ("day_trips", "🗺️"), ("day_trip", "🗺️"),
+        ("landmark", "📍"), ("sight", "📍"), ("sights", "📍"),
+        ("things_to_do", "📍"),  # generic catch-all, last
+    ]
+    # Title/slug keywords for content-specific icons (pizza → 🍕 etc.)
+    _TITLE_KEYWORDS = [
+        ("pizza", "🍕"), ("burger", "🍔"), ("steak", "🥩"),
+        ("sushi", "🍱"), ("ramen", "🍜"), ("noodle", "🍜"),
+        ("taco", "🌮"), ("pasta", "🍝"), ("paella", "🥘"),
+        ("tapas", "🫒"), ("kebab", "🥙"),
+        ("bakery", "🥐"), ("bread", "🥖"), ("cake", "🎂"),
+        ("ice cream", "🍦"), ("gelato", "🍦"),
+        ("chocolate", "🍫"),
+        ("wine", "🍷"), ("cocktail", "🍸"), ("gin", "🍸"),
+        ("whisky", "🥃"), ("whiskey", "🥃"),
+        ("beer", "🍺"), ("brewery", "🍺"),
+        ("tea", "🍵"),
+        ("jazz", "🎷"), ("blues", "🎵"), ("rock", "🎸"),
+        ("museum", "🏛️"), ("gallery", "🖼️"),
+        ("park", "🌳"), ("garden", "🌸"),
+        ("beach", "🏖️"), ("surf", "🏄"),
+        ("market", "🧺"), ("bazaar", "🧺"),
+        ("castle", "🏰"), ("palace", "👑"), ("fort", "🏰"),
+        ("cathedral", "⛪"), ("church", "⛪"),
+        ("mosque", "🕌"), ("temple", "🛕"),
+        ("hammam", "🧖"), ("spa", "🧖"),
+        ("aquarium", "🐠"), ("zoo", "🦁"),
+        ("boat", "⛵"), ("kayak", "🛶"), ("canoe", "🛶"),
+        ("bike", "🚴"), ("cycling", "🚴"),
+        ("tower", "🗼"), ("bridge", "🌉"),
+        ("waterfall", "💧"), ("lake", "🏞️"),
+        ("library", "📚"), ("bookshop", "📚"),
+        ("theatre", "🎭"), ("theater", "🎭"), ("opera", "🎭"),
+        ("cinema", "🎬"), ("film", "🎬"),
+        ("statue", "🗿"), ("monument", "🗿"),
+    ]
+    _PALETTE = [
+        "#FFF3C4", "#FFE0B2", "#E8F5E9", "#E3F2FD",
+        "#FCE4EC", "#F3E5F5", "#E0F7FA", "#FFF8E1",
+    ]
+
+    def _placeholder(page):
+        # Check title + slug for content keywords first
+        slug_words = page.path.split("/")[-1].replace("_", " ").replace("-", " ")
+        search = page.title.lower() + " " + slug_words.lower()
+        emoji = next((e for kw, e in _TITLE_KEYWORDS if kw in search), None)
+        # Fall back to priority-ordered tag matching (specific tags win over generic)
+        if not emoji:
+            tag_set = {t.lower() for t in page.tags}
+            emoji = next((e for k, e in _TAG_PRIORITY if k in tag_set), "📍")
+        h = 0
+        for c in page.path:
+            h = (h * 31 + ord(c)) & 0xFFFFFFFF
+        bg = _PALETTE[h % len(_PALETTE)]
+        return emoji, bg
+
     suggestions = []
     if stop.get("city_path"):
         already_added = {item["text"] for item in stop["items"]}
@@ -588,11 +732,33 @@ def plan_stop(request, slug, city_slug):
             "nature": ["nature", "park", "garden", "outdoors"],
         }
         expanded_keywords = set()
-        for k in plan.get("keywords", []):
+        all_keywords = list(plan.get("keywords", []))
+        # Merge passport interests if a passport is linked
+        passport_slug = plan.get("passport_slug", "")
+        if passport_slug:
+            try:
+                from passport.views import _load_passport
+                pp = _load_passport(passport_slug)
+                if pp:
+                    all_keywords = all_keywords + list(pp.get("interests", []))
+            except Exception:
+                pass
+        for k in all_keywords:
             kn = k.lower().strip()
             expanded_keywords.add(_normalize(kn))
             for exp in _KEYWORD_EXPANSIONS.get(kn, []):
                 expanded_keywords.add(_normalize(exp))
+
+        _FOOD_TAGS = {"eating_out", "restaurant", "food", "market", "cuisine", "dining"}
+        _DRINKS_TAGS = {"bars_and_cafes", "bar", "nightlife", "drinks", "pub", "cafe", "coffee"}
+
+        def _suggestion_category(page_tags):
+            tag_set = {t.lower() for t in page_tags}
+            if tag_set & _DRINKS_TAGS:
+                return "drinks"
+            if tag_set & _FOOD_TAGS:
+                return "food"
+            return "todo"
 
         city_dir = CONTENT_DIR / stop["city_path"]
         for md_file in sorted(city_dir.rglob("*.md")):
@@ -610,13 +776,36 @@ def plan_stop(request, slug, city_slug):
             note_match = any(n in poi_text or poi_text in n for n in note_needles) if note_needles else False
             keyword_match = any(k in poi_text for k in expanded_keywords) if expanded_keywords else False
             score = (2 if note_match else 0) + (2 if keyword_match else 0) + (1 if img else 0)
+            ph_emoji, ph_bg = _placeholder(page)
             suggestions.append({
                 "page": page,
                 "image_url": f"/content-image/{img}" if img else None,
                 "_score": score,
                 "note_match": note_match or keyword_match,
+                "category": _suggestion_category(page.tags),
+                "placeholder_emoji": ph_emoji,
+                "placeholder_bg": ph_bg,
             })
         suggestions.sort(key=lambda x: -x["_score"])
+
+    _CATEGORIES = [
+        ("Things to do", "todo", "🎯"),
+        ("Food", "food", "🍜"),
+        ("Drinks", "drinks", "🍻"),
+    ]
+    suggestion_groups = [
+        {"label": label, "key": key, "icon": icon, "items": [s for s in suggestions if s["category"] == key]}
+        for label, key, icon in _CATEGORIES
+        if any(s["category"] == key for s in suggestions)
+    ]
+
+    for item in stop["items"]:
+        p = item.get("page")
+        item["is_expandable"] = bool(p and p.body and not p.meta.get("external_url") and not p.meta.get("source_url"))
+
+    import frontmatter as _fmb
+    _plan_meta = _fmb.load(str(PLANS_DIR / f"{plan['slug']}.md")).metadata
+    stop_budget = (_plan_meta.get("budgets") or {}).get(stop["city_slug"]) or {}
 
     return render(request, "plans/plan_stop.html", {
         "plan": plan,
@@ -624,8 +813,100 @@ def plan_stop(request, slug, city_slug):
         "markers": mark_safe(json.dumps(markers)),
         "city_snippet": city_snippet,
         "city_image_url": city_image_url,
-        "suggestions": suggestions,
+        "suggestion_groups": suggestion_groups,
+        "budget_json": json.dumps(stop_budget),
     })
+
+
+def _plan_save_budget(slug, city_slug, budget_data):
+    import frontmatter as fm
+    path = PLANS_DIR / f"{slug}.md"
+    post = fm.load(path)
+    budgets = dict(post.metadata.get("budgets") or {})
+    budgets[city_slug] = {k: v for k, v in budget_data.items() if v is not None}
+    post.metadata["budgets"] = budgets
+    with open(path, "w", encoding="utf-8") as fh:
+        fm.dump(post, fh)
+
+
+def _parse_poi_price(poi_path):
+    """Return the numeric price of a POI, or None if it has no parseable price."""
+    page = load_page(poi_path)
+    if not page:
+        return None
+    raw = str(page.meta.get("price", "") or "")
+    m = re.search(r"\d+(?:[.,]\d+)?", raw.replace(",", "."))
+    if not m:
+        return None
+    return float(m.group().replace(",", "."))
+
+
+def _budget_add_poi_price(slug, city_slug, poi_path):
+    """If the POI has a parseable numeric price, add it to the stop's activities budget."""
+    amount = _parse_poi_price(poi_path)
+    if amount is None:
+        return
+    import frontmatter as fm
+    path = PLANS_DIR / f"{slug}.md"
+    if not path.is_file():
+        return
+    post = fm.load(path)
+    budgets = dict(post.metadata.get("budgets") or {})
+    stop_budget = dict(budgets.get(city_slug) or {})
+    current = 0.0
+    try:
+        current = float(stop_budget.get("activities") or 0)
+    except (ValueError, TypeError):
+        pass
+    stop_budget["activities"] = round(current + amount, 2)
+    budgets[city_slug] = stop_budget
+    post.metadata["budgets"] = budgets
+    with open(path, "w", encoding="utf-8") as fh:
+        fm.dump(post, fh)
+
+
+def _budget_remove_poi_price(slug, city_slug, poi_path):
+    """If the POI has a parseable numeric price, subtract it from the stop's activities budget."""
+    amount = _parse_poi_price(poi_path)
+    if amount is None:
+        return
+    import frontmatter as fm
+    path = PLANS_DIR / f"{slug}.md"
+    if not path.is_file():
+        return
+    post = fm.load(path)
+    budgets = dict(post.metadata.get("budgets") or {})
+    stop_budget = dict(budgets.get(city_slug) or {})
+    current = 0.0
+    try:
+        current = float(stop_budget.get("activities") or 0)
+    except (ValueError, TypeError):
+        pass
+    new_val = round(max(0.0, current - amount), 2)
+    if new_val == 0:
+        stop_budget.pop("activities", None)
+    else:
+        stop_budget["activities"] = new_val
+    budgets[city_slug] = stop_budget
+    post.metadata["budgets"] = budgets
+    with open(path, "w", encoding="utf-8") as fh:
+        fm.dump(post, fh)
+
+
+@_require_plan_auth
+@csrf_exempt
+def plan_budget_save(request, slug, city_slug):
+    if request.method != "POST":
+        raise Http404
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "invalid JSON"}, status=400)
+    allowed = {"hotel", "food", "activities", "travel", "currency", "notes"}
+    budget = {k: data[k] for k in allowed if k in data}
+    _plan_save_budget(slug, city_slug, budget)
+    total = sum(float(budget.get(k, 0) or 0) for k in ("hotel", "food", "activities", "travel"))
+    return JsonResponse({"ok": True, "total": total})
 
 
 @_require_plan_auth
@@ -677,7 +958,14 @@ def _plan_file_add(slug, city_slug, poi_path):
             else:
                 break
     if insert_at is None:
-        return False
+        # Stop doesn't exist yet — append a new section
+        city_title = city_slug.replace("-", " ").title()
+        lines.append(f"## {city_title}")
+        lines.append(f"- {poi_path}")
+        post.content = "\n".join(lines)
+        with open(path, "w", encoding="utf-8") as fh:
+            fm.dump(post, fh)
+        return True
     if any(l.strip().lstrip("-* ") == poi_path for l in lines):
         return False
     lines.insert(insert_at, f"- {poi_path}")
@@ -706,6 +994,26 @@ def plan_poi_add(request, slug, city_slug=None):
     if request.method != "POST":
         raise Http404
     poi_path = request.POST.get("poi_path", "").strip()
+    # Custom spot (from mini-form): prefer URL, fall back to title
+    if not poi_path:
+        custom_url = request.POST.get("custom_url", "").strip()
+        custom_title = request.POST.get("custom_title", "").strip()
+        custom_desc = request.POST.get("custom_desc", "").strip()
+        if custom_title:
+            # Create a draft POI file so title, description, and URL are stored together
+            _poi_slug = re.sub(r"[\s_]+", "-", re.sub(r"[^\w\s-]", "", custom_title.lower()).strip()).strip("-") or "spot"
+            _cs = city_slug or "unknown"
+            draft_dir = PLANS_DIR / "pois" / slug / _cs
+            draft_dir.mkdir(parents=True, exist_ok=True)
+            import frontmatter as _fm
+            _meta = {"title": custom_title, "type": "poi"}
+            if custom_url and re.match(r"^https?://", custom_url):
+                _meta["external_url"] = custom_url
+            _post = _fm.Post(custom_desc, **_meta)
+            (draft_dir / f"{_poi_slug}.md").write_text(_fm.dumps(_post))
+            poi_path = f"~pois/{slug}/{_cs}/{_poi_slug}"
+        elif custom_url and re.match(r"^https?://", custom_url):
+            poi_path = custom_url
     if poi_path:
         if city_slug is None:
             plan = _parse_plan(PLANS_DIR / f"{slug}.md")
@@ -723,6 +1031,7 @@ def plan_poi_add(request, slug, city_slug=None):
                             break
         if city_slug:
             _plan_file_add(slug, city_slug, poi_path)
+            _budget_add_poi_price(slug, city_slug, poi_path)
     return HttpResponseRedirect(request.POST.get("next", f"/plans/{slug}/"))
 
 
@@ -754,6 +1063,7 @@ def plan_poi_remove(request, slug, city_slug):
     poi_path = request.POST.get("poi_path", "").strip()
     if poi_path:
         _plan_file_remove(slug, poi_path)
+        _budget_remove_poi_price(slug, city_slug, poi_path)
     return HttpResponseRedirect(request.POST.get("next", f"/plans/{slug}/{city_slug}/"))
 
 
@@ -799,7 +1109,7 @@ def _check_plan_auth(body: dict, plan_slug: str) -> bool:
     return bool(hashed and _check_password(passphrase, hashed))
 
 
-def _resolve_stop(destination: str, start_date: str, end_date: str, notes: str) -> dict:
+def _resolve_stop(destination: str, start_date: str, end_date: str, notes: str, hint: str = "") -> dict:
     from datetime import date as _date
     dest = destination.strip()
     if "/" in dest:
@@ -808,7 +1118,7 @@ def _resolve_stop(destination: str, start_date: str, end_date: str, notes: str) 
         city_page = _load_page(dest)
         city_title = city_page.title if city_page else dest.split("/")[-1].replace("_", " ").title()
     else:
-        city_path = resolve_location_name(dest) or ""
+        city_path = resolve_location_name(dest, hint) or ""
         city_page = load_page(city_path) if city_path else None
         city_title = city_page.title if city_page else dest
 
@@ -835,6 +1145,51 @@ def _resolve_stop(destination: str, start_date: str, end_date: str, notes: str) 
 
 @csrf_exempt
 @require_POST
+def api_plan_open(request):
+    """Look up an existing plan by passphrase and return its stops — for MCP/Claude use."""
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "invalid JSON"}, status=400)
+
+    passphrase = (body.get("passphrase") or "").strip()
+    if not passphrase:
+        return JsonResponse({"error": "passphrase required"}, status=400)
+
+    passwords = _load_passwords()
+    slug = None
+    for s, hashed in passwords.items():
+        if _check_password(passphrase, hashed):
+            slug = s
+            break
+
+    if not slug:
+        return JsonResponse({"error": "no plan found with that passphrase"}, status=404)
+
+    plan = _parse_plan(PLANS_DIR / f"{slug}.md")
+    if not plan:
+        return JsonResponse({"error": "plan file not found"}, status=404)
+
+    base_url = request.build_absolute_uri("/").rstrip("/")
+    cities = [
+        {
+            "city_title": s["city"],
+            "city_path":  s.get("city_path", ""),
+            "city_slug":  s["city_slug"],
+        }
+        for s in plan["stops"]
+    ]
+    return JsonResponse({
+        "url":        f"{base_url}/plans/{slug}/",
+        "slug":       slug,
+        "title":      plan["title"],
+        "passphrase": passphrase,
+        "cities":     cities,
+    })
+
+
+@csrf_exempt
+@require_POST
 def api_plan_create(request):
     import frontmatter as fm
     try:
@@ -846,9 +1201,10 @@ def api_plan_create(request):
     if not raw_stops:
         return JsonResponse({"error": "stops list is required"}, status=400)
 
+    trip_hint = body.get("title", "").strip() + " " + " ".join(s.get("destination", "") for s in raw_stops)
     resolved = [_resolve_stop(
         s.get("destination", ""), s.get("start_date", ""),
-        s.get("end_date", ""), s.get("notes", ""),
+        s.get("end_date", ""), s.get("notes", ""), trip_hint,
     ) for s in raw_stops]
 
     trip_title = body.get("title", "").strip() or (
@@ -1001,3 +1357,193 @@ def api_search(request):
         if len(results) >= 20:
             break
     return JsonResponse({"results": results})
+
+
+def _cors(response, request=None):
+    response["Access-Control-Allow-Origin"] = "*"
+    response["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response["Access-Control-Allow-Headers"] = "Content-Type"
+    return response
+
+
+@csrf_exempt
+def api_plans_list(request):
+    """List plans the caller can access, authenticated by passphrase(s).
+
+    POST body:
+      passphrases: {slug: passphrase, ...}  — known pairs stored by extension
+      passphrase:  "word-word-word"          — discover flow (unknown slug)
+    """
+    if request.method == "OPTIONS":
+        from django.http import HttpResponse as _HR
+        return _cors(_HR(), request)
+
+    import frontmatter as fm
+    accessible = set()
+
+    if request.method == "POST":
+        try:
+            body = json.loads(request.body)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            body = {}
+
+        for slug, phrase in (body.get("passphrases") or {}).items():
+            if _check_plan_auth({"passphrase": phrase}, slug):
+                accessible.add(slug)
+
+        discover = (body.get("passphrase") or "").strip()
+        if discover:
+            passwords = _load_passwords()
+            for slug, hashed in passwords.items():
+                if _check_password(discover, hashed):
+                    accessible.add(slug)
+
+    plans = []
+    for f in sorted(PLANS_DIR.glob("*.md")):
+        if f.name.startswith(".") or f.stem not in accessible:
+            continue
+        try:
+            post = fm.load(str(f))
+            title = post.metadata.get("title", f.stem)
+            plans.append({"slug": f.stem, "title": title})
+        except Exception:
+            pass
+
+    return _cors(JsonResponse({"plans": plans}), request)
+
+
+@csrf_exempt
+def api_add_from_url(request):
+    """Browser extension endpoint: fetch a URL, extract POIs via Claude, add to plan."""
+    if request.method == "OPTIONS":
+        from django.http import HttpResponse as _HR
+        return _cors(_HR(), request)
+    if request.method != "POST":
+        return _cors(JsonResponse({"error": "POST required"}, status=405), request)
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return _cors(JsonResponse({"error": "invalid JSON"}, status=400), request)
+
+    url = body.get("url", "").strip()
+    plan_slug = body.get("plan_slug", "").strip()
+    page_content = body.get("page_content", "").strip()
+    page_title = body.get("page_title", "").strip()
+
+    if not url or not plan_slug:
+        return _cors(JsonResponse({"error": "url and plan_slug required"}, status=400), request)
+    if not _check_plan_auth(body, plan_slug):
+        return _cors(JsonResponse({"error": "unauthorized"}, status=403), request)
+
+    plan = _parse_plan(PLANS_DIR / f"{plan_slug}.md")
+    if not plan:
+        return _cors(JsonResponse({"error": "plan not found"}, status=404), request)
+
+    # Fetch page content server-side if extension couldn't provide it
+    if not page_content:
+        import urllib.request as _urllib_req
+        from html.parser import HTMLParser as _HTMLParser
+
+        class _TextExtractor(_HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self._skip = False
+                self.parts = []
+            def handle_starttag(self, tag, attrs):
+                if tag in ("script", "style", "nav", "header", "footer", "aside"):
+                    self._skip = True
+            def handle_endtag(self, tag):
+                if tag in ("script", "style", "nav", "header", "footer", "aside"):
+                    self._skip = False
+            def handle_data(self, data):
+                if not self._skip:
+                    s = data.strip()
+                    if s:
+                        self.parts.append(s)
+
+        try:
+            req = _urllib_req.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with _urllib_req.urlopen(req, timeout=10) as resp:
+                raw = resp.read().decode("utf-8", errors="ignore")
+            p = _TextExtractor()
+            p.feed(raw)
+            page_content = "\n".join(p.parts)
+        except Exception as e:
+            return _cors(JsonResponse({"error": f"Could not fetch page: {e}"}, status=400), request)
+
+    page_content = page_content[:10000]
+
+    stops_lines = "\n".join(
+        f"- city_slug={s['city_slug']!r}, city={s['city']!r}"
+        for s in plan["stops"]
+    )
+    city_slugs = ", ".join(s["city_slug"] for s in plan["stops"])
+
+    import anthropic as _anthropic
+    client = _anthropic.Anthropic()
+
+    system_prompt = f"""You are a travel assistant extracting places from webpages for a trip planner.
+
+Trip: "{plan['title']}"
+Stops:
+{stops_lines}
+
+Extract all relevant travel places (sights, restaurants, bars, activities, markets, museums) from the webpage.
+Assign each to the best matching trip stop.
+
+Respond ONLY with valid JSON — no explanation, no markdown:
+{{"places": [{{"title": "...", "description": "1-2 sentences", "city_slug": "...", "category": "sight|restaurant|bar|activity|museum|market"}}]}}
+
+Rules:
+- city_slug must be exactly one of: {city_slugs}
+- Only include places that clearly belong to a trip stop
+- Maximum 10 places
+- If nothing matches, return {{"places": []}}"""
+
+    try:
+        msg = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=1024,
+            system=system_prompt,
+            messages=[{"role": "user", "content": f"Page title: {page_title}\nURL: {url}\n\nContent:\n{page_content}"}],
+        )
+        raw_text = msg.content[0].text.strip()
+        m = re.search(r"\{.*\}", raw_text, re.DOTALL)
+        if not m:
+            return _cors(JsonResponse({"error": "AI returned no JSON"}, status=500), request)
+        places = json.loads(m.group()).get("places", [])
+    except Exception as e:
+        return _cors(JsonResponse({"error": f"AI error: {e}"}, status=500), request)
+
+    if not places:
+        return _cors(JsonResponse({"added": [], "message": "No matching places found for your trip stops."}), request)
+
+    def _slugify(text):
+        return re.sub(r"[\s_]+", "-", re.sub(r"[^\w\s-]", "", text.lower()).strip()).strip("-")
+
+    import frontmatter as fm
+    added = []
+    for place in places:
+        title = (place.get("title") or "").strip()
+        description = (place.get("description") or "").strip()
+        city_slug = (place.get("city_slug") or "").strip()
+        category = (place.get("category") or "Landmark").strip().title()
+
+        if not title or not city_slug:
+            continue
+        stop = next((s for s in plan["stops"] if s["city_slug"] == city_slug), None)
+        if not stop:
+            continue
+
+        poi_slug = _slugify(title) or "spot"
+        draft_dir = PLANS_DIR / "pois" / plan_slug / city_slug
+        draft_dir.mkdir(parents=True, exist_ok=True)
+
+        post = fm.Post(description, title=title, type="poi", category=category, source_url=url)
+        (draft_dir / f"{poi_slug}.md").write_text(fm.dumps(post))
+
+        draft_path = f"~pois/{plan_slug}/{city_slug}/{poi_slug}"
+        _plan_file_add(plan_slug, city_slug, draft_path)
+        added.append({"title": title, "city": stop["city"], "city_slug": city_slug})
+
+    return _cors(JsonResponse({"added": added}), request)

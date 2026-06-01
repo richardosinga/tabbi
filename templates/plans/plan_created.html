@@ -1,17 +1,69 @@
 {% extends "plans/base.html" %}
 {% load static %}
-{% block title %}{{ plan.title }} created — Tab.bi{% endblock %}
+{% block title %}{{ plan.title }} — Tab.bi{% endblock %}
 {% block content %}
-<div class="login-page">
-  <div class="login-box">
-    <div class="login-logo">World<span class="logo-dot"></span>66</div>
-    <h1>{{ plan.title }}</h1>
-    <p style="color:#555;margin-bottom:8px;">Your trip was created. Save this passphrase — it's the only way to access this trip on another device.</p>
-    <div class="plan-passphrase-box">
-      <span id="passphrase-text">{{ passphrase }}</span>
-      <button type="button" class="plan-passphrase-copy" onclick="navigator.clipboard.writeText('{{ passphrase }}');this.textContent='Copied!'">Copy</button>
+<div class="created-page">
+  <div class="created-wrap">
+
+    <div class="created-hero">
+      <div class="created-check">✓</div>
+      <h1 class="created-title">{{ plan.title }}</h1>
+      <p class="created-subtitle">Your trip is ready. Here's how to fill it in.</p>
     </div>
-    <a href="/plans/{{ plan.slug }}/edit/" class="plan-passphrase-continue">Start planning →</a>
+
+    <div class="created-passphrase-block">
+      <div class="created-pp-label">Your passphrase — save it</div>
+      <div class="created-pp-row">
+        <span class="created-pp-words" id="pp-text">{{ passphrase }}</span>
+        <button type="button" class="created-pp-copy" id="pp-copy" onclick="copyPassphrase()">Copy</button>
+      </div>
+      <p class="created-pp-hint">This is the only way to open your trip on another device or share it. Store it somewhere safe.</p>
+    </div>
+
+    <div class="created-ways">
+      <div class="created-way">
+        <div class="created-way-num">1</div>
+        <div class="created-way-body">
+          <strong>Browse &amp; add suggestions</strong>
+          <span>Open the plan, tap a destination, and pick from curated things to do, eat, and see.</span>
+        </div>
+      </div>
+      <div class="created-way">
+        <div class="created-way-num">2</div>
+        <div class="created-way-body">
+          <strong>Type directly</strong>
+          <span>Click <em>Edit</em> to write destinations and places in a simple text format. Dates, links, and notes all work.</span>
+        </div>
+      </div>
+      <div class="created-way">
+        <div class="created-way-num">3</div>
+        <div class="created-way-body">
+          <strong>Browser extension</strong>
+          <span>Install the Tabbi extension for Chrome. On any travel site, click the icon and AI extracts the places straight into your trip.</span>
+        </div>
+      </div>
+      <div class="created-way">
+        <div class="created-way-num">4</div>
+        <div class="created-way-body">
+          <strong>Claude app with @tabbi</strong>
+          <span>In the Claude desktop app, use <em>@tabbi</em> and share your passphrase. Claude will research your destinations and add places directly to this trip.</span>
+        </div>
+      </div>
+    </div>
+
+    <a href="/plans/{{ plan.slug }}/" class="created-cta">Open my trip →</a>
+
   </div>
 </div>
+
+<script>
+function copyPassphrase() {
+  navigator.clipboard.writeText('{{ passphrase }}').then(() => {
+    var btn = document.getElementById('pp-copy');
+    btn.textContent = 'Copied!';
+    btn.classList.add('created-pp-copy--done');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('created-pp-copy--done'); }, 2000);
+  });
+}
+</script>
 {% endblock %}

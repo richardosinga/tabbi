@@ -4,7 +4,9 @@ from twilio.request_validator import RequestValidator
 
 
 def send_message(to_number, body):
-    """Send a WhatsApp message via Twilio. `to_number` should be E.164."""
+    """Send a WhatsApp message via Twilio. Falls back to demo mode when credentials are absent."""
+    if not settings.TWILIO_ACCOUNT_SID or not settings.TWILIO_AUTH_TOKEN:
+        return "demo-sid"
     client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
     if not to_number.startswith("whatsapp:"):
         to_number = f"whatsapp:{to_number}"

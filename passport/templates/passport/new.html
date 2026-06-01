@@ -1,0 +1,50 @@
+{% extends "plans/base.html" %}
+{% block title %}New passport — Tab.bi{% endblock %}
+{% block content %}
+<style>
+.pp-wrap { max-width: 480px; margin: 64px auto; padding: 0 24px; }
+.pp-card {
+  background: #fff;
+  border: 2.5px solid #180A0A;
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 #180A0A;
+  padding: 48px;
+}
+.pp-card h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; color: #180A0A; }
+.pp-card .subtitle { color: #535050; margin-bottom: 32px; }
+.pp-field { margin-bottom: 20px; }
+.pp-field label { display: block; font-weight: 600; font-size: .85rem; margin-bottom: 6px; }
+.pp-field input[type=text] {
+  width: 100%; padding: 12px 16px;
+  border: 2px solid #DCDCDC; border-radius: 8px;
+  font-size: 1rem; font-family: inherit; background: #fff;
+  box-sizing: border-box;
+}
+.pp-field input[type=text]:focus { outline: none; border-color: #e7a328; }
+.pp-hint { font-size: .82rem; color: #535050; margin-top: 4px; }
+.pp-btn {
+  width: 100%; padding: 14px;
+  background: #e7a328; color: #180A0A;
+  border: 2.5px solid #180A0A; border-radius: 8px;
+  box-shadow: 3px 3px 0 #180A0A;
+  font-size: 1rem; font-weight: 700; cursor: pointer; margin-top: 8px;
+  font-family: inherit;
+}
+.pp-btn:hover { background: #c8891a; }
+</style>
+<div class="pp-wrap">
+  <div class="pp-card">
+    <h1>New passport</h1>
+    <p class="subtitle">Give it a name — you can always change it later.</p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="pp-field">
+        <label for="title">Passport name</label>
+        <input type="text" id="title" name="title" placeholder="e.g. Southeast Asia 2026" autofocus>
+        <p class="pp-hint">Or leave blank for "My Travel Passport"</p>
+      </div>
+      <button type="submit" class="pp-btn">Create passport &rarr;</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

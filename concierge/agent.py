@@ -14,6 +14,29 @@ _lock = threading.Lock()
 _running = set()
 
 
+def _is_demo_mode():
+    return not (settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN)
+
+
+def _simulate_provider_reply(session, outbound_message):
+    """Generate a realistic WhatsApp reply from the provider using Claude Haiku."""
+    p = session.prefs
+    response = _client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=200,
+        system=(
+            f"You are a WhatsApp representative for a small travel business called {session.provider_name}. "
+            "A travel agency called 'Tabbi Concierge' is contacting you on behalf of a customer. "
+            "Be realistic and natural: confirm availability, negotiate on price a little but don't be a pushover. "
+            f"Your standard rate is {p.get('listed_price', 'standard rates')} per person. "
+            "Keep your reply short and casual — 1 to 3 sentences, like a real WhatsApp message. "
+            "Don't use formal greetings every time."
+        ),
+        messages=[{"role": "user", "content": outbound_message}],
+    )
+    return response.content[0].text
+
+
 def _notify_user(session):
     if not session.user_email:
         return
@@ -188,11 +211,15 @@ _TOOLS = [
 ]
 
 
-def _execute_tool(session, tool_name, tool_input):
+def _execute_tool(session, tool_name, tool_input, demo=False):
     if tool_name == "send_whatsapp":
         body = tool_input["body"]
-        sid = send_message(session.provider_whatsapp, body)
+        sid = send_message(session.provider_whatsapp or "demo", body)
         Message.objects.create(session=session, direction="outbound", body=body, twilio_sid=sid)
+        if demo:
+            reply = _simulate_provider_reply(session, body)
+            Message.objects.create(session=session, direction="inbound", body=reply, twilio_sid="demo-inbound")
+            return f"Message sent. Provider replied: {reply}"
         return "Message sent."
 
     if tool_name == "get_messages":
@@ -269,6 +296,7 @@ def _do_run(session_id):
     if session.status in NegotiationSession.TERMINAL_STATUSES | {"pending_confirmation"}:
         return
 
+    demo = _is_demo_mode()
     session.status = "contacting" if not session.messages.exists() else "negotiating"
     session.save(update_fields=["status", "updated_at"])
 
@@ -310,7 +338,7 @@ def _do_run(session_id):
         for block in response.content:
             if block.type != "tool_use":
                 continue
-            result = _execute_tool(session, block.name, block.input)
+            result = _execute_tool(session, block.name, block.input, demo=demo)
             tool_results.append({
                 "type": "tool_result",
                 "tool_use_id": block.id,

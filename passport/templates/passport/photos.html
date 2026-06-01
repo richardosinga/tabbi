@@ -1,0 +1,101 @@
+{% extends "plans/base.html" %}
+{% block title %}Your photos — {{ passport.title }}{% endblock %}
+{% block content %}
+<style>
+.pp-step-wrap { max-width: 680px; margin: 40px auto; padding: 0 24px; }
+.pp-step-dots { display: flex; gap: 8px; margin-bottom: 24px; }
+.pp-step-dot { width: 32px; height: 4px; border-radius: 2px; background: #DCDCDC; }
+.pp-step-dot.done   { background: #e7a328; opacity: .4; }
+.pp-step-dot.active { background: #e7a328; }
+h1.pp-h1 { font-size: 2rem; font-weight: 700; margin-bottom: 8px; color: #180A0A; }
+.pp-subtitle { color: #535050; font-size: 1.05rem; margin-bottom: 36px; }
+.photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+.photo-slot {
+  aspect-ratio: 1;
+  border: 2.5px dashed #DCDCDC; border-radius: 12px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; cursor: pointer; position: relative; overflow: hidden;
+  background: #f5f5f5; transition: border-color .15s;
+}
+.photo-slot:hover { border-color: #e7a328; }
+.photo-slot.has-image { border-style: solid; border-color: #DCDCDC; }
+.photo-slot input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.photo-slot img { width: 100%; height: 100%; object-fit: cover; }
+.photo-slot .placeholder { text-align: center; color: #535050; font-size: .85rem; pointer-events: none; }
+.photo-slot .placeholder .icon { font-size: 2rem; }
+.slot-num {
+  position: absolute; top: 8px; left: 8px;
+  background: rgba(0,0,0,.5); color: #fff;
+  font-size: .75rem; font-weight: 600; padding: 2px 8px; border-radius: 20px;
+}
+.pp-btn {
+  width: 100%; padding: 14px;
+  background: #e7a328; color: #180A0A;
+  border: 2.5px solid #180A0A; border-radius: 8px;
+  box-shadow: 3px 3px 0 #180A0A;
+  font-size: 1rem; font-weight: 700; cursor: pointer;
+  font-family: inherit;
+}
+.pp-btn:hover { background: #c8891a; }
+.pp-skip-link { display: block; text-align: center; margin-top: 12px; color: #535050; font-size: .9rem; text-decoration: none; }
+.pp-skip-link:hover { color: #e7a328; }
+.pp-error { color: #c0392b; font-size: .9rem; margin-bottom: 20px; padding: 10px 14px; background: #fdf0ef; border-radius: 6px; }
+.pp-hint { font-size: .82rem; color: #535050; margin-bottom: 24px; }
+</style>
+<div class="pp-step-wrap">
+  <div class="pp-step-dots">
+    <div class="pp-step-dot done"></div>
+    <div class="pp-step-dot active"></div>
+    <div class="pp-step-dot"></div>
+    <div class="pp-step-dot"></div>
+  </div>
+  <h1 class="pp-h1">Your top travel photos</h1>
+  <p class="pp-subtitle">Pick up to 3 photos that capture your travel spirit. They stay private — only accessible with your passphrase.</p>
+
+  {% if error %}<p class="pp-error">{{ error }}</p>{% endif %}
+
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="photo-grid">
+      {% for i in "123" %}
+      {% with num=forloop.counter %}
+      <div class="photo-slot {% if photo_urls|length >= num %}has-image{% endif %}" id="slot-{{ num }}">
+        <span class="slot-num">#{{ num }}</span>
+        {% if photo_urls|length >= num %}
+          <img src="{{ photo_urls|slice:num|first }}" alt="Photo {{ num }}" id="preview-{{ num }}">
+        {% else %}
+          <div class="placeholder">
+            <div class="icon">📷</div>
+            <div>Click to upload</div>
+          </div>
+          <img id="preview-{{ num }}" style="display:none;width:100%;height:100%;object-fit:cover;" alt="">
+        {% endif %}
+        <input type="file" name="photo_{{ num }}" accept="image/*,.heic,.heif" onchange="previewPhoto(this, {{ num }})">
+      </div>
+      {% endwith %}
+      {% endfor %}
+    </div>
+
+    <p class="pp-hint">JPEG, PNG, WebP or HEIC. Stored on the server — never shared publicly.</p>
+    <button type="submit" class="pp-btn">Next: pick your travel style &rarr;</button>
+  </form>
+  <a href="/passport/{{ passport.slug }}/scenarios" class="pp-skip-link">Skip for now</a>
+</div>
+
+<script>
+function previewPhoto(input, num) {
+  if (!input.files || !input.files[0]) return;
+  var slot = document.getElementById('slot-' + num);
+  var preview = document.getElementById('preview-' + num);
+  var placeholder = slot.querySelector('.placeholder');
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+    if (placeholder) placeholder.style.display = 'none';
+    slot.classList.add('has-image');
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+</script>
+{% endblock %}
