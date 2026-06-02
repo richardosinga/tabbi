@@ -789,9 +789,9 @@ def plan_stop(request, slug, city_slug):
         suggestions.sort(key=lambda x: -x["_score"])
 
     _CATEGORIES = [
-        ("Things to do", "todo", "🎯"),
-        ("Food", "food", "🍜"),
-        ("Drinks", "drinks", "🍻"),
+        ("Do", "todo", "🎯"),
+        ("Eat", "food", "🍜"),
+        ("Drink", "drinks", "🍻"),
     ]
     suggestion_groups = [
         {"label": label, "key": key, "icon": icon, "items": [s for s in suggestions if s["category"] == key]}
