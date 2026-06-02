@@ -368,8 +368,12 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
     sections.append(
         "## Instructions\n"
         + poi_instruction
-        + f"2. Use web search to find what's notable in {city_title}.\n"
-        f"3. Write 2-4 new places not already listed above. For each:\n"
+        + (f"2. Check if the selected world66 places cover the traveller's interests ({preferences}). "
+           f"Use web search to find any missing places that match — especially if a whole interest area "
+           f"(e.g. food, parks, art) has no world66 coverage.\n"
+           if preferences else
+           f"2. Use web search to find what's notable in {city_title} that isn't already covered above.\n")
+        + f"3. Write 2-4 new places that fill the gaps. For each:\n"
         f"   - 2-4 paragraphs of prose, under 280 words, per the style guide below\n"
         f"   - One category: Landmark|Museum|Restaurant|Market|Park|Neighbourhood|Viewpoint|Bar|Gallery\n"
         f"   - Exact latitude/longitude — geocode each place via Nominatim:\n"
