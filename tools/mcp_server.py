@@ -424,7 +424,10 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
         f"   - Exact latitude/longitude — call the geocode tool for each place.\n"
         f"     NEVER guess or estimate coordinates. Wrong coords break the map.\n"
         f"   - A direct image_url from Wikimedia Commons if one exists\n"
-        f"4. Write a 2-4 sentence intro for the city stop.\n"
+        f"4. Write a short intro for the city stop (2-4 sentences). "
+        f"Write it in the same language the traveller used — if their preferences were in Dutch, write Dutch; French, write French; etc. "
+        f"Make it specific and personal to their trip: mention the dates, the group, what they plan to do there. "
+        f"POI descriptions (the `body` field) must always be in English.\n"
         f"5. Call submit_pois with the intro and all new places."
     )
     if style_md:

@@ -622,6 +622,9 @@ def plan_stop(request, slug, city_slug):
         coords = _city_coords(stop)
         if coords:
             markers = [{"lat": coords[0], "lng": coords[1], "title": stop["city"], "url": stop.get("destination_url") or ""}]
+    intro_path = PLANS_DIR / "intros" / slug / f"{city_slug}.md"
+    city_intro = intro_path.read_text(encoding="utf-8").strip() if intro_path.exists() else None
+
     city_snippet = None
     city_image_url = None
     if city_page:
@@ -851,6 +854,7 @@ def plan_stop(request, slug, city_slug):
         "stop": stop,
         "markers": mark_safe(json.dumps(markers)),
         "city_snippet": city_snippet,
+        "city_intro": city_intro,
         "city_image_url": city_image_url,
         "suggestion_groups": suggestion_groups,
         "budget_json": json.dumps(stop_budget),
