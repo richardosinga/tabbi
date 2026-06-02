@@ -807,22 +807,26 @@ def plan_stop(request, slug, city_slug):
     _plan_meta = _fmb.load(str(PLANS_DIR / f"{plan['slug']}.md")).metadata
     stop_budget = (_plan_meta.get("budgets") or {}).get(stop["city_slug"]) or {}
 
-    DO_CATEGORIES = {"landmark", "museum", "park", "market", "neighbourhood", "viewpoint", "gallery", "activity"}
-    EAT_CATEGORIES = {"restaurant", "cafe", "café", "food"}
-    DRINK_CATEGORIES = {"bar", "pub", "nightlife"}
+    EAT_SIGNALS = {"restaurant", "eating_out", "food", "cafe", "café"}
+    DRINK_SIGNALS = {"bar", "bars_and_cafes", "pub", "nightlife", "drink"}
 
     def _item_group(item):
-        cat = (item["page"].meta.get("category") or "" if item["page"] else "").lower()
-        if cat in EAT_CATEGORIES:
-            return "eat"
-        if cat in DRINK_CATEGORIES:
+        if not item["page"]:
+            return "do"
+        page = item["page"]
+        cat = (page.meta.get("category") or "").lower()
+        tags = [t.lower() for t in (page.tags if hasattr(page, "tags") else page.meta.get("tags") or [])]
+        signals = {cat} | set(tags)
+        if signals & DRINK_SIGNALS:
             return "drink"
+        if signals & EAT_SIGNALS:
+            return "eat"
         return "do"
 
     items_do    = [i for i in stop["items"] if _item_group(i) == "do"]
     items_eat   = [i for i in stop["items"] if _item_group(i) == "eat"]
     items_drink = [i for i in stop["items"] if _item_group(i) == "drink"]
-    ungrouped   = not any(i["page"] and i["page"].meta.get("category") for i in stop["items"])
+    ungrouped   = False
 
     return render(request, "plans/plan_stop.html", {
         "plan": plan,
