@@ -383,11 +383,13 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
         "## Instructions\n"
         + poi_instruction
         + (f"2. Check if the selected world66 places cover the traveller's interests ({preferences}). "
-           f"Use web search to find any missing places that match — especially if a whole interest area "
-           f"(e.g. food, parks, art) has no world66 coverage.\n"
+           f"Before writing anything new, call search_world66 for any interest area that has no coverage "
+           f"(e.g. 'restaurants {city_title}', 'parks {city_title}') — use world66 paths if found. "
+           f"Only write new places for genuine gaps where world66 has nothing.\n"
            if preferences else
-           f"2. Use web search to find what's notable in {city_title} that isn't already covered above.\n")
-        + f"3. Write 2-4 new places that fill the gaps. For each:\n"
+           f"2. Before writing new places, call search_world66 for any obvious gaps "
+           f"(e.g. 'restaurants {city_title}', 'parks {city_title}'). Use world66 paths if found.\n")
+        + f"3. Only if world66 has no coverage for a category: write 1-2 new places to fill that gap. For each:\n"
         f"   - 2-4 paragraphs of prose, under 280 words, per the style guide below\n"
         f"   - One category: Landmark|Museum|Restaurant|Market|Park|Neighbourhood|Viewpoint|Bar|Gallery\n"
         f"   - Exact latitude/longitude — call the geocode tool for each place.\n"
