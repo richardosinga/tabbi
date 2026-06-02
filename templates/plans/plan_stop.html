@@ -434,6 +434,22 @@ document.querySelectorAll('.plan-suggestion-add, .plan-custom-spot-form').forEac
   }
 })();
 
+document.querySelectorAll('.plan-remove-form').forEach(function(form) {
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var card = form.closest('.plan-poi-card');
+    var data = new FormData(form);
+    fetch(form.action, { method: 'POST', body: data })
+      .then(function() {
+        if (card) {
+          card.style.transition = 'opacity 0.2s';
+          card.style.opacity = '0';
+          setTimeout(function() { card.remove(); }, 200);
+        }
+      });
+  });
+});
+
 document.querySelectorAll('.plan-note-text').forEach(function(span) {
   span.addEventListener('click', function() {
     var form = span.nextElementSibling;
