@@ -1278,6 +1278,25 @@ def api_plan_create(request):
 
 @csrf_exempt
 @require_POST
+def api_plan_remove_poi(request):
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "invalid JSON"}, status=400)
+
+    plan_slug = body.get("plan_slug", "").strip()
+    poi_path = body.get("poi_path", "").strip()
+    if not plan_slug or not poi_path:
+        return JsonResponse({"error": "plan_slug and poi_path are required"}, status=400)
+    if not _check_plan_auth(body, plan_slug):
+        return JsonResponse({"error": "unauthorized"}, status=403)
+
+    removed = _plan_file_remove(plan_slug, poi_path)
+    return JsonResponse({"removed": removed})
+
+
+@csrf_exempt
+@require_POST
 def api_plan_add_pois(request):
     try:
         body = json.loads(request.body)
