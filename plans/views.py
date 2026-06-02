@@ -3,6 +3,7 @@ import json
 import re
 import secrets
 import subprocess
+import unicodedata
 from functools import wraps
 from pathlib import Path
 
@@ -15,6 +16,13 @@ from django.views.decorators.http import require_POST
 
 from django.conf import settings as _settings
 from world66_content.models import CONTENT_DIR, load_page, resolve_location_name
+
+def _slugify(text: str) -> str:
+    """ASCII slug: transliterates unicode (ü→u, é→e) rather than stripping it."""
+    nfd = unicodedata.normalize("NFD", text.lower())
+    ascii_text = "".join(c for c in nfd if unicodedata.category(c) != "Mn")
+    return re.sub(r"[^a-z0-9]+", "-", ascii_text).strip("-")
+
 
 def _w66_url(path):
     """Return an absolute world66.ai URL for a content path."""
@@ -279,7 +287,7 @@ def _parse_stops(body, plan_slug):
                 city_name = city_part
                 hint = plan_slug + " " + " ".join(s.get("city_path") or "" for s in stops)
                 city_path = resolve_location_name(city_part, hint)
-            city_slug = city_name.lower().replace(" ", "-")
+            city_slug = _slugify(city_name)
             current = {
                 "city": city_name,
                 "city_slug": city_slug,
@@ -979,9 +987,9 @@ def _plan_file_add(slug, city_slug, poi_path):
             heading = h2.group(1)
             city_raw = heading.split("|", 1)[0].strip()
             if "/" in city_raw:
-                heading_slug = city_raw.split("/")[-1].replace("_", " ").lower().replace(" ", "-")
+                heading_slug = _slugify(city_raw.split("/")[-1].replace("_", " "))
             else:
-                heading_slug = city_raw.lower().replace(" ", "-")
+                heading_slug = _slugify(city_raw)
             in_section = (heading_slug == city_slug)
             if in_section:
                 insert_at = i + 1
@@ -1168,7 +1176,7 @@ def _resolve_stop(destination: str, start_date: str, end_date: str, notes: str, 
     except ValueError:
         date_str = f"{start_date} – {end_date}" if end_date else start_date
 
-    city_slug = re.sub(r"[^a-z0-9]+", "-", city_title.lower()).strip("-")
+    city_slug = _slugify(city_title)
     return {
         "city_title": city_title,
         "city_path":  city_path,

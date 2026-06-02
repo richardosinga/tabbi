@@ -27,11 +27,20 @@ from __future__ import annotations
 
 import json
 import os
+import re as _re
 import sys
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
+
+
+def _slugify(text: str) -> str:
+    nfd = unicodedata.normalize("NFD", text.lower())
+    ascii_text = "".join(c for c in nfd if unicodedata.category(c) != "Mn")
+    return _re.sub(r"[^a-z0-9]+", "-", ascii_text).strip("-")
+
 
 # ---------------------------------------------------------------------------
 # Load .env from repo root
@@ -362,7 +371,7 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
         already_in_plan = plan_items.get(city_slug, [])
     elif plan_slug and city_title:
         plan_items = _read_plan_items(plan_slug)
-        slug_guess = city_title.lower().replace(" ", "-")
+        slug_guess = _slugify(city_title)
         already_in_plan = plan_items.get(slug_guess, [])
 
     sections = [f"## What we have for {city_title}"]
@@ -505,9 +514,9 @@ def _read_plan_items(plan_slug: str) -> dict[str, list[str]]:
             heading = line[3:].strip()
             city_part = heading.split("|")[0].strip()
             if "/" in city_part:
-                current_city = city_part.split("/")[-1].replace("_", " ").lower().replace(" ", "-")
+                current_city = _slugify(city_part.split("/")[-1].replace("_", " "))
             else:
-                current_city = city_part.lower().replace(" ", "-")
+                current_city = _slugify(city_part)
             items_by_city.setdefault(current_city, [])
         elif line.startswith("- ") and current_city is not None:
             entry = line[2:].strip()
