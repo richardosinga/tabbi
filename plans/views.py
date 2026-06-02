@@ -807,6 +807,23 @@ def plan_stop(request, slug, city_slug):
     _plan_meta = _fmb.load(str(PLANS_DIR / f"{plan['slug']}.md")).metadata
     stop_budget = (_plan_meta.get("budgets") or {}).get(stop["city_slug"]) or {}
 
+    DO_CATEGORIES = {"landmark", "museum", "park", "market", "neighbourhood", "viewpoint", "gallery", "activity"}
+    EAT_CATEGORIES = {"restaurant", "cafe", "café", "food"}
+    DRINK_CATEGORIES = {"bar", "pub", "nightlife"}
+
+    def _item_group(item):
+        cat = (item["page"].meta.get("category") or "" if item["page"] else "").lower()
+        if cat in EAT_CATEGORIES:
+            return "eat"
+        if cat in DRINK_CATEGORIES:
+            return "drink"
+        return "do"
+
+    items_do    = [i for i in stop["items"] if _item_group(i) == "do"]
+    items_eat   = [i for i in stop["items"] if _item_group(i) == "eat"]
+    items_drink = [i for i in stop["items"] if _item_group(i) == "drink"]
+    ungrouped   = not any(i["page"] and i["page"].meta.get("category") for i in stop["items"])
+
     return render(request, "plans/plan_stop.html", {
         "plan": plan,
         "stop": stop,
@@ -815,6 +832,10 @@ def plan_stop(request, slug, city_slug):
         "city_image_url": city_image_url,
         "suggestion_groups": suggestion_groups,
         "budget_json": json.dumps(stop_budget),
+        "items_do": items_do,
+        "items_eat": items_eat,
+        "items_drink": items_drink,
+        "ungrouped": ungrouped,
     })
 
 

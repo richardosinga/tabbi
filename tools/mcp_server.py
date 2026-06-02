@@ -389,7 +389,10 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
            if preferences else
            f"2. Before writing new places, call search_world66 for any obvious gaps "
            f"(e.g. 'restaurants {city_title}', 'parks {city_title}'). Use world66 paths if found.\n")
-        + f"3. Only if world66 has no coverage for a category: write 1-2 new places to fill that gap. For each:\n"
+        + f"3. Only if world66 has no coverage for a category: write 1-2 new places to fill that gap.\n"
+        f"   Default categories to fill: Landmark, Museum, Park, Market, Neighbourhood, Viewpoint, Gallery.\n"
+        f"   Only add Restaurant or Bar if the traveller explicitly mentioned food, eating, bars, or nightlife in their preferences.\n"
+        f"   For each new place:\n"
         f"   - 2-4 paragraphs of prose, under 280 words, per the style guide below\n"
         f"   - One category: Landmark|Museum|Restaurant|Market|Park|Neighbourhood|Viewpoint|Bar|Gallery\n"
         f"   - Exact latitude/longitude — call the geocode tool for each place.\n"
