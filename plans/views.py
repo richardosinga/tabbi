@@ -323,6 +323,10 @@ def _parse_stops(body, plan_slug):
                     page = _find_poi_in_city(text, current["city_path"])
             image_url = None
             if page:
+                if not page.meta.get("snippet") and page.body:
+                    first = next((p.strip() for p in page.body.split("\n\n") if p.strip()), "")
+                    if first:
+                        page.meta["snippet"] = first[:180] + ("…" if len(first) > 180 else "")
                 if page.meta.get("image_url"):
                     image_url = page.meta["image_url"]
                 else:
