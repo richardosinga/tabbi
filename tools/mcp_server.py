@@ -330,7 +330,7 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
 
     if existing_pois:
         place_lines = "\n".join(f"- {p['title']} (`{p['path']}`)" for p in existing_pois)
-        sections.append(f"### World66 guide places ({len(existing_pois)})\n{place_lines}")
+        sections.append(f"### World66 guide places ({len(existing_pois)} total)\n{place_lines}")
     else:
         sections.append(f"No existing world66 content for {city_title} — research from scratch.")
 
@@ -338,11 +338,21 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
     already_titles = {a.lower() for a in already_in_plan}
     new_pois = [p for p in existing_pois if p["title"].lower() not in already_titles]
 
+    if new_pois:
+        poi_instruction = (
+            f"1. From the {len(new_pois)} world66 place(s) above, select the 8–12 most essential "
+            f"and well-known — the ones a first-time visitor absolutely should not miss. "
+            f"Skip duplicates, obscure entries, and anything that doesn't stand on its own. "
+            f"Call add_pois_to_plan with only those selected path(s):\n"
+            + "\n".join(f"   - `{p['path']}`" for p in new_pois)
+            + "\n   (Pick the best 8–12 from this list, not all of them.)\n"
+        )
+    else:
+        poi_instruction = "1. No new world66 POIs to add.\n"
+
     sections.append(
         "## Instructions\n"
-        + (f"1. Call add_pois_to_plan with these {len(new_pois)} NOT-yet-added world66 path(s):\n"
-           + "\n".join(f"   - `{p['path']}`" for p in new_pois)
-           + "\n" if new_pois else "1. No new world66 POIs to add.\n")
+        + poi_instruction
         + f"2. Use web search to find what's notable in {city_title}.\n"
         f"3. Write 2-4 new places not already listed above. For each:\n"
         f"   - 2-4 paragraphs of prose, under 280 words, per the style guide below\n"
