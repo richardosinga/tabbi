@@ -193,6 +193,23 @@ TOOLS = [
         },
     },
     {
+        "name": "remove_poi_from_plan",
+        "description": (
+            "Remove a place from a trip plan. "
+            "Use this when the user wants to delete a specific place from a city stop. "
+            "The poi_path must match exactly what's in the plan (e.g. 'europe/greece/athens/acropolis' or '~pois/...')."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "plan_slug":  {"type": "string"},
+                "passphrase": {"type": "string"},
+                "poi_path":   {"type": "string", "description": "Exact path of the place to remove"},
+            },
+            "required": ["plan_slug", "passphrase", "poi_path"],
+        },
+    },
+    {
         "name": "geocode",
         "description": (
             "Look up the latitude and longitude of a place by name. "
@@ -433,6 +450,18 @@ def tool_submit_pois(city_title: str, pois: list, plan_slug: str, passphrase: st
         return f"Submit failed: {e}"
 
 
+def tool_remove_poi_from_plan(plan_slug: str, passphrase: str, poi_path: str) -> str:
+    try:
+        result = _http_post(f"{TABBI_BASE_URL}/api/plan/remove-poi", {
+            "plan_slug": plan_slug, "passphrase": passphrase, "poi_path": poi_path,
+        })
+        if result.get("removed"):
+            return f"Removed '{poi_path}' from the plan."
+        return f"'{poi_path}' was not found in the plan."
+    except RuntimeError as e:
+        return f"Failed to remove: {e}"
+
+
 def tool_geocode(query: str) -> str:
     try:
         url = f"https://nominatim.openstreetmap.org/search?q={urllib.parse.quote(query)}&format=json&limit=1"
@@ -565,6 +594,11 @@ def _handle(message: dict) -> dict | None:
                     plan_slug=args["plan_slug"], passphrase=args["passphrase"],
                     city_path=args.get("city_path", ""), city_slug=args.get("city_slug", ""),
                     intro=args.get("intro", ""),
+                )
+            elif name == "remove_poi_from_plan":
+                text = tool_remove_poi_from_plan(
+                    plan_slug=args["plan_slug"], passphrase=args["passphrase"],
+                    poi_path=args["poi_path"],
                 )
             elif name == "geocode":
                 text = tool_geocode(query=args["query"])

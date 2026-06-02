@@ -323,6 +323,10 @@ def _parse_stops(body, plan_slug):
                     page = _find_poi_in_city(text, current["city_path"])
             image_url = None
             if page:
+                if not page.meta.get("snippet") and page.body:
+                    first = next((p.strip() for p in page.body.split("\n\n") if p.strip()), "")
+                    if first:
+                        page.meta["snippet"] = first[:180] + ("…" if len(first) > 180 else "")
                 if page.meta.get("image_url"):
                     image_url = page.meta["image_url"]
                 else:
@@ -1274,6 +1278,25 @@ def api_plan_create(request):
                         "city_path":  r["city_path"],
                         "city_slug":  r["city_slug"]} for r in resolved],
     })
+
+
+@csrf_exempt
+@require_POST
+def api_plan_remove_poi(request):
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "invalid JSON"}, status=400)
+
+    plan_slug = body.get("plan_slug", "").strip()
+    poi_path = body.get("poi_path", "").strip()
+    if not plan_slug or not poi_path:
+        return JsonResponse({"error": "plan_slug and poi_path are required"}, status=400)
+    if not _check_plan_auth(body, plan_slug):
+        return JsonResponse({"error": "unauthorized"}, status=403)
+
+    removed = _plan_file_remove(plan_slug, poi_path)
+    return JsonResponse({"removed": removed})
 
 
 @csrf_exempt
