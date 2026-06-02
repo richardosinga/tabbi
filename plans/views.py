@@ -783,7 +783,7 @@ def plan_stop(request, slug, city_slug):
             if not page.meta.get("snippet") and page.body:
                 first = next((p.strip() for p in page.body.split("\n\n") if p.strip()), "")
                 if first:
-                    page.meta["snippet"] = first[:180] + ("…" if len(first) > 180 else "")
+                    page.meta["snippet"] = first[:100] + ("…" if len(first) > 100 else "")
             ph_emoji, ph_bg = _placeholder(page)
             suggestions.append({
                 "page": page,
