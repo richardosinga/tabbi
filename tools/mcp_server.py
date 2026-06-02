@@ -158,9 +158,8 @@ TOOLS = [
             "Submit researched places to Tabbi as plan entries. "
             "Call after research_city once you've written up the missing places. "
             "IMPORTANT: latitude and longitude are required for every POI. "
-            "Do NOT guess or estimate coordinates — look them up via web search or "
-            "the Nominatim API (https://nominatim.openstreetmap.org/search?q=<name>&format=json) "
-            "before submitting. Wrong coordinates break the map."
+            "Call the geocode tool for each place before submitting — do NOT guess or estimate coordinates. "
+            "Wrong coordinates break the map."
         ),
         "inputSchema": {
             "type": "object",
@@ -191,6 +190,21 @@ TOOLS = [
                 },
             },
             "required": ["city_title", "pois", "plan_slug", "passphrase"],
+        },
+    },
+    {
+        "name": "geocode",
+        "description": (
+            "Look up the latitude and longitude of a place by name. "
+            "Use this instead of fetching Nominatim directly — call it for every POI before submit_pois. "
+            "Returns latitude, longitude, and the matched display name."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Place name to geocode, e.g. 'Eiffel Tower, Paris'"},
+            },
+            "required": ["query"],
         },
     },
     {
@@ -376,8 +390,7 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
         + f"3. Write 2-4 new places that fill the gaps. For each:\n"
         f"   - 2-4 paragraphs of prose, under 280 words, per the style guide below\n"
         f"   - One category: Landmark|Museum|Restaurant|Market|Park|Neighbourhood|Viewpoint|Bar|Gallery\n"
-        f"   - Exact latitude/longitude — geocode each place via Nominatim:\n"
-        f"     https://nominatim.openstreetmap.org/search?q=<place+name>&format=json&limit=1\n"
+        f"   - Exact latitude/longitude — call the geocode tool for each place.\n"
         f"     NEVER guess or estimate coordinates. Wrong coords break the map.\n"
         f"   - A direct image_url from Wikimedia Commons if one exists\n"
         f"4. Write a 2-4 sentence intro for the city stop.\n"
@@ -413,6 +426,18 @@ def tool_submit_pois(city_title: str, pois: list, plan_slug: str, passphrase: st
         )
     except RuntimeError as e:
         return f"Submit failed: {e}"
+
+
+def tool_geocode(query: str) -> str:
+    try:
+        url = f"https://nominatim.openstreetmap.org/search?q={urllib.parse.quote(query)}&format=json&limit=1"
+        result = _http_get(url)
+    except Exception as e:
+        return f"Geocoding failed: {e}"
+    if not result:
+        return f"No results found for '{query}'."
+    r = result[0]
+    return f"latitude: {r['lat']}, longitude: {r['lon']}, display_name: {r['display_name']}"
 
 
 def tool_search_world66(query: str) -> str:
@@ -536,6 +561,8 @@ def _handle(message: dict) -> dict | None:
                     city_path=args.get("city_path", ""), city_slug=args.get("city_slug", ""),
                     intro=args.get("intro", ""),
                 )
+            elif name == "geocode":
+                text = tool_geocode(query=args["query"])
             elif name == "search_world66":
                 text = tool_search_world66(query=args["query"])
             else:
