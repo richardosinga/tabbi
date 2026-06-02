@@ -130,7 +130,8 @@ def main():
         branch = f"{branch}-{date.today().strftime('%H%M')}"
 
     run(["git", "checkout", "-b", branch], cwd=WORLD66_DIR)
-    run(["git", "add", "."], cwd=WORLD66_DIR)
+    for _, dst in copies:
+        run(["git", "add", str(dst)], cwd=WORLD66_DIR)
     run(["git", "commit", "-m", f"Add {len(copies)} POI(s) from Tabbi trips"], cwd=WORLD66_DIR)
     run(["git", "push", "origin", branch], cwd=WORLD66_DIR)
 

@@ -76,7 +76,13 @@ TOOLS = [
         "description": (
             "Create a Tabbi trip plan. Supports single or multi-city trips. "
             "Returns a shareable plan URL and a passphrase. "
-            "After creating the plan, call research_city for each stop."
+            "After creating the plan, call research_city for each stop.\n\n"
+            "IMPORTANT: Before calling this tool, ask the user these questions if not already answered:\n"
+            "1. Who is travelling? (solo, couple, family with kids, group of friends, etc.)\n"
+            "2. What are their main interests? (food, art, history, nature, nightlife, shopping, etc.)\n"
+            "3. What's the travel pace? (relaxed, packed, somewhere in between)\n"
+            "4. Any must-haves or things to avoid?\n"
+            "Summarise the answers in the 'preferences' field so research_city can use them to curate places."
         ),
         "inputSchema": {
             "type": "object",
@@ -84,6 +90,10 @@ TOOLS = [
                 "title": {
                     "type": "string",
                     "description": "Trip title (e.g. 'Summer in Spain').",
+                },
+                "preferences": {
+                    "type": "string",
+                    "description": "Summary of traveller profile and interests, e.g. 'Family with two kids, interested in history and food, relaxed pace, avoid nightlife'.",
                 },
                 "stops": {
                     "type": "array",
@@ -116,10 +126,11 @@ TOOLS = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "city_path":  {"type": "string", "description": "World66 content path (e.g. 'europe/spain/catalonia/barcelona'). Use the city_path returned by plan_trip."},
-                "city_title": {"type": "string", "description": "Human-readable city name (e.g. 'Barcelona')"},
-                "city_slug":  {"type": "string", "description": "City slug (e.g. 'barcelona'). Use the city_slug returned by open_plan or plan_trip."},
-                "plan_slug":  {"type": "string", "description": "Plan slug, so existing plan items are shown and not duplicated."},
+                "city_path":   {"type": "string", "description": "World66 content path (e.g. 'europe/spain/catalonia/barcelona'). Use the city_path returned by plan_trip."},
+                "city_title":  {"type": "string", "description": "Human-readable city name (e.g. 'Barcelona')"},
+                "city_slug":   {"type": "string", "description": "City slug (e.g. 'barcelona'). Use the city_slug returned by open_plan or plan_trip."},
+                "plan_slug":   {"type": "string", "description": "Plan slug, so existing plan items are shown and not duplicated."},
+                "preferences": {"type": "string", "description": "Traveller preferences from plan_trip, passed through to curate place selection."},
             },
             "required": ["city_title"],
         },
@@ -258,7 +269,7 @@ def tool_open_plan(passphrase: str) -> str:
     return "\n".join(lines)
 
 
-def tool_plan_trip(stops=None, title="", destination="", start_date="", end_date="", notes="") -> str:
+def tool_plan_trip(stops=None, title="", destination="", start_date="", end_date="", notes="", preferences="") -> str:
     if not stops:
         if not destination:
             return "Error: provide 'stops' (multi-city) or 'destination' (single city)."
@@ -283,10 +294,13 @@ def tool_plan_trip(stops=None, title="", destination="", start_date="", end_date
             f"- **{city['city_title']}**: city_path={city['city_path']!r}, "
             f"city_slug={city['city_slug']!r} — {coverage}"
         )
+    if preferences:
+        lines += ["", f"Traveller preferences: {preferences}",
+                  "Use these when calling research_city to pick and write places that match."]
     return "\n".join(lines)
 
 
-def tool_research_city(city_title: str, city_path: str = "", city_slug: str = "", plan_slug: str = "") -> str:
+def tool_research_city(city_title: str, city_path: str = "", city_slug: str = "", plan_slug: str = "", preferences: str = "") -> str:
     style_md = ""
     style_file = WORLD66_DIR / "STYLE.md"
     if style_file.exists():
@@ -330,7 +344,7 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
 
     if existing_pois:
         place_lines = "\n".join(f"- {p['title']} (`{p['path']}`)" for p in existing_pois)
-        sections.append(f"### World66 guide places ({len(existing_pois)})\n{place_lines}")
+        sections.append(f"### World66 guide places ({len(existing_pois)} total)\n{place_lines}")
     else:
         sections.append(f"No existing world66 content for {city_title} — research from scratch.")
 
@@ -338,13 +352,28 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
     already_titles = {a.lower() for a in already_in_plan}
     new_pois = [p for p in existing_pois if p["title"].lower() not in already_titles]
 
+    if new_pois:
+        prefs_note = f" Traveller profile: {preferences}. Pick places that match." if preferences else \
+            " Pick the most essential ones a first-time visitor should not miss."
+        poi_instruction = (
+            f"1. From the {len(new_pois)} world66 place(s) above, select 8–12 that best fit this trip.{prefs_note} "
+            f"Skip duplicates, obscure entries, and anything that doesn't stand on its own. "
+            f"Call add_pois_to_plan with only those selected path(s):\n"
+            + "\n".join(f"   - `{p['path']}`" for p in new_pois)
+            + "\n   (Pick the best 8–12 from this list, not all of them.)\n"
+        )
+    else:
+        poi_instruction = "1. No new world66 POIs to add.\n"
+
     sections.append(
         "## Instructions\n"
-        + (f"1. Call add_pois_to_plan with these {len(new_pois)} NOT-yet-added world66 path(s):\n"
-           + "\n".join(f"   - `{p['path']}`" for p in new_pois)
-           + "\n" if new_pois else "1. No new world66 POIs to add.\n")
-        + f"2. Use web search to find what's notable in {city_title}.\n"
-        f"3. Write 2-4 new places not already listed above. For each:\n"
+        + poi_instruction
+        + (f"2. Check if the selected world66 places cover the traveller's interests ({preferences}). "
+           f"Use web search to find any missing places that match — especially if a whole interest area "
+           f"(e.g. food, parks, art) has no world66 coverage.\n"
+           if preferences else
+           f"2. Use web search to find what's notable in {city_title} that isn't already covered above.\n")
+        + f"3. Write 2-4 new places that fill the gaps. For each:\n"
         f"   - 2-4 paragraphs of prose, under 280 words, per the style guide below\n"
         f"   - One category: Landmark|Museum|Restaurant|Market|Park|Neighbourhood|Viewpoint|Bar|Gallery\n"
         f"   - Exact latitude/longitude — geocode each place via Nominatim:\n"
@@ -487,11 +516,13 @@ def _handle(message: dict) -> dict | None:
                     stops=args.get("stops"), title=args.get("title", ""),
                     destination=args.get("destination", ""), start_date=args.get("start_date", ""),
                     end_date=args.get("end_date", ""), notes=args.get("notes", ""),
+                    preferences=args.get("preferences", ""),
                 )
             elif name == "research_city":
                 text = tool_research_city(
                     city_title=args["city_title"], city_path=args.get("city_path", ""),
                     city_slug=args.get("city_slug", ""), plan_slug=args.get("plan_slug", ""),
+                    preferences=args.get("preferences", ""),
                 )
             elif name == "add_pois_to_plan":
                 text = tool_add_pois_to_plan(
