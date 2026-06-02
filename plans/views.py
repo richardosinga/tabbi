@@ -832,6 +832,8 @@ def plan_stop(request, slug, city_slug):
     items_drink = [i for i in stop["items"] if _item_group(i) == "drink"]
     ungrouped   = False
 
+    inspo_count = (1 if city_image_url else 0) + sum(1 for i in stop["items"] if i.get("image_url"))
+
     return render(request, "plans/plan_stop.html", {
         "plan": plan,
         "stop": stop,
@@ -844,6 +846,7 @@ def plan_stop(request, slug, city_slug):
         "items_eat": items_eat,
         "items_drink": items_drink,
         "ungrouped": ungrouped,
+        "inspo_count": inspo_count,
     })
 
 
