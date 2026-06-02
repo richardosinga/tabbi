@@ -789,9 +789,9 @@ def plan_stop(request, slug, city_slug):
         suggestions.sort(key=lambda x: -x["_score"])
 
     _CATEGORIES = [
-        ("Things to do", "todo", "🎯"),
-        ("Food", "food", "🍜"),
-        ("Drinks", "drinks", "🍻"),
+        ("Do", "todo", "🎯"),
+        ("Eat", "food", "🍜"),
+        ("Drink", "drinks", "🍻"),
     ]
     suggestion_groups = [
         {"label": label, "key": key, "icon": icon, "items": [s for s in suggestions if s["category"] == key]}
@@ -807,6 +807,27 @@ def plan_stop(request, slug, city_slug):
     _plan_meta = _fmb.load(str(PLANS_DIR / f"{plan['slug']}.md")).metadata
     stop_budget = (_plan_meta.get("budgets") or {}).get(stop["city_slug"]) or {}
 
+    EAT_SIGNALS = {"restaurant", "eating_out", "food", "cafe", "café"}
+    DRINK_SIGNALS = {"bar", "bars_and_cafes", "pub", "nightlife", "drink"}
+
+    def _item_group(item):
+        if not item["page"]:
+            return "do"
+        page = item["page"]
+        cat = (page.meta.get("category") or "").lower()
+        tags = [t.lower() for t in (page.tags if hasattr(page, "tags") else page.meta.get("tags") or [])]
+        signals = {cat} | set(tags)
+        if signals & DRINK_SIGNALS:
+            return "drink"
+        if signals & EAT_SIGNALS:
+            return "eat"
+        return "do"
+
+    items_do    = [i for i in stop["items"] if _item_group(i) == "do"]
+    items_eat   = [i for i in stop["items"] if _item_group(i) == "eat"]
+    items_drink = [i for i in stop["items"] if _item_group(i) == "drink"]
+    ungrouped   = False
+
     return render(request, "plans/plan_stop.html", {
         "plan": plan,
         "stop": stop,
@@ -815,6 +836,10 @@ def plan_stop(request, slug, city_slug):
         "city_image_url": city_image_url,
         "suggestion_groups": suggestion_groups,
         "budget_json": json.dumps(stop_budget),
+        "items_do": items_do,
+        "items_eat": items_eat,
+        "items_drink": items_drink,
+        "ungrouped": ungrouped,
     })
 
 

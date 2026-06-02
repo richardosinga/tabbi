@@ -56,6 +56,7 @@
       </div>
       {% endif %}
 
+      {% if ungrouped %}
       {% for item in stop.items %}
       <div class="plan-poi-card{% if not item.page and not item.external_url %} plan-poi-card-note{% endif %}{% if item.is_expandable %} plan-poi-card--expandable{% endif %}" data-card-index="{{ forloop.counter0 }}"{% if item.is_expandable %} onclick="togglePoiCard(event, this)"{% endif %}>
         <div class="plan-poi-body">
@@ -118,6 +119,111 @@
         </form>
       </div>
       {% endfor %}
+      {% else %}
+
+      {% if items_do %}
+      <h3 class="plan-section-label">Do</h3>
+      {% for item in items_do %}
+      <div class="plan-poi-card{% if not item.page and not item.external_url %} plan-poi-card-note{% endif %}{% if item.is_expandable %} plan-poi-card--expandable{% endif %}" data-card-index="{{ forloop.counter0 }}"{% if item.is_expandable %} onclick="togglePoiCard(event, this)"{% endif %}>
+        <div class="plan-poi-body">
+          {% if item.page %}
+            {% if item.page.meta.external_url or item.page.meta.source_url %}
+            <a class="plan-poi-title plan-poi-title--draft" href="{{ item.page.meta.external_url|default:item.page.meta.source_url }}" target="_blank" rel="noopener">{{ item.page.title }}</a>
+            {% elif item.page.path|slice:":6" == "~pois/" %}
+            <span class="plan-poi-title plan-poi-title--draft">{{ item.page.title }}</span>
+            {% else %}
+            <a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.page.title }}</a>
+            {% endif %}
+            {% if item.is_expandable %}
+              {% if item.page.meta.snippet %}<p class="plan-poi-tagline">{{ item.page.meta.snippet }}</p>{% endif %}
+              <div class="plan-poi-full" hidden>
+                {% if item.image_url %}<div class="plan-poi-full-image" style="background-image:url('{{ item.image_url }}')"></div>{% endif %}
+                <p class="plan-poi-full-body">{{ item.page.body }}</p>
+                {% if not item.page.path|slice:":6" == "~pois/" %}<a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Read more on world66</a>{% endif %}
+              </div>
+            {% else %}
+              {% if item.page.meta.snippet %}<p class="plan-poi-snippet">{{ item.page.meta.snippet }}</p>{% endif %}
+            {% endif %}
+          {% elif item.external_url %}
+            <a class="plan-external-link" href="{{ item.external_url }}" target="_blank" rel="noopener">
+              <span class="plan-external-label">{{ item.display_label }}</span>
+              <span class="plan-external-domain">{{ item.display_domain }} ↗</span>
+            </a>
+          {% else %}
+            <span class="plan-note-text" title="Click to edit">{{ item.text }}</span>
+          {% endif %}
+        </div>
+        <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/remove/" class="plan-remove-form">
+          {% csrf_token %}
+          <input type="hidden" name="poi_path" value="{{ item.text }}">
+          <input type="hidden" name="next" value="{{ request.path }}">
+          <button type="submit" class="plan-remove-btn" title="Remove from plan" onclick="event.stopPropagation()">−</button>
+        </form>
+      </div>
+      {% endfor %}
+      {% endif %}
+
+      {% if items_eat %}
+      <h3 class="plan-section-label">Eat</h3>
+      {% for item in items_eat %}
+      <div class="plan-poi-card{% if item.is_expandable %} plan-poi-card--expandable{% endif %}" data-card-index="{{ forloop.counter0 }}"{% if item.is_expandable %} onclick="togglePoiCard(event, this)"{% endif %}>
+        <div class="plan-poi-body">
+          {% if item.page %}
+            {% if item.page.path|slice:":6" == "~pois/" %}
+            <span class="plan-poi-title plan-poi-title--draft">{{ item.page.title }}</span>
+            {% else %}
+            <a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.page.title }}</a>
+            {% endif %}
+            {% if item.is_expandable %}
+              {% if item.page.meta.snippet %}<p class="plan-poi-tagline">{{ item.page.meta.snippet }}</p>{% endif %}
+              <div class="plan-poi-full" hidden>
+                {% if item.image_url %}<div class="plan-poi-full-image" style="background-image:url('{{ item.image_url }}')"></div>{% endif %}
+                <p class="plan-poi-full-body">{{ item.page.body }}</p>
+              </div>
+            {% endif %}
+          {% endif %}
+        </div>
+        <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/remove/" class="plan-remove-form">
+          {% csrf_token %}
+          <input type="hidden" name="poi_path" value="{{ item.text }}">
+          <input type="hidden" name="next" value="{{ request.path }}">
+          <button type="submit" class="plan-remove-btn" title="Remove from plan" onclick="event.stopPropagation()">−</button>
+        </form>
+      </div>
+      {% endfor %}
+      {% endif %}
+
+      {% if items_drink %}
+      <h3 class="plan-section-label">Drink</h3>
+      {% for item in items_drink %}
+      <div class="plan-poi-card{% if item.is_expandable %} plan-poi-card--expandable{% endif %}" data-card-index="{{ forloop.counter0 }}"{% if item.is_expandable %} onclick="togglePoiCard(event, this)"{% endif %}>
+        <div class="plan-poi-body">
+          {% if item.page %}
+            {% if item.page.path|slice:":6" == "~pois/" %}
+            <span class="plan-poi-title plan-poi-title--draft">{{ item.page.title }}</span>
+            {% else %}
+            <a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.page.title }}</a>
+            {% endif %}
+            {% if item.is_expandable %}
+              {% if item.page.meta.snippet %}<p class="plan-poi-tagline">{{ item.page.meta.snippet }}</p>{% endif %}
+              <div class="plan-poi-full" hidden>
+                {% if item.image_url %}<div class="plan-poi-full-image" style="background-image:url('{{ item.image_url }}')"></div>{% endif %}
+                <p class="plan-poi-full-body">{{ item.page.body }}</p>
+              </div>
+            {% endif %}
+          {% endif %}
+        </div>
+        <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/remove/" class="plan-remove-form">
+          {% csrf_token %}
+          <input type="hidden" name="poi_path" value="{{ item.text }}">
+          <input type="hidden" name="next" value="{{ request.path }}">
+          <button type="submit" class="plan-remove-btn" title="Remove from plan" onclick="event.stopPropagation()">−</button>
+        </form>
+      </div>
+      {% endfor %}
+      {% endif %}
+
+      {% endif %}{# end grouped/ungrouped #}
 
       <div class="plan-budget-toggle-row">
         <button type="button" class="plan-budget-toggle-btn" id="budget-toggle-btn" onclick="toggleBudget()">＋ Budget</button>

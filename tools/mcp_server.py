@@ -158,9 +158,8 @@ TOOLS = [
             "Submit researched places to Tabbi as plan entries. "
             "Call after research_city once you've written up the missing places. "
             "IMPORTANT: latitude and longitude are required for every POI. "
-            "Do NOT guess or estimate coordinates — look them up via web search or "
-            "the Nominatim API (https://nominatim.openstreetmap.org/search?q=<name>&format=json) "
-            "before submitting. Wrong coordinates break the map."
+            "Call the geocode tool for each place before submitting — do NOT guess or estimate coordinates. "
+            "Wrong coordinates break the map."
         ),
         "inputSchema": {
             "type": "object",
@@ -191,6 +190,21 @@ TOOLS = [
                 },
             },
             "required": ["city_title", "pois", "plan_slug", "passphrase"],
+        },
+    },
+    {
+        "name": "geocode",
+        "description": (
+            "Look up the latitude and longitude of a place by name. "
+            "Use this instead of fetching Nominatim directly — call it for every POI before submit_pois. "
+            "Returns latitude, longitude, and the matched display name."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Place name to geocode, e.g. 'Eiffel Tower, Paris'"},
+            },
+            "required": ["query"],
         },
     },
     {
@@ -369,15 +383,19 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
         "## Instructions\n"
         + poi_instruction
         + (f"2. Check if the selected world66 places cover the traveller's interests ({preferences}). "
-           f"Use web search to find any missing places that match — especially if a whole interest area "
-           f"(e.g. food, parks, art) has no world66 coverage.\n"
+           f"Before writing anything new, call search_world66 for any interest area that has no coverage "
+           f"(e.g. 'restaurants {city_title}', 'parks {city_title}') — use world66 paths if found. "
+           f"Only write new places for genuine gaps where world66 has nothing.\n"
            if preferences else
-           f"2. Use web search to find what's notable in {city_title} that isn't already covered above.\n")
-        + f"3. Write 2-4 new places that fill the gaps. For each:\n"
+           f"2. Before writing new places, call search_world66 for any obvious gaps "
+           f"(e.g. 'restaurants {city_title}', 'parks {city_title}'). Use world66 paths if found.\n")
+        + f"3. Only if world66 has no coverage for a category: write 1-2 new places to fill that gap.\n"
+        f"   Default categories to fill: Landmark, Museum, Park, Market, Neighbourhood, Viewpoint, Gallery.\n"
+        f"   Only add Restaurant or Bar if the traveller explicitly mentioned food, eating, bars, or nightlife in their preferences.\n"
+        f"   For each new place:\n"
         f"   - 2-4 paragraphs of prose, under 280 words, per the style guide below\n"
         f"   - One category: Landmark|Museum|Restaurant|Market|Park|Neighbourhood|Viewpoint|Bar|Gallery\n"
-        f"   - Exact latitude/longitude — geocode each place via Nominatim:\n"
-        f"     https://nominatim.openstreetmap.org/search?q=<place+name>&format=json&limit=1\n"
+        f"   - Exact latitude/longitude — call the geocode tool for each place.\n"
         f"     NEVER guess or estimate coordinates. Wrong coords break the map.\n"
         f"   - A direct image_url from Wikimedia Commons if one exists\n"
         f"4. Write a 2-4 sentence intro for the city stop.\n"
@@ -413,6 +431,18 @@ def tool_submit_pois(city_title: str, pois: list, plan_slug: str, passphrase: st
         )
     except RuntimeError as e:
         return f"Submit failed: {e}"
+
+
+def tool_geocode(query: str) -> str:
+    try:
+        url = f"https://nominatim.openstreetmap.org/search?q={urllib.parse.quote(query)}&format=json&limit=1"
+        result = _http_get(url)
+    except Exception as e:
+        return f"Geocoding failed: {e}"
+    if not result:
+        return f"No results found for '{query}'."
+    r = result[0]
+    return f"latitude: {r['lat']}, longitude: {r['lon']}, display_name: {r['display_name']}"
 
 
 def tool_search_world66(query: str) -> str:
@@ -536,6 +566,8 @@ def _handle(message: dict) -> dict | None:
                     city_path=args.get("city_path", ""), city_slug=args.get("city_slug", ""),
                     intro=args.get("intro", ""),
                 )
+            elif name == "geocode":
+                text = tool_geocode(query=args["query"])
             elif name == "search_world66":
                 text = tool_search_world66(query=args["query"])
             else:
