@@ -1266,7 +1266,7 @@ def api_plan_create(request):
             content_lines.append(f"- {r['notes']}")
         content_lines.append("")
 
-    post = fm.Post("\n".join(content_lines), title=trip_title)
+    post = fm.Post("\n".join(content_lines), title=trip_title, passphrase=passphrase)
     (PLANS_DIR / f"{slug}.md").write_text(fm.dumps(post))
 
     base_url = request.build_absolute_uri("/").rstrip("/")
