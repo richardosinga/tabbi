@@ -780,6 +780,10 @@ def plan_stop(request, slug, city_slug):
             note_match = any(n in poi_text or poi_text in n for n in note_needles) if note_needles else False
             keyword_match = any(k in poi_text for k in expanded_keywords) if expanded_keywords else False
             score = (2 if note_match else 0) + (2 if keyword_match else 0) + (1 if img else 0)
+            if not page.meta.get("snippet") and page.body:
+                first = next((p.strip() for p in page.body.split("\n\n") if p.strip()), "")
+                if first:
+                    page.meta["snippet"] = first[:180] + ("…" if len(first) > 180 else "")
             ph_emoji, ph_bg = _placeholder(page)
             suggestions.append({
                 "page": page,
