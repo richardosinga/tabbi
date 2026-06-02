@@ -86,6 +86,7 @@ DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "Tabbi Concierge <conc
 SITE_URL = os.environ.get("SITE_URL", "http://localhost:8000")
 
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
