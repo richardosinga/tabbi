@@ -1,83 +1,163 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Connect to Claude — Tabbi</title>
-  <style>
-    * { box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 680px; margin: 60px auto; padding: 0 24px; color: #222; line-height: 1.6; }
-    h1 { font-size: 2em; margin-bottom: .2em; }
-    h2 { font-size: 1.1em; margin-top: 2.5em; color: #555; text-transform: uppercase; letter-spacing: .05em; }
-    .subtitle { color: #666; font-size: 1.1em; margin-bottom: 2.5em; }
-    .tools { list-style: none; padding: 0; margin: 0 0 2em; }
-    .tools li { padding: 10px 0; border-bottom: 1px solid #eee; display: flex; gap: 12px; align-items: baseline; }
-    .tools li:last-child { border-bottom: none; }
-    .tool-name { font-family: monospace; font-size: .9em; background: #f5f5f5; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
-    .steps { counter-reset: steps; list-style: none; padding: 0; }
-    .steps li { counter-increment: steps; padding: 10px 0 10px 44px; position: relative; border-bottom: 1px solid #eee; }
-    .steps li:last-child { border-bottom: none; }
-    .steps li::before { content: counter(steps); position: absolute; left: 0; top: 10px; width: 28px; height: 28px; background: #F4B028; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .85em; }
-    .url-box { display: flex; align-items: center; gap: 8px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px; padding: 10px 14px; margin: 8px 0; }
-    .url-box code { flex: 1; font-size: .95em; word-break: break-all; }
-    .copy-btn { background: #F4B028; color: #fff; border: none; border-radius: 5px; padding: 6px 14px; cursor: pointer; font-size: .85em; white-space: nowrap; }
-    .copy-btn:hover { background: #d9941e; }
-    .cta { display: inline-block; margin-top: 1.5em; background: #F4B028; color: #fff; text-decoration: none; padding: 12px 28px; border-radius: 7px; font-weight: 600; font-size: 1em; }
-    .cta:hover { background: #d9941e; }
-    a { color: #F4B028; }
-    .note { background: #fffbf0; border-left: 3px solid #F4B028; padding: 10px 16px; border-radius: 0 6px 6px 0; font-size: .95em; margin: 1.5em 0; }
-  </style>
-</head>
-<body>
+{% extends "plans/base.html" %}
+{% load static %}
+{% block title %}Connect Tabbi — Tab.bi{% endblock %}
+{% block content %}
+<div class="tabbi-page hiw-page">
 
-  <h1>Use Tabbi in Claude</h1>
-  <p class="subtitle">Connect Tabbi to Claude as an MCP integration and plan trips directly from any conversation.</p>
-
-  <h2>What you can do</h2>
-  <ul class="tools">
-    <li><span class="tool-name">plan_trip</span> Create a new multi-city trip plan</li>
-    <li><span class="tool-name">open_plan</span> Open an existing trip using your passphrase</li>
-    <li><span class="tool-name">research_city</span> Look up things to do in a city</li>
-    <li><span class="tool-name">add_pois_to_plan</span> Add places directly to a stop on your trip</li>
-    <li><span class="tool-name">submit_pois</span> Submit newly researched places to your plan</li>
-    <li><span class="tool-name">search_world66</span> Search the world66 travel guide</li>
-  </ul>
-
-  <h2>How to connect</h2>
-  <ol class="steps">
-    <li>
-      Open <a href="https://claude.ai/settings/integrations" target="_blank">Claude settings → Integrations</a>
-    </li>
-    <li>
-      Click <strong>Add integration</strong> and paste this URL:
-      <div class="url-box">
-        <code id="mcp-url">https://tab.bi/mcp</code>
-        <button class="copy-btn" onclick="copyUrl()">Copy</button>
-      </div>
-    </li>
-    <li>
-      Save and start a new conversation. Tell Claude your trip — it will use Tabbi automatically.
-    </li>
-  </ol>
-
-  <a class="cta" href="https://claude.ai/settings/integrations" target="_blank">Open Claude integrations →</a>
-
-  <div class="note">
-    Your trips are protected by a passphrase. Claude will ask for it the first time you open a plan, and remembers it for the rest of the conversation.
+  <div class="hiw-hero">
+    <h1>Connect Tabbi to your AI</h1>
+    <p class="hiw-lead">Tabbi works as an MCP integration with Claude, ChatGPT, Gemini, Cursor, Windsurf, and other AI assistants. Takes about 30 seconds to set up.</p>
   </div>
 
-  <h2>Don't have Claude?</h2>
-  <p>You need a <a href="https://claude.ai" target="_blank">Claude.ai</a> account (free or Pro). MCP integrations are available on the web app.</p>
+  <div class="connect-clients">
+    <h2 class="hiw-section-title">AI assistants via MCP</h2>
 
-  <script>
-    function copyUrl() {
-      navigator.clipboard.writeText(document.getElementById('mcp-url').textContent).then(() => {
-        const btn = document.querySelector('.copy-btn');
-        btn.textContent = 'Copied!';
-        setTimeout(() => btn.textContent = 'Copy', 1500);
-      });
-    }
-  </script>
+    <div class="connect-client-grid">
 
-</body>
-</html>
+      <div class="connect-client">
+        <div class="connect-client-header">
+          <strong>Claude (Web)</strong>
+          <span class="connect-client-badge">Recommended</span>
+        </div>
+        <ol class="connect-client-steps">
+          <li>Go to <a href="https://claude.ai/settings/integrations" target="_blank" rel="noopener">claude.ai → Settings → Integrations</a></li>
+          <li>Click <strong>Add integration</strong> and paste the URL below</li>
+          <li>Start a new conversation and describe your trip</li>
+        </ol>
+        <div class="connect-url-row">
+          <code id="mcp-url">https://tab.bi/mcp</code>
+          <button class="tabbi-btn tabbi-btn--sm" onclick="copyUrl('mcp-url', this)">Copy</button>
+        </div>
+      </div>
+
+      <div class="connect-client">
+        <div class="connect-client-header">
+          <strong>Claude Code (CLI)</strong>
+        </div>
+        <ol class="connect-client-steps">
+          <li>Run the command below in your terminal</li>
+          <li>Start Claude Code and describe your trip</li>
+        </ol>
+        <div class="connect-url-row">
+          <code id="cli-cmd">claude mcp add tabbi https://tab.bi/mcp</code>
+          <button class="tabbi-btn tabbi-btn--sm" onclick="copyUrl('cli-cmd', this)">Copy</button>
+        </div>
+      </div>
+
+      <div class="connect-client">
+        <div class="connect-client-header">
+          <strong>Cursor</strong>
+        </div>
+        <ol class="connect-client-steps">
+          <li>Open Cursor Settings → MCP</li>
+          <li>Add a new server with the URL below</li>
+          <li>Restart Cursor and start chatting</li>
+        </ol>
+        <div class="connect-url-row">
+          <code id="cursor-url">https://tab.bi/mcp</code>
+          <button class="tabbi-btn tabbi-btn--sm" onclick="copyUrl('cursor-url', this)">Copy</button>
+        </div>
+      </div>
+
+      <div class="connect-client">
+        <div class="connect-client-header">
+          <strong>Windsurf</strong>
+        </div>
+        <ol class="connect-client-steps">
+          <li>Open Windsurf Settings → MCP Servers</li>
+          <li>Add a new server with the URL below</li>
+          <li>Restart and start chatting</li>
+        </ol>
+        <div class="connect-url-row">
+          <code id="windsurf-url">https://tab.bi/mcp</code>
+          <button class="tabbi-btn tabbi-btn--sm" onclick="copyUrl('windsurf-url', this)">Copy</button>
+        </div>
+      </div>
+
+      <div class="connect-client">
+        <div class="connect-client-header">
+          <strong>ChatGPT</strong>
+        </div>
+        <ol class="connect-client-steps">
+          <li>Go to <a href="https://chatgpt.com/" target="_blank" rel="noopener">chatgpt.com</a> → Settings → Connected apps</li>
+          <li>Click <strong>Add MCP server</strong> and paste the URL below</li>
+          <li>Start a new chat and describe your trip</li>
+        </ol>
+        <div class="connect-url-row">
+          <code id="chatgpt-url">https://tab.bi/mcp</code>
+          <button class="tabbi-btn tabbi-btn--sm" onclick="copyUrl('chatgpt-url', this)">Copy</button>
+        </div>
+      </div>
+
+      <div class="connect-client">
+        <div class="connect-client-header">
+          <strong>Gemini</strong>
+        </div>
+        <ol class="connect-client-steps">
+          <li>Open <a href="https://gemini.google.com/" target="_blank" rel="noopener">gemini.google.com</a> → Extensions → MCP servers</li>
+          <li>Add a new server with the URL below</li>
+          <li>Start a conversation and describe your trip</li>
+        </ol>
+        <div class="connect-url-row">
+          <code id="gemini-url">https://tab.bi/mcp</code>
+          <button class="tabbi-btn tabbi-btn--sm" onclick="copyUrl('gemini-url', this)">Copy</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="connect-tools" style="margin-top: 48px;">
+    <h2 class="hiw-section-title">What your AI can do with Tabbi</h2>
+    <div class="connect-tool-list">
+      <div class="connect-tool">
+        <code>plan_trip</code>
+        <span>Create a new multi-city trip plan</span>
+      </div>
+      <div class="connect-tool">
+        <code>open_plan</code>
+        <span>Open an existing trip using your passphrase</span>
+      </div>
+      <div class="connect-tool">
+        <code>research_city</code>
+        <span>Find the best places to visit, eat, and drink in a city</span>
+      </div>
+      <div class="connect-tool">
+        <code>add_pois_to_plan</code>
+        <span>Add world66 places directly to a stop</span>
+      </div>
+      <div class="connect-tool">
+        <code>submit_pois</code>
+        <span>Submit newly researched places to your plan</span>
+      </div>
+      <div class="connect-tool">
+        <code>remove_poi_from_plan</code>
+        <span>Remove a place from a stop</span>
+      </div>
+      <div class="connect-tool">
+        <code>search_world66</code>
+        <span>Search the world66 travel guide</span>
+      </div>
+      <div class="connect-tool">
+        <code>geocode</code>
+        <span>Look up coordinates for a place (used for map pins)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="connect-note">
+    <strong>No account needed.</strong> Your trips are protected by a passphrase. Your AI will ask for it the first time you open a plan, and remembers it for the rest of the conversation.
+  </div>
+
+</div>
+
+<script>
+function copyUrl(id, btn) {
+  navigator.clipboard.writeText(document.getElementById(id).textContent).then(function() {
+    var orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(function() { btn.textContent = orig; }, 1500);
+  });
+}
+</script>
+{% endblock %}

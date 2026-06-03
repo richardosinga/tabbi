@@ -509,7 +509,45 @@
     <a href="/plans/new/" class="tabbi-btn">+ Start your first trip</a>
     <p class="tabbi-empty-join">Already have a trip? <button class="tabbi-empty-join-btn" type="button" onclick="document.getElementById('plan-join-modal').hidden=false;document.getElementById('plan-join-pw').focus()">Join with a passphrase →</button></p>
   </div>
+
   {% endif %}
+
+  <div class="tabbi-pitch">
+    <div class="tabbi-pitch-headline">
+      <span>The best way to plan your next trip.</span>
+      <span class="tabbi-pitch-sub">No kidding.</span>
+    </div>
+
+    <div class="tabbi-pitch-cards">
+      <div class="tabbi-pitch-card">
+        <div class="tabbi-pitch-icon">🗺️</div>
+        <h3>Build your trip on a map</h3>
+        <p>Add a city, drop in places to visit, eat, and drink. Each stop gets its own map with every place pinned. No spreadsheets. No sticky notes. Just your trip, neatly organised.</p>
+        <a href="/plans/new/" class="tabbi-pitch-link">Start a trip →</a>
+      </div>
+      <div class="tabbi-pitch-card">
+        <div class="tabbi-pitch-icon">🔗</div>
+        <h3>Share with a link, protect with a passphrase</h3>
+        <p>No account. No login. Your plan lives at a URL you can share with anyone. Only people with the passphrase can edit — so your carefully curated itinerary stays intact when your friend "just wants to add one thing".</p>
+        <a href="/privacy/" class="tabbi-pitch-link">Privacy policy →</a>
+      </div>
+      <div class="tabbi-pitch-card">
+        <div class="tabbi-pitch-icon">🤖</div>
+        <h3>Or just tell your AI where you want to go</h3>
+        <p>Connect Tabbi to Claude, Cursor, or Windsurf and describe your trip in plain language. Your AI finds the best places, builds the stops, and fills in the map — while you make the coffee.</p>
+        <a href="/how-it-works/" class="tabbi-pitch-link">See how it works →</a>
+      </div>
+    </div>
+
+    <div class="tabbi-pitch-plugin">
+      🧩 <span>Spotted a great place while browsing? The <a href="/how-it-works/#extension" class="tabbi-pitch-link">Tabbi browser extension</a> saves it to your trip in one click.</span>
+    </div>
+
+    <div class="tabbi-pitch-cta">
+      <a href="/plans/new/" class="tabbi-btn">+ Start a trip</a>
+      <a href="/connect/" class="tabbi-btn tabbi-btn--ghost">Connect your AI →</a>
+    </div>
+  </div>
 
 </div>
 {% if join_error %}
