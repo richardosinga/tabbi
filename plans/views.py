@@ -542,11 +542,14 @@ def plan_new(request):
             error = "Please enter a trip title."
         else:
             import frontmatter as fm
-            slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+            base_slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+            slug = base_slug
+            counter = 2
+            while (PLANS_DIR / f"{slug}.md").exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
             path = PLANS_DIR / f"{slug}.md"
-            if path.exists():
-                error = f"A trip named '{slug}' already exists."
-            else:
+            if True:
                 passphrase = _generate_passphrase()
                 description_raw = request.POST.get("description", "").strip()
                 locations_raw = request.POST.get("locations", "").strip()
