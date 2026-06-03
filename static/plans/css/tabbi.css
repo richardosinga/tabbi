@@ -1461,6 +1461,15 @@ span.plan-poi-title--draft::after { content: none; }
   letter-spacing: 0;
 }
 
+/* ── Destination suggestions ─────────────────────────────────────────────── */
+.dest-suggestions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; margin-bottom: 4px; }
+.dest-suggestions-label { font-size: 0.75rem; color: #A6A6A6; font-weight: 600; width: 100%; }
+.dest-suggestions-loading { font-style: italic; }
+.dest-chip { font-family: 'Lexend Exa', sans-serif; font-size: 0.78rem; font-weight: 700; padding: 5px 12px; border: 2px solid #180A0A; border-radius: 999px; background: #fffdf7; color: #180A0A; cursor: pointer; box-shadow: 2px 2px 0 #180A0A; transition: all 0.1s; white-space: nowrap; }
+.dest-chip:hover { background: #e7a328; transform: translate(-1px, -1px); box-shadow: 3px 3px 0 #180A0A; }
+.dest-chip--free { border-style: dashed; color: #535050; }
+.dest-chip--added { background: #d4f0e3; border-style: solid; color: #1a6640; box-shadow: none; transform: none; cursor: default; }
+
 /* ── Passphrase ───────────────────────────────────────────────────────────── */
 
 .plan-passphrase-box {

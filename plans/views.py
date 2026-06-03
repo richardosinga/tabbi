@@ -471,6 +471,69 @@ def plan_join(request):
     return HttpResponseRedirect("/plans/")
 
 
+def api_suggest_destinations(request):
+    title = request.GET.get("title", "").strip()
+    if not title:
+        return JsonResponse({"suggestions": []})
+
+    suggestions = []
+    seen_paths = set()
+    seen_names = set()
+
+    # --- Pass 1: extract n-grams from the title and resolve against world66 ---
+    words = re.split(r"[\s,&+\-]+", title)
+    for length in range(min(4, len(words)), 0, -1):
+        for i in range(len(words) - length + 1):
+            phrase = " ".join(words[i:i+length])
+            path = resolve_location_name(phrase, title)
+            if path and path not in seen_paths:
+                page = load_page(path)
+                name = page.title if page else phrase.title()
+                seen_paths.add(path)
+                seen_names.add(name.lower())
+                suggestions.append({"name": name, "path": path})
+
+    # --- Pass 2: Claude fallback for short/no results ---
+    if len(suggestions) < 2:
+        try:
+            import anthropic as _anthropic
+            client = _anthropic.Anthropic()
+            msg = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=256,
+                system=(
+                    "You are a travel assistant. Given a trip title, suggest 3–5 specific "
+                    "destinations (cities, towns, or regions) the traveller likely wants to visit. "
+                    "Reply ONLY with a JSON array of destination name strings, e.g. "
+                    '["Middelburg", "Zierikzee", "Vlissingen"]. No explanations.'
+                ),
+                messages=[{"role": "user", "content": f'Trip title: "{title}"'}],
+            )
+            raw = msg.content[0].text.strip()
+            m = re.search(r"\[.*?\]", raw, re.DOTALL)
+            if m:
+                names = json.loads(m.group())
+                for name in names:
+                    if not isinstance(name, str):
+                        continue
+                    if name.lower() in seen_names:
+                        continue
+                    path = resolve_location_name(name, title)
+                    if path and path not in seen_paths:
+                        page = load_page(path)
+                        display = page.title if page else name
+                        seen_paths.add(path)
+                        seen_names.add(display.lower())
+                        suggestions.append({"name": display, "path": path})
+                    elif not path:
+                        seen_names.add(name.lower())
+                        suggestions.append({"name": name, "path": None})
+        except Exception:
+            pass
+
+    return JsonResponse({"suggestions": suggestions[:6]})
+
+
 def plan_new(request):
     error = None
     if request.method == "POST":

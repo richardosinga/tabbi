@@ -17,10 +17,74 @@
       <input type="text" id="description" name="description" autocomplete="off" placeholder="e.g. Two weeks of food, wine and sunshine">
       <label for="locations">Locations <span class="plan-new-hint">(optional — cities or countries to visit)</span></label>
       <input type="text" id="locations" name="locations" autocomplete="off" placeholder="e.g. Amsterdam, Barcelona, Rome">
+      <div id="dest-suggestions" class="dest-suggestions" hidden></div>
       <label for="budget">Budget <span class="plan-new-hint">(optional)</span></label>
       <input type="text" id="budget" name="budget" autocomplete="off" placeholder="e.g. €2000 or $150/day">
       <button type="submit">Create trip</button>
     </form>
   </div>
 </div>
+<script>
+(function () {
+  var titleEl = document.getElementById('title');
+  var locEl = document.getElementById('locations');
+  var box = document.getElementById('dest-suggestions');
+  var timer, lastTitle = '';
+
+  function addDestination(name) {
+    var cur = locEl.value.trim();
+    var parts = cur ? cur.split(',').map(function(s){ return s.trim(); }).filter(Boolean) : [];
+    if (parts.indexOf(name) === -1) {
+      parts.push(name);
+      locEl.value = parts.join(', ');
+    }
+  }
+
+  function renderChips(suggestions) {
+    box.innerHTML = '';
+    if (!suggestions.length) { box.hidden = true; return; }
+    var label = document.createElement('span');
+    label.className = 'dest-suggestions-label';
+    label.textContent = 'Suggested destinations:';
+    box.appendChild(label);
+    suggestions.forEach(function(s) {
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'dest-chip' + (s.path ? '' : ' dest-chip--free');
+      chip.textContent = '+ ' + s.name;
+      chip.title = s.path ? 'In the world66 guide' : 'Not in the world66 guide — will be added as a stop';
+      chip.addEventListener('click', function() {
+        addDestination(s.name);
+        chip.classList.add('dest-chip--added');
+        chip.textContent = '✓ ' + s.name;
+        chip.disabled = true;
+      });
+      box.appendChild(chip);
+    });
+    box.hidden = false;
+  }
+
+  function fetchSuggestions(title) {
+    if (title === lastTitle) return;
+    lastTitle = title;
+    if (title.length < 3) { box.hidden = true; return; }
+    box.innerHTML = '<span class="dest-suggestions-label dest-suggestions-loading">Finding destinations…</span>';
+    box.hidden = false;
+    fetch('/api/suggest-destinations?title=' + encodeURIComponent(title))
+      .then(function(r){ return r.json(); })
+      .then(function(data){ renderChips(data.suggestions || []); })
+      .catch(function(){ box.hidden = true; });
+  }
+
+  titleEl.addEventListener('input', function() {
+    clearTimeout(timer);
+    timer = setTimeout(function(){ fetchSuggestions(titleEl.value.trim()); }, 600);
+  });
+
+  titleEl.addEventListener('blur', function() {
+    clearTimeout(timer);
+    fetchSuggestions(titleEl.value.trim());
+  });
+})();
+</script>
 {% endblock %}
