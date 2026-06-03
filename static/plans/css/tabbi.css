@@ -2047,7 +2047,10 @@ span.plan-poi-title--draft::after { content: none; }
 .tabbi-pitch-sub { font-size: 1.1rem !important; font-weight: 400 !important; color: #A6A6A6 !important; letter-spacing: 0 !important; margin-top: 6px; }
 .tabbi-pitch-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
 @media (max-width: 780px) { .tabbi-pitch-cards { grid-template-columns: 1fr; } }
-.tabbi-pitch-card { background: #fff; border: 2.5px solid #180A0A; border-radius: 16px; padding: 24px; box-shadow: 4px 4px 0 #180A0A; display: flex; flex-direction: column; gap: 10px; text-align: center; align-items: center; }
+.tabbi-pitch-card { border: 2.5px solid #180A0A; border-radius: 16px; padding: 24px; box-shadow: 4px 4px 0 #180A0A; display: flex; flex-direction: column; gap: 10px; text-align: center; align-items: center; }
+.tabbi-pitch-card:nth-child(1) { background: #d4f0e3; }
+.tabbi-pitch-card:nth-child(2) { background: #dde4ff; }
+.tabbi-pitch-card:nth-child(3) { background: #fff3cc; }
 .tabbi-pitch-card p { text-align: left; align-self: stretch; }
 .tabbi-pitch-icon { font-size: 1.8rem; }
 .tabbi-pitch-card h3 { font-size: 0.95rem; font-weight: 800; color: #180A0A; margin: 0; line-height: 1.3; }
