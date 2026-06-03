@@ -1,0 +1,91 @@
+{% extends "plans/base.html" %}
+{% load static %}
+{% block title %}How it works — Tab.bi{% endblock %}
+{% block content %}
+<div class="tabbi-page hiw-page">
+
+  <div class="hiw-hero">
+    <h1>Plan trips with AI, keep them forever</h1>
+    <p class="hiw-lead">Connect Tabbi to Claude and plan your next trip in a conversation. Claude asks what you want, finds the best places, and builds a shareable plan — with a map, budget tracker, and curated stops for every city.</p>
+    <div class="hiw-hero-actions">
+      <a href="/connect/" class="tabbi-btn">Connect Claude →</a>
+      <a href="/plans/new/" class="tabbi-btn tabbi-btn--ghost">Start manually</a>
+    </div>
+  </div>
+
+  <div class="hiw-steps">
+    <div class="hiw-step">
+      <div class="hiw-step-num">1</div>
+      <div class="hiw-step-body">
+        <h2>Connect Tabbi to Claude</h2>
+        <p>Add <code>https://tab.bi/mcp</code> as an integration in Claude settings. Takes 30 seconds — no account needed.</p>
+        <a href="/connect/" class="hiw-step-link">How to connect →</a>
+      </div>
+    </div>
+    <div class="hiw-step">
+      <div class="hiw-step-num">2</div>
+      <div class="hiw-step-body">
+        <h2>Tell Claude your trip</h2>
+        <p>Just describe what you want — "10 days in Japan in October, two adults, into food and temples, relaxed pace". Claude asks a few questions, then gets to work.</p>
+      </div>
+    </div>
+    <div class="hiw-step">
+      <div class="hiw-step-num">3</div>
+      <div class="hiw-step-body">
+        <h2>Get your plan</h2>
+        <p>Claude creates a plan with a stop for each city, curated places to visit, eat, and drink — drawn from the world66 travel guide and its own research. Each place has a description, map pin, and category.</p>
+      </div>
+    </div>
+    <div class="hiw-step">
+      <div class="hiw-step-num">4</div>
+      <div class="hiw-step-body">
+        <h2>Share and refine</h2>
+        <p>Your plan is yours forever. Share the link with anyone. Add or remove places. Track your budget. Come back to Claude anytime to change things up.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="hiw-features">
+    <h2 class="hiw-section-title">What's in a Tabbi plan</h2>
+    <div class="hiw-feature-grid">
+      <div class="hiw-feature">
+        <div class="hiw-feature-icon">🗺️</div>
+        <h3>Interactive map</h3>
+        <p>Every place pinned on a map per stop, with dark/light mode toggle.</p>
+      </div>
+      <div class="hiw-feature">
+        <div class="hiw-feature-icon">🎯</div>
+        <h3>Do / Eat / Drink</h3>
+        <p>Places grouped by type so you can see your day at a glance.</p>
+      </div>
+      <div class="hiw-feature">
+        <div class="hiw-feature-icon">💰</div>
+        <h3>Budget tracker</h3>
+        <p>Add your daily budget per stop and track totals across the whole trip.</p>
+      </div>
+      <div class="hiw-feature">
+        <div class="hiw-feature-icon">🔑</div>
+        <h3>Passphrase access</h3>
+        <p>No login required. Your plan is protected by a passphrase you can share with travel companions.</p>
+      </div>
+      <div class="hiw-feature">
+        <div class="hiw-feature-icon">📖</div>
+        <h3>World66 content</h3>
+        <p>Places link to the world66 travel guide for deeper reading on each destination.</p>
+      </div>
+      <div class="hiw-feature">
+        <div class="hiw-feature-icon">✏️</div>
+        <h3>Fully editable</h3>
+        <p>Add notes, remove places, edit the plan directly — or ask Claude to do it for you.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="hiw-cta-block">
+    <h2>Ready to plan?</h2>
+    <p>Connect Claude and start your first trip in minutes.</p>
+    <a href="/connect/" class="tabbi-btn">Connect Claude →</a>
+  </div>
+
+</div>
+{% endblock %}

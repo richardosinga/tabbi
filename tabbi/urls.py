@@ -9,6 +9,7 @@ urlpatterns = [
     path("", RedirectView.as_view(url="/plans/", permanent=False)),
     path("privacy/", TemplateView.as_view(template_name="privacy.html"), name="privacy"),
     path("connect/", TemplateView.as_view(template_name="connect.html"), name="connect"),
+    path("how-it-works/", TemplateView.as_view(template_name="how-it-works.html"), name="how_it_works"),
     path("plans/", include("plans.urls")),
     path("auth/", include("plans.auth_urls")),
     path("concierge/", include("concierge.urls")),
