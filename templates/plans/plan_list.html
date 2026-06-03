@@ -505,8 +505,14 @@
     </div>
 
     <h2 class="tabbi-empty-headline">No tabs yet? The world is waiting!</h2>
-    <p class="tabbi-empty-sub">Our little friend has been collecting places to visit.<br>Time to steal some ideas and make them yours.</p>
-    <a href="/plans/new/" class="tabbi-btn">+ Start your first trip</a>
+    <p class="tabbi-empty-sub">Where are you headed?</p>
+    <div class="tabbi-empty-starter">
+      <div class="tabbi-empty-input-row">
+        <input type="text" id="empty-title" class="tabbi-empty-title-input" placeholder="e.g. Summer in Zeeland" autocomplete="off">
+        <a id="empty-start-btn" href="/plans/new/" class="tabbi-btn">Start planning →</a>
+      </div>
+      <div id="empty-dest-suggestions" class="dest-suggestions" hidden></div>
+    </div>
     <p class="tabbi-empty-join">Already have a trip? <button class="tabbi-empty-join-btn" type="button" onclick="document.getElementById('plan-join-modal').hidden=false;document.getElementById('plan-join-pw').focus()">Join with a passphrase →</button></p>
   </div>
 
@@ -552,4 +558,71 @@
 {% if join_error %}
 <script>document.getElementById('plan-join-modal').hidden = false;</script>
 {% endif %}
+<script>
+(function () {
+  var titleEl = document.getElementById('empty-title');
+  var startBtn = document.getElementById('empty-start-btn');
+  var box = document.getElementById('empty-dest-suggestions');
+  if (!titleEl) return;
+
+  var timer, lastTitle = '', selected = [];
+
+  function updateStartBtn() {
+    var title = titleEl.value.trim();
+    if (!title) { startBtn.href = '/plans/new/'; return; }
+    var params = 'title=' + encodeURIComponent(title);
+    if (selected.length) params += '&locations=' + encodeURIComponent(selected.join(', '));
+    startBtn.href = '/plans/new/?' + params;
+  }
+
+  function renderChips(suggestions) {
+    box.innerHTML = '';
+    if (!suggestions.length) { box.hidden = true; return; }
+    var label = document.createElement('span');
+    label.className = 'dest-suggestions-label';
+    label.textContent = 'Suggested destinations — click to add:';
+    box.appendChild(label);
+    suggestions.forEach(function (s) {
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'dest-chip' + (s.path ? '' : ' dest-chip--free');
+      chip.textContent = '+ ' + s.name;
+      chip.title = s.path ? 'In the world66 guide' : 'Not yet in the world66 guide';
+      chip.addEventListener('click', function () {
+        if (selected.indexOf(s.name) === -1) selected.push(s.name);
+        chip.classList.add('dest-chip--added');
+        chip.textContent = '✓ ' + s.name;
+        chip.disabled = true;
+        updateStartBtn();
+      });
+      box.appendChild(chip);
+    });
+    box.hidden = false;
+  }
+
+  function fetchSuggestions(title) {
+    if (title === lastTitle) return;
+    lastTitle = title;
+    selected = [];
+    if (title.length < 3) { box.hidden = true; updateStartBtn(); return; }
+    box.innerHTML = '<span class="dest-suggestions-label dest-suggestions-loading">Finding destinations…</span>';
+    box.hidden = false;
+    fetch('/api/suggest-destinations?title=' + encodeURIComponent(title))
+      .then(function (r) { return r.json(); })
+      .then(function (data) { renderChips(data.suggestions || []); })
+      .catch(function () { box.hidden = true; });
+    updateStartBtn();
+  }
+
+  titleEl.addEventListener('input', function () {
+    updateStartBtn();
+    clearTimeout(timer);
+    timer = setTimeout(function () { fetchSuggestions(titleEl.value.trim()); }, 600);
+  });
+
+  titleEl.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); startBtn.click(); }
+  });
+})();
+</script>
 {% endblock %}

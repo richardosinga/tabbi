@@ -599,7 +599,11 @@ def plan_new(request):
                 _mark_plan_authenticated(request, slug)
                 request.session["new_plan_passphrase"] = passphrase
                 return HttpResponseRedirect(f"/plans/{slug}/created/")
-    return render(request, "plans/plan_new.html", {"error": error})
+    return render(request, "plans/plan_new.html", {
+        "error": error,
+        "prefill_title": request.GET.get("title", ""),
+        "prefill_locations": request.GET.get("locations", ""),
+    })
 
 
 @_require_plan_auth

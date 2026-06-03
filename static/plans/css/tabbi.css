@@ -1643,6 +1643,12 @@ span.plan-poi-title--draft::after { content: none; }
 }
 .tabbi-empty-headline { font-size: 1.4rem; font-weight: 800; color: #180A0A; letter-spacing: -0.03em; margin: 0 0 10px; }
 .tabbi-empty-sub { font-size: 0.85rem; color: #A6A6A6; line-height: 1.6; margin: 0 0 28px; }
+.tabbi-empty-starter { width: 100%; max-width: 480px; margin: 0 auto 8px; }
+.tabbi-empty-input-row { display: flex; gap: 8px; align-items: center; }
+.tabbi-empty-title-input { flex: 1; font-family: 'Lexend Exa', sans-serif; font-size: 0.88rem; padding: 11px 16px; border: 2.5px solid #180A0A; border-radius: 999px; background: #fff; color: #180A0A; outline: none; box-shadow: 3px 3px 0 #180A0A; }
+.tabbi-empty-title-input:focus { border-color: #e7a328; box-shadow: 3px 3px 0 #e7a328; }
+.tabbi-empty-title-input::placeholder { color: #C8C8C8; }
+.tabbi-empty-starter .dest-suggestions { max-width: 480px; margin: 8px auto 0; justify-content: center; }
 .tabbi-empty-join { margin-top: 16px; font-size: 0.8rem; color: #A6A6A6; }
 .tabbi-empty-join-btn {
   background: none;
