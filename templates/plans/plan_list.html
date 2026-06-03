@@ -510,6 +510,8 @@
     <p class="tabbi-empty-join">Already have a trip? <button class="tabbi-empty-join-btn" type="button" onclick="document.getElementById('plan-join-modal').hidden=false;document.getElementById('plan-join-pw').focus()">Join with a passphrase →</button></p>
   </div>
 
+  {% endif %}
+
   <div class="tabbi-pitch">
     <div class="tabbi-pitch-headline">
       <span>The best way to plan your next trip.</span>
@@ -519,7 +521,7 @@
     <div class="tabbi-pitch-cards">
       <div class="tabbi-pitch-card">
         <div class="tabbi-pitch-icon">🤖</div>
-        <h3>Just tell Claude where you want to go</h3>
+        <h3>Just tell your AI where you want to go</h3>
         <p>Connect Tabbi to Claude, Cursor, or Windsurf and describe your trip in plain language. Your AI asks the right questions — who's travelling, what you're into, how packed you want the days — then builds the whole plan for you.</p>
         <a href="/how-it-works/" class="tabbi-pitch-link">See how it works →</a>
       </div>
@@ -540,7 +542,6 @@
       <a href="/plans/new/" class="tabbi-btn tabbi-btn--ghost">Plan it yourself</a>
     </div>
   </div>
-  {% endif %}
 
 </div>
 {% if join_error %}

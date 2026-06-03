@@ -1987,6 +1987,13 @@ span.plan-poi-title--draft::after { content: none; }
 
 .hiw-section-title { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #A6A6A6; margin: 0 0 20px; }
 
+.hiw-extension { margin-bottom: 60px; }
+.hiw-extension-inner { display: flex; gap: 32px; align-items: center; background: #fffdf7; border: 2.5px solid #180A0A; border-radius: 16px; padding: 32px; box-shadow: 5px 5px 0 #180A0A; }
+.hiw-extension-text { flex: 1; }
+.hiw-extension-text p { font-size: 0.9rem; color: #535050; margin: 0 0 12px; line-height: 1.6; }
+.hiw-extension-badge { flex-shrink: 0; }
+.hiw-extension-icon { font-size: 3rem; }
+
 .hiw-features { margin-bottom: 60px; }
 .hiw-feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
 .hiw-feature { background: #fffdf7; border: 2.5px solid #180A0A; border-radius: 14px; padding: 20px; box-shadow: 3px 3px 0 #180A0A; }
