@@ -562,16 +562,22 @@ def _handle(message: dict) -> dict | None:
 
     if method == "initialize":
         return ok({
-            "protocolVersion": "2024-11-05",
-            "capabilities": {"tools": {}},
+            "protocolVersion": "2025-03-26",
+            "capabilities": {"tools": {}, "resources": {}, "prompts": {}},
             "serverInfo": {"name": "tabbi", "version": "1.0.0"},
         })
 
-    if method == "notifications/initialized":
+    if method in ("notifications/initialized", "notifications/cancelled"):
         return None
 
     if method == "tools/list":
         return ok({"tools": TOOLS})
+
+    if method == "resources/list":
+        return ok({"resources": []})
+
+    if method == "prompts/list":
+        return ok({"prompts": []})
 
     if method == "tools/call":
         params = message.get("params", {})
