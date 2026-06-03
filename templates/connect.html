@@ -6,7 +6,7 @@
 
   <div class="hiw-hero">
     <h1>Connect Tabbi to your AI</h1>
-    <p class="hiw-lead">Tabbi works as an MCP integration with Claude, Cursor, Windsurf, and other AI assistants — or as a browser extension so you can save places while you browse.</p>
+    <p class="hiw-lead">Tabbi works as an MCP integration with Claude, ChatGPT, Gemini, Cursor, Windsurf, and other AI assistants. Takes about 30 seconds to set up.</p>
   </div>
 
   <div class="connect-clients">
@@ -71,6 +71,36 @@
         <div class="connect-url-row">
           <code id="windsurf-url">https://tab.bi/mcp</code>
           <button class="tabbi-btn tabbi-btn--sm" onclick="copyUrl('windsurf-url', this)">Copy</button>
+        </div>
+      </div>
+
+      <div class="connect-client">
+        <div class="connect-client-header">
+          <strong>ChatGPT</strong>
+        </div>
+        <ol class="connect-client-steps">
+          <li>Go to <a href="https://chatgpt.com/" target="_blank" rel="noopener">chatgpt.com</a> → Settings → Connected apps</li>
+          <li>Click <strong>Add MCP server</strong> and paste the URL below</li>
+          <li>Start a new chat and describe your trip</li>
+        </ol>
+        <div class="connect-url-row">
+          <code id="chatgpt-url">https://tab.bi/mcp</code>
+          <button class="tabbi-btn tabbi-btn--sm" onclick="copyUrl('chatgpt-url', this)">Copy</button>
+        </div>
+      </div>
+
+      <div class="connect-client">
+        <div class="connect-client-header">
+          <strong>Gemini</strong>
+        </div>
+        <ol class="connect-client-steps">
+          <li>Open <a href="https://gemini.google.com/" target="_blank" rel="noopener">gemini.google.com</a> → Extensions → MCP servers</li>
+          <li>Add a new server with the URL below</li>
+          <li>Start a conversation and describe your trip</li>
+        </ol>
+        <div class="connect-url-row">
+          <code id="gemini-url">https://tab.bi/mcp</code>
+          <button class="tabbi-btn tabbi-btn--sm" onclick="copyUrl('gemini-url', this)">Copy</button>
         </div>
       </div>
 
