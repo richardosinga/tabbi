@@ -543,11 +543,7 @@ def plan_new(request):
         else:
             import frontmatter as fm
             base_slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
-            slug = base_slug
-            counter = 2
-            while (PLANS_DIR / f"{slug}.md").exists():
-                slug = f"{base_slug}-{counter}"
-                counter += 1
+            slug = f"{base_slug}-{secrets.token_hex(2)}"
             path = PLANS_DIR / f"{slug}.md"
             if True:
                 passphrase = _generate_passphrase()
