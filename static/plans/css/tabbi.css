@@ -659,6 +659,7 @@ body:has(.tabbi-nav) select {
 
 .plan-poi-list { display: flex; flex-direction: column; gap: 12px; }
 .plan-section-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #aaa; margin: 8px 0 0; padding: 0; }
+.plan-pending { display: flex; align-items: center; gap: 10px; padding: 20px 0; color: #aaa; font-size: 0.9rem; }
 
 .plan-poi-card {
   display: flex;

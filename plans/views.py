@@ -624,6 +624,7 @@ def plan_stop(request, slug, city_slug):
             markers = [{"lat": coords[0], "lng": coords[1], "title": stop["city"], "url": stop.get("destination_url") or ""}]
     intro_path = PLANS_DIR / "intros" / slug / f"{city_slug}.md"
     city_intro = intro_path.read_text(encoding="utf-8").strip() if intro_path.exists() else None
+    city_pending = _pending_marker(slug, city_slug).exists()
 
     city_snippet = None
     city_image_url = None
@@ -855,6 +856,7 @@ def plan_stop(request, slug, city_slug):
         "markers": mark_safe(json.dumps(markers)),
         "city_snippet": city_snippet,
         "city_intro": city_intro,
+        "city_pending": city_pending,
         "city_image_url": city_image_url,
         "suggestion_groups": suggestion_groups,
         "budget_json": json.dumps(stop_budget),
@@ -1341,6 +1343,10 @@ def api_plan_add_pois(request):
     return JsonResponse({"added": added})
 
 
+def _pending_marker(plan_slug, city_slug):
+    return PLANS_DIR / "pending" / f"{plan_slug}__{city_slug}"
+
+
 def _research_submit_worker(plan_slug, city_slug, city_path, intro, pois):
     import frontmatter as fm
 
@@ -1376,6 +1382,8 @@ def _research_submit_worker(plan_slug, city_slug, city_path, intro, pois):
     if plan_slug and city_slug:
         for draft_path in draft_paths:
             _plan_file_add(plan_slug, city_slug, draft_path)
+        marker = _pending_marker(plan_slug, city_slug)
+        marker.unlink(missing_ok=True)
 
 
 @csrf_exempt
@@ -1403,6 +1411,12 @@ def api_research_submit(request):
         city_path = re.sub(r"[^a-z0-9]+", "-", city_title.lower()).strip("-")
 
     valid_pois = [p for p in pois if p.get("name", "").strip() and p.get("body", "").strip()]
+
+    if plan_slug and city_slug:
+        marker = _pending_marker(plan_slug, city_slug)
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.touch()
+
     threading.Thread(
         target=_research_submit_worker,
         args=(plan_slug, city_slug, city_path, intro, valid_pois),

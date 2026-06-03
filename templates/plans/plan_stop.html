@@ -56,6 +56,13 @@
       </div>
       {% endif %}
 
+      {% if city_pending %}
+      <div class="plan-pending" id="plan-pending">
+        <span class="tabbi-spinner"></span>
+        <span>Preparing your itinerary…</span>
+      </div>
+      {% endif %}
+
       {% if ungrouped %}
       {% for item in stop.items %}
       <div class="plan-poi-card{% if not item.page and not item.external_url %} plan-poi-card-note{% endif %}{% if item.is_expandable %} plan-poi-card--expandable{% endif %}" data-card-index="{{ forloop.counter0 }}"{% if item.is_expandable %} onclick="togglePoiCard(event, this)"{% endif %}>
@@ -563,5 +570,23 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
     if (toggleBtn) { toggleBtn.textContent = '− Budget'; toggleBtn.classList.add('plan-budget-toggle-btn--open'); }
   }
 })();
+
+{% if city_pending %}
+(function() {
+  function poll() {
+    fetch(window.location.href, { headers: { 'Accept': 'text/html' } })
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        if (!html.includes('id="plan-pending"')) {
+          window.location.reload();
+        } else {
+          setTimeout(poll, 2000);
+        }
+      })
+      .catch(function() { setTimeout(poll, 3000); });
+  }
+  setTimeout(poll, 2000);
+})();
+{% endif %}
 </script>
 {% endblock %}
