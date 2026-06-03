@@ -27,17 +27,17 @@
     </div>
 
     <div class="plan-poi-list">
-      {% if city_snippet %}
+      {% if city_intro or city_snippet %}
       <div class="plan-city-intro">
         <div>
-          <p class="plan-city-intro-text">{{ city_snippet }}</p>
+          <p class="plan-city-intro-text">{{ city_intro|default:city_snippet }}</p>
           {% if stop.destination_url %}<a href="{{ stop.destination_url }}" class="plan-city-explore" target="_blank" rel="noopener">Read more on world66</a>{% endif %}
         </div>
       </div>
       {% endif %}
 
       {% comment %}Image inspiration strip{% endcomment %}
-      {% if city_image_url or stop.items %}
+      {% if inspo_count > 1 %}
       <div class="plan-inspo-strip">
         {% if city_image_url %}
         <div class="plan-inspo-tile">
@@ -53,6 +53,13 @@
           </div>
           {% endif %}
         {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if city_pending %}
+      <div class="plan-pending" id="plan-pending">
+        <span class="tabbi-spinner"></span>
+        <span>Preparing your itinerary…</span>
       </div>
       {% endif %}
 
@@ -434,6 +441,22 @@ document.querySelectorAll('.plan-suggestion-add, .plan-custom-spot-form').forEac
   }
 })();
 
+document.querySelectorAll('.plan-remove-form').forEach(function(form) {
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var card = form.closest('.plan-poi-card');
+    var data = new FormData(form);
+    fetch(form.action, { method: 'POST', body: data })
+      .then(function() {
+        if (card) {
+          card.style.transition = 'opacity 0.2s';
+          card.style.opacity = '0';
+          setTimeout(function() { card.remove(); }, 200);
+        }
+      });
+  });
+});
+
 document.querySelectorAll('.plan-note-text').forEach(function(span) {
   span.addEventListener('click', function() {
     var form = span.nextElementSibling;
@@ -547,5 +570,23 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
     if (toggleBtn) { toggleBtn.textContent = '− Budget'; toggleBtn.classList.add('plan-budget-toggle-btn--open'); }
   }
 })();
+
+{% if city_pending %}
+(function() {
+  function poll() {
+    fetch(window.location.href, { headers: { 'Accept': 'text/html' } })
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        if (!html.includes('id="plan-pending"')) {
+          window.location.reload();
+        } else {
+          setTimeout(poll, 2000);
+        }
+      })
+      .catch(function() { setTimeout(poll, 3000); });
+  }
+  setTimeout(poll, 2000);
+})();
+{% endif %}
 </script>
 {% endblock %}

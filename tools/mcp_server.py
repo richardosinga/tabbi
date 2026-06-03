@@ -27,11 +27,20 @@ from __future__ import annotations
 
 import json
 import os
+import re as _re
 import sys
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
+
+
+def _slugify(text: str) -> str:
+    nfd = unicodedata.normalize("NFD", text.lower())
+    ascii_text = "".join(c for c in nfd if unicodedata.category(c) != "Mn")
+    return _re.sub(r"[^a-z0-9]+", "-", ascii_text).strip("-")
+
 
 # ---------------------------------------------------------------------------
 # Load .env from repo root
@@ -362,7 +371,7 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
         already_in_plan = plan_items.get(city_slug, [])
     elif plan_slug and city_title:
         plan_items = _read_plan_items(plan_slug)
-        slug_guess = city_title.lower().replace(" ", "-")
+        slug_guess = _slugify(city_title)
         already_in_plan = plan_items.get(slug_guess, [])
 
     sections = [f"## What we have for {city_title}"]
@@ -415,7 +424,10 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
         f"   - Exact latitude/longitude — call the geocode tool for each place.\n"
         f"     NEVER guess or estimate coordinates. Wrong coords break the map.\n"
         f"   - A direct image_url from Wikimedia Commons if one exists\n"
-        f"4. Write a 2-4 sentence intro for the city stop.\n"
+        f"4. Write a short intro for the city stop (2-4 sentences). "
+        f"Write it in the same language the traveller used — if their preferences were in Dutch, write Dutch; French, write French; etc. "
+        f"Make it specific and personal to their trip: mention the dates, the group, what they plan to do there. "
+        f"POI descriptions (the `body` field) must always be in English.\n"
         f"5. Call submit_pois with the intro and all new places."
     )
     if style_md:
@@ -442,10 +454,8 @@ def tool_submit_pois(city_title: str, pois: list, plan_slug: str, passphrase: st
             "passphrase": passphrase, "pois": pois,
             "plan_slug": plan_slug, "city_slug": city_slug, "intro": intro,
         })
-        return (
-            f"Submitted {len(pois)} place(s) for {city_title}. "
-            f"Server added {result.get('written', 0)} to the trip plan."
-        )
+        count = result.get("accepted", result.get("written", len(pois)))
+        return f"Accepted {count} place(s) for {city_title} — being written to the trip plan."
     except RuntimeError as e:
         return f"Submit failed: {e}"
 
@@ -505,9 +515,9 @@ def _read_plan_items(plan_slug: str) -> dict[str, list[str]]:
             heading = line[3:].strip()
             city_part = heading.split("|")[0].strip()
             if "/" in city_part:
-                current_city = city_part.split("/")[-1].replace("_", " ").lower().replace(" ", "-")
+                current_city = _slugify(city_part.split("/")[-1].replace("_", " "))
             else:
-                current_city = city_part.lower().replace(" ", "-")
+                current_city = _slugify(city_part)
             items_by_city.setdefault(current_city, [])
         elif line.startswith("- ") and current_city is not None:
             entry = line[2:].strip()

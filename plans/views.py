@@ -3,6 +3,7 @@ import json
 import re
 import secrets
 import subprocess
+import unicodedata
 from functools import wraps
 from pathlib import Path
 
@@ -15,6 +16,13 @@ from django.views.decorators.http import require_POST
 
 from django.conf import settings as _settings
 from world66_content.models import CONTENT_DIR, load_page, resolve_location_name
+
+def _slugify(text: str) -> str:
+    """ASCII slug: transliterates unicode (ü→u, é→e) rather than stripping it."""
+    nfd = unicodedata.normalize("NFD", text.lower())
+    ascii_text = "".join(c for c in nfd if unicodedata.category(c) != "Mn")
+    return re.sub(r"[^a-z0-9]+", "-", ascii_text).strip("-")
+
 
 def _w66_url(path):
     """Return an absolute world66.ai URL for a content path."""
@@ -279,7 +287,7 @@ def _parse_stops(body, plan_slug):
                 city_name = city_part
                 hint = plan_slug + " " + " ".join(s.get("city_path") or "" for s in stops)
                 city_path = resolve_location_name(city_part, hint)
-            city_slug = city_name.lower().replace(" ", "-")
+            city_slug = _slugify(city_name)
             current = {
                 "city": city_name,
                 "city_slug": city_slug,
@@ -614,6 +622,10 @@ def plan_stop(request, slug, city_slug):
         coords = _city_coords(stop)
         if coords:
             markers = [{"lat": coords[0], "lng": coords[1], "title": stop["city"], "url": stop.get("destination_url") or ""}]
+    intro_path = PLANS_DIR / "intros" / slug / f"{city_slug}.md"
+    city_intro = intro_path.read_text(encoding="utf-8").strip() if intro_path.exists() else None
+    city_pending = _pending_marker(slug, city_slug).exists()
+
     city_snippet = None
     city_image_url = None
     if city_page:
@@ -780,6 +792,10 @@ def plan_stop(request, slug, city_slug):
             note_match = any(n in poi_text or poi_text in n for n in note_needles) if note_needles else False
             keyword_match = any(k in poi_text for k in expanded_keywords) if expanded_keywords else False
             score = (2 if note_match else 0) + (2 if keyword_match else 0) + (1 if img else 0)
+            if not page.meta.get("snippet") and page.body:
+                first = next((p.strip() for p in page.body.split("\n\n") if p.strip()), "")
+                if first:
+                    page.meta["snippet"] = first[:100] + ("…" if len(first) > 100 else "")
             ph_emoji, ph_bg = _placeholder(page)
             suggestions.append({
                 "page": page,
@@ -832,11 +848,15 @@ def plan_stop(request, slug, city_slug):
     items_drink = [i for i in stop["items"] if _item_group(i) == "drink"]
     ungrouped   = False
 
+    inspo_count = (1 if city_image_url else 0) + sum(1 for i in stop["items"] if i.get("image_url"))
+
     return render(request, "plans/plan_stop.html", {
         "plan": plan,
         "stop": stop,
         "markers": mark_safe(json.dumps(markers)),
         "city_snippet": city_snippet,
+        "city_intro": city_intro,
+        "city_pending": city_pending,
         "city_image_url": city_image_url,
         "suggestion_groups": suggestion_groups,
         "budget_json": json.dumps(stop_budget),
@@ -844,6 +864,7 @@ def plan_stop(request, slug, city_slug):
         "items_eat": items_eat,
         "items_drink": items_drink,
         "ungrouped": ungrouped,
+        "inspo_count": inspo_count,
     })
 
 
@@ -972,9 +993,9 @@ def _plan_file_add(slug, city_slug, poi_path):
             heading = h2.group(1)
             city_raw = heading.split("|", 1)[0].strip()
             if "/" in city_raw:
-                heading_slug = city_raw.split("/")[-1].replace("_", " ").lower().replace(" ", "-")
+                heading_slug = _slugify(city_raw.split("/")[-1].replace("_", " "))
             else:
-                heading_slug = city_raw.lower().replace(" ", "-")
+                heading_slug = _slugify(city_raw)
             in_section = (heading_slug == city_slug)
             if in_section:
                 insert_at = i + 1
@@ -1161,7 +1182,7 @@ def _resolve_stop(destination: str, start_date: str, end_date: str, notes: str, 
     except ValueError:
         date_str = f"{start_date} – {end_date}" if end_date else start_date
 
-    city_slug = re.sub(r"[^a-z0-9]+", "-", city_title.lower()).strip("-")
+    city_slug = _slugify(city_title)
     return {
         "city_title": city_title,
         "city_path":  city_path,
@@ -1322,10 +1343,53 @@ def api_plan_add_pois(request):
     return JsonResponse({"added": added})
 
 
+def _pending_marker(plan_slug, city_slug):
+    return PLANS_DIR / "pending" / f"{plan_slug}__{city_slug}"
+
+
+def _research_submit_worker(plan_slug, city_slug, city_path, intro, pois):
+    import frontmatter as fm
+
+    poi_prefix = f"{plan_slug}/{city_path}" if plan_slug else city_path
+    city_dir = PLANS_DIR / "pois" / poi_prefix
+    city_dir.mkdir(parents=True, exist_ok=True)
+
+    if intro and plan_slug and city_slug:
+        intro_dir = PLANS_DIR / "intros" / plan_slug
+        intro_dir.mkdir(parents=True, exist_ok=True)
+        (intro_dir / f"{city_slug}.md").write_text(intro)
+
+    def _local_slugify(text):
+        return re.sub(r"[\s_]+", "-", re.sub(r"[^\w\s-]", "", text.lower()).strip()).strip("-")
+
+    draft_paths = []
+    for poi in pois:
+        name     = poi.get("name", "").strip()
+        poi_body = poi.get("body", "").strip()
+        if not name or not poi_body:
+            continue
+        slug = _local_slugify(name)
+        out_path = city_dir / f"{slug}.md"
+        meta = {"title": name, "type": "poi", "category": poi.get("category", "Landmark")}
+        if poi.get("latitude") is not None:
+            meta["latitude"]  = round(float(poi["latitude"]), 7)
+        if poi.get("longitude") is not None:
+            meta["longitude"] = round(float(poi["longitude"]), 7)
+        post = fm.Post(poi_body, **meta)
+        out_path.write_text(fm.dumps(post))
+        draft_paths.append(f"~pois/{poi_prefix}/{slug}")
+
+    if plan_slug and city_slug:
+        for draft_path in draft_paths:
+            _plan_file_add(plan_slug, city_slug, draft_path)
+        marker = _pending_marker(plan_slug, city_slug)
+        marker.unlink(missing_ok=True)
+
+
 @csrf_exempt
 @require_POST
 def api_research_submit(request):
-    import frontmatter as fm
+    import threading
     try:
         body = json.loads(request.body)
     except (json.JSONDecodeError, UnicodeDecodeError):
@@ -1346,44 +1410,20 @@ def api_research_submit(request):
     if not city_path:
         city_path = re.sub(r"[^a-z0-9]+", "-", city_title.lower()).strip("-")
 
-    # Write draft POIs to plans/pois/<plan_slug>/<city_path>/
-    poi_prefix = f"{plan_slug}/{city_path}" if plan_slug else city_path
-    city_dir = PLANS_DIR / "pois" / poi_prefix
-    city_dir.mkdir(parents=True, exist_ok=True)
-
-    # Save intro text
-    if intro and plan_slug and city_slug:
-        intro_dir = PLANS_DIR / "intros" / plan_slug
-        intro_dir.mkdir(parents=True, exist_ok=True)
-        (intro_dir / f"{city_slug}.md").write_text(intro)
-
-    def _slugify(text):
-        return re.sub(r"[\s_]+", "-", re.sub(r"[^\w\s-]", "", text.lower()).strip()).strip("-")
-
-    written = 0
-    draft_paths = []
-    for poi in pois:
-        name     = poi.get("name", "").strip()
-        poi_body = poi.get("body", "").strip()
-        if not name or not poi_body:
-            continue
-        slug = _slugify(name)
-        out_path = city_dir / f"{slug}.md"
-        meta = {"title": name, "type": "poi", "category": poi.get("category", "Landmark")}
-        if poi.get("latitude") is not None:
-            meta["latitude"]  = round(float(poi["latitude"]), 7)
-        if poi.get("longitude") is not None:
-            meta["longitude"] = round(float(poi["longitude"]), 7)
-        post = fm.Post(poi_body, **meta)
-        out_path.write_text(fm.dumps(post))
-        draft_paths.append(f"~pois/{poi_prefix}/{slug}")
-        written += 1
+    valid_pois = [p for p in pois if p.get("name", "").strip() and p.get("body", "").strip()]
 
     if plan_slug and city_slug:
-        for draft_path in draft_paths:
-            _plan_file_add(plan_slug, city_slug, draft_path)
+        marker = _pending_marker(plan_slug, city_slug)
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.touch()
 
-    return JsonResponse({"written": written, "city_path": city_path})
+    threading.Thread(
+        target=_research_submit_worker,
+        args=(plan_slug, city_slug, city_path, intro, valid_pois),
+        daemon=True,
+    ).start()
+
+    return JsonResponse({"accepted": len(valid_pois), "city_path": city_path})
 
 
 def api_search(request):
