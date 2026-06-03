@@ -494,7 +494,7 @@ def api_suggest_destinations(request):
                 suggestions.append({"name": name, "path": path})
 
     # --- Pass 2: Claude fallback for short/no results ---
-    if len(suggestions) < 2:
+    if len(suggestions) == 0:
         try:
             import anthropic as _anthropic
             client = _anthropic.Anthropic()
