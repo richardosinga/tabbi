@@ -421,6 +421,11 @@ body:has(.tabbi-nav) select {
 }
 
 .plan-dest-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.plan-no-stops { padding: 32px 16px; text-align: center; }
+.plan-no-stops-title { font-size: 1rem; font-weight: 800; color: #180A0A; margin: 0 0 4px; }
+.plan-no-stops-sub { font-size: 0.85rem; color: #A6A6A6; margin: 0 0 20px; }
+.plan-no-stops .tabbi-empty-starter { max-width: 100%; }
+.plan-no-stops .dest-suggestions { justify-content: center; }
 
 .plan-dest-tile {
   position: relative;
