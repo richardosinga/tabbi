@@ -1341,10 +1341,47 @@ def api_plan_add_pois(request):
     return JsonResponse({"added": added})
 
 
+def _research_submit_worker(plan_slug, city_slug, city_path, intro, pois):
+    import frontmatter as fm
+
+    poi_prefix = f"{plan_slug}/{city_path}" if plan_slug else city_path
+    city_dir = PLANS_DIR / "pois" / poi_prefix
+    city_dir.mkdir(parents=True, exist_ok=True)
+
+    if intro and plan_slug and city_slug:
+        intro_dir = PLANS_DIR / "intros" / plan_slug
+        intro_dir.mkdir(parents=True, exist_ok=True)
+        (intro_dir / f"{city_slug}.md").write_text(intro)
+
+    def _local_slugify(text):
+        return re.sub(r"[\s_]+", "-", re.sub(r"[^\w\s-]", "", text.lower()).strip()).strip("-")
+
+    draft_paths = []
+    for poi in pois:
+        name     = poi.get("name", "").strip()
+        poi_body = poi.get("body", "").strip()
+        if not name or not poi_body:
+            continue
+        slug = _local_slugify(name)
+        out_path = city_dir / f"{slug}.md"
+        meta = {"title": name, "type": "poi", "category": poi.get("category", "Landmark")}
+        if poi.get("latitude") is not None:
+            meta["latitude"]  = round(float(poi["latitude"]), 7)
+        if poi.get("longitude") is not None:
+            meta["longitude"] = round(float(poi["longitude"]), 7)
+        post = fm.Post(poi_body, **meta)
+        out_path.write_text(fm.dumps(post))
+        draft_paths.append(f"~pois/{poi_prefix}/{slug}")
+
+    if plan_slug and city_slug:
+        for draft_path in draft_paths:
+            _plan_file_add(plan_slug, city_slug, draft_path)
+
+
 @csrf_exempt
 @require_POST
 def api_research_submit(request):
-    import frontmatter as fm
+    import threading
     try:
         body = json.loads(request.body)
     except (json.JSONDecodeError, UnicodeDecodeError):
@@ -1365,44 +1402,14 @@ def api_research_submit(request):
     if not city_path:
         city_path = re.sub(r"[^a-z0-9]+", "-", city_title.lower()).strip("-")
 
-    # Write draft POIs to plans/pois/<plan_slug>/<city_path>/
-    poi_prefix = f"{plan_slug}/{city_path}" if plan_slug else city_path
-    city_dir = PLANS_DIR / "pois" / poi_prefix
-    city_dir.mkdir(parents=True, exist_ok=True)
+    valid_pois = [p for p in pois if p.get("name", "").strip() and p.get("body", "").strip()]
+    threading.Thread(
+        target=_research_submit_worker,
+        args=(plan_slug, city_slug, city_path, intro, valid_pois),
+        daemon=True,
+    ).start()
 
-    # Save intro text
-    if intro and plan_slug and city_slug:
-        intro_dir = PLANS_DIR / "intros" / plan_slug
-        intro_dir.mkdir(parents=True, exist_ok=True)
-        (intro_dir / f"{city_slug}.md").write_text(intro)
-
-    def _slugify(text):
-        return re.sub(r"[\s_]+", "-", re.sub(r"[^\w\s-]", "", text.lower()).strip()).strip("-")
-
-    written = 0
-    draft_paths = []
-    for poi in pois:
-        name     = poi.get("name", "").strip()
-        poi_body = poi.get("body", "").strip()
-        if not name or not poi_body:
-            continue
-        slug = _slugify(name)
-        out_path = city_dir / f"{slug}.md"
-        meta = {"title": name, "type": "poi", "category": poi.get("category", "Landmark")}
-        if poi.get("latitude") is not None:
-            meta["latitude"]  = round(float(poi["latitude"]), 7)
-        if poi.get("longitude") is not None:
-            meta["longitude"] = round(float(poi["longitude"]), 7)
-        post = fm.Post(poi_body, **meta)
-        out_path.write_text(fm.dumps(post))
-        draft_paths.append(f"~pois/{poi_prefix}/{slug}")
-        written += 1
-
-    if plan_slug and city_slug:
-        for draft_path in draft_paths:
-            _plan_file_add(plan_slug, city_slug, draft_path)
-
-    return JsonResponse({"written": written, "city_path": city_path})
+    return JsonResponse({"accepted": len(valid_pois), "city_path": city_path})
 
 
 def api_search(request):

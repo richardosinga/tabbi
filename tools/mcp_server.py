@@ -454,10 +454,8 @@ def tool_submit_pois(city_title: str, pois: list, plan_slug: str, passphrase: st
             "passphrase": passphrase, "pois": pois,
             "plan_slug": plan_slug, "city_slug": city_slug, "intro": intro,
         })
-        return (
-            f"Submitted {len(pois)} place(s) for {city_title}. "
-            f"Server added {result.get('written', 0)} to the trip plan."
-        )
+        count = result.get("accepted", result.get("written", len(pois)))
+        return f"Accepted {count} place(s) for {city_title} — being written to the trip plan."
     except RuntimeError as e:
         return f"Submit failed: {e}"
 
