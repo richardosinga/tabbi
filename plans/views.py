@@ -1292,7 +1292,7 @@ def api_plan_create(request):
 
     base_url = request.build_absolute_uri("/").rstrip("/")
     return JsonResponse({
-        "url":        f"{base_url}/plans/join/?next=/plans/{slug}/",
+        "url":        f"{base_url}/plans/{slug}/",
         "slug":       slug,
         "passphrase": passphrase,
         "cities":     [{"city_title": r["city_title"],

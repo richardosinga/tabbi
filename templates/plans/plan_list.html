@@ -510,8 +510,6 @@
     <p class="tabbi-empty-join">Already have a trip? <button class="tabbi-empty-join-btn" type="button" onclick="document.getElementById('plan-join-modal').hidden=false;document.getElementById('plan-join-pw').focus()">Join with a passphrase →</button></p>
   </div>
 
-  {% endif %}
-
   <div class="tabbi-pitch">
     <div class="tabbi-pitch-headline">
       <span>The best way to plan your next trip.</span>
@@ -548,6 +546,7 @@
       <a href="/connect/" class="tabbi-btn tabbi-btn--ghost">Connect your AI →</a>
     </div>
   </div>
+  {% endif %}
 
 </div>
 {% if join_error %}
