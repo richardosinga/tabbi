@@ -1,48 +1,98 @@
 {% extends "plans/base.html" %}
 {% load static %}
-{% block title %}Connect to Claude — Tab.bi{% endblock %}
+{% block title %}Connect Tabbi — Tab.bi{% endblock %}
 {% block content %}
 <div class="tabbi-page hiw-page">
 
   <div class="hiw-hero">
-    <h1>Use Tabbi in Claude</h1>
-    <p class="hiw-lead">Connect Tabbi as an MCP integration and plan trips directly from any Claude conversation.</p>
+    <h1>Connect Tabbi to your AI</h1>
+    <p class="hiw-lead">Tabbi works as an MCP integration with Claude, Cursor, Windsurf, and other AI assistants — or as a browser extension so you can save places while you browse.</p>
   </div>
 
-  <div class="connect-steps">
-    <div class="connect-step">
-      <div class="hiw-step-num">1</div>
-      <div class="hiw-step-body">
-        <h2>Open Claude integrations</h2>
-        <p>Go to <a href="https://claude.ai/settings/integrations" target="_blank" rel="noopener">claude.ai → Settings → Integrations</a> and click <strong>Add integration</strong>.</p>
-      </div>
-    </div>
-    <div class="connect-step">
-      <div class="hiw-step-num">2</div>
-      <div class="hiw-step-body">
-        <h2>Paste the Tabbi URL</h2>
+  <div class="connect-clients">
+    <h2 class="hiw-section-title">AI assistants via MCP</h2>
+
+    <div class="connect-client-grid">
+
+      <div class="connect-client">
+        <div class="connect-client-header">
+          <strong>Claude (Web)</strong>
+          <span class="connect-client-badge">Recommended</span>
+        </div>
+        <ol class="connect-client-steps">
+          <li>Go to <a href="https://claude.ai/settings/integrations" target="_blank" rel="noopener">claude.ai → Settings → Integrations</a></li>
+          <li>Click <strong>Add integration</strong> and paste the URL below</li>
+          <li>Start a new conversation and describe your trip</li>
+        </ol>
         <div class="connect-url-row">
           <code id="mcp-url">https://tab.bi/mcp</code>
-          <button class="tabbi-btn tabbi-btn--sm" onclick="copyUrl()">Copy</button>
+          <button class="tabbi-btn tabbi-btn--sm" onclick="copyUrl('mcp-url', this)">Copy</button>
+        </div>
+      </div>
+
+      <div class="connect-client">
+        <div class="connect-client-header">
+          <strong>Claude Code (CLI)</strong>
+        </div>
+        <ol class="connect-client-steps">
+          <li>Run the command below in your terminal</li>
+          <li>Start Claude Code and describe your trip</li>
+        </ol>
+        <div class="connect-url-row">
+          <code id="cli-cmd">claude mcp add tabbi https://tab.bi/mcp</code>
+          <button class="tabbi-btn tabbi-btn--sm" onclick="copyUrl('cli-cmd', this)">Copy</button>
+        </div>
+      </div>
+
+      <div class="connect-client">
+        <div class="connect-client-header">
+          <strong>Cursor</strong>
+        </div>
+        <ol class="connect-client-steps">
+          <li>Open Cursor Settings → MCP</li>
+          <li>Add a new server with the URL below</li>
+          <li>Restart Cursor and start chatting</li>
+        </ol>
+        <div class="connect-url-row">
+          <code id="cursor-url">https://tab.bi/mcp</code>
+          <button class="tabbi-btn tabbi-btn--sm" onclick="copyUrl('cursor-url', this)">Copy</button>
+        </div>
+      </div>
+
+      <div class="connect-client">
+        <div class="connect-client-header">
+          <strong>Windsurf</strong>
+        </div>
+        <ol class="connect-client-steps">
+          <li>Open Windsurf Settings → MCP Servers</li>
+          <li>Add a new server with the URL below</li>
+          <li>Restart and start chatting</li>
+        </ol>
+        <div class="connect-url-row">
+          <code id="windsurf-url">https://tab.bi/mcp</code>
+          <button class="tabbi-btn tabbi-btn--sm" onclick="copyUrl('windsurf-url', this)">Copy</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="connect-clients" style="margin-top: 48px;">
+    <h2 class="hiw-section-title">Browser extension</h2>
+    <div class="connect-extension-card">
+      <div class="connect-extension-icon">🧩</div>
+      <div class="connect-extension-body">
+        <h3>Tabbi Trip Planner</h3>
+        <p>Add places to your trips directly from any webpage — restaurant sites, attraction pages, travel blogs. Click the extension icon, pick a trip and stop, and the place is saved.</p>
+        <div class="connect-extension-actions">
+          <a href="https://chromewebstore.google.com/detail/tabbi-trip-planner/dnbpbnpcggcalfihejcpkjcoocnkoglb" target="_blank" rel="noopener" class="tabbi-btn">Get Chrome extension →</a>
         </div>
       </div>
     </div>
-    <div class="connect-step">
-      <div class="hiw-step-num">3</div>
-      <div class="hiw-step-body">
-        <h2>Start planning</h2>
-        <p>Open a new Claude conversation and tell it where you want to go. Claude will ask a few questions and build your plan.</p>
-      </div>
-    </div>
   </div>
 
-  <div class="connect-cta-row">
-    <a href="https://claude.ai/settings/integrations" target="_blank" rel="noopener" class="tabbi-btn">Open Claude integrations →</a>
-    <a href="/how-it-works/" class="tabbi-btn tabbi-btn--ghost">How it works</a>
-  </div>
-
-  <div class="connect-tools">
-    <h2 class="hiw-section-title">What Claude can do with Tabbi</h2>
+  <div class="connect-tools" style="margin-top: 48px;">
+    <h2 class="hiw-section-title">What your AI can do with Tabbi</h2>
     <div class="connect-tool-list">
       <div class="connect-tool">
         <code>plan_trip</code>
@@ -80,17 +130,17 @@
   </div>
 
   <div class="connect-note">
-    <strong>No account needed.</strong> Your trips are protected by a passphrase. Claude will ask for it the first time you open a plan, and remembers it for the rest of the conversation.
+    <strong>No account needed.</strong> Your trips are protected by a passphrase. Your AI will ask for it the first time you open a plan, and remembers it for the rest of the conversation.
   </div>
 
 </div>
 
 <script>
-function copyUrl() {
-  navigator.clipboard.writeText(document.getElementById('mcp-url').textContent).then(function() {
-    var btn = document.querySelector('.connect-url-row .tabbi-btn');
+function copyUrl(id, btn) {
+  navigator.clipboard.writeText(document.getElementById(id).textContent).then(function() {
+    var orig = btn.textContent;
     btn.textContent = 'Copied!';
-    setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+    setTimeout(function() { btn.textContent = orig; }, 1500);
   });
 }
 </script>

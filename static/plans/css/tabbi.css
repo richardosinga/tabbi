@@ -2014,3 +2014,19 @@ span.plan-poi-title--draft::after { content: none; }
 .connect-tool span { color: #535050; }
 
 .connect-note { background: #fffdf7; border-left: 4px solid #e7a328; padding: 14px 18px; border-radius: 0 10px 10px 0; font-size: 0.88rem; color: #535050; line-height: 1.6; }
+
+.connect-clients { margin-bottom: 8px; }
+.connect-client-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.connect-client { background: #fff; border: 2.5px solid #180A0A; border-radius: 14px; padding: 22px; box-shadow: 3px 3px 0 #180A0A; display: flex; flex-direction: column; gap: 14px; }
+.connect-client-header { display: flex; align-items: center; gap: 10px; }
+.connect-client-header strong { font-size: 0.95rem; font-weight: 800; color: #180A0A; }
+.connect-client-badge { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; background: #e7a328; color: #180A0A; border-radius: 999px; padding: 2px 9px; }
+.connect-client-steps { padding-left: 18px; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.connect-client-steps li { font-size: 0.85rem; color: #535050; line-height: 1.5; }
+.connect-client-steps a { color: #180A0A; }
+
+.connect-extension-card { background: #fffdf7; border: 2.5px solid #180A0A; border-radius: 14px; padding: 24px; box-shadow: 3px 3px 0 #180A0A; display: flex; gap: 20px; align-items: flex-start; }
+.connect-extension-icon { font-size: 2rem; flex-shrink: 0; margin-top: 2px; }
+.connect-extension-body h3 { font-size: 1rem; font-weight: 800; color: #180A0A; margin: 0 0 8px; }
+.connect-extension-body p { font-size: 0.88rem; color: #535050; line-height: 1.6; margin: 0 0 16px; }
+.connect-extension-actions { display: flex; gap: 10px; flex-wrap: wrap; }
