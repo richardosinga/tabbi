@@ -471,6 +471,69 @@ def plan_join(request):
     return HttpResponseRedirect("/plans/")
 
 
+def api_suggest_destinations(request):
+    title = request.GET.get("title", "").strip()
+    if not title:
+        return JsonResponse({"suggestions": []})
+
+    suggestions = []
+    seen_paths = set()
+    seen_names = set()
+
+    # --- Pass 1: extract n-grams from the title and resolve against world66 ---
+    words = re.split(r"[\s,&+\-]+", title)
+    for length in range(min(4, len(words)), 0, -1):
+        for i in range(len(words) - length + 1):
+            phrase = " ".join(words[i:i+length])
+            path = resolve_location_name(phrase, title)
+            if path and path not in seen_paths:
+                page = load_page(path)
+                name = page.title if page else phrase.title()
+                seen_paths.add(path)
+                seen_names.add(name.lower())
+                suggestions.append({"name": name, "path": path})
+
+    # --- Pass 2: Claude fallback for short/no results ---
+    if len(suggestions) == 0:
+        try:
+            import anthropic as _anthropic
+            client = _anthropic.Anthropic()
+            msg = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=256,
+                system=(
+                    "You are a travel assistant. Given a trip title, suggest 3–5 specific "
+                    "destinations (cities, towns, or regions) the traveller likely wants to visit. "
+                    "Reply ONLY with a JSON array of destination name strings, e.g. "
+                    '["Middelburg", "Zierikzee", "Vlissingen"]. No explanations.'
+                ),
+                messages=[{"role": "user", "content": f'Trip title: "{title}"'}],
+            )
+            raw = msg.content[0].text.strip()
+            m = re.search(r"\[.*?\]", raw, re.DOTALL)
+            if m:
+                names = json.loads(m.group())
+                for name in names:
+                    if not isinstance(name, str):
+                        continue
+                    if name.lower() in seen_names:
+                        continue
+                    path = resolve_location_name(name, title)
+                    if path and path not in seen_paths:
+                        page = load_page(path)
+                        display = page.title if page else name
+                        seen_paths.add(path)
+                        seen_names.add(display.lower())
+                        suggestions.append({"name": display, "path": path})
+                    elif not path:
+                        seen_names.add(name.lower())
+                        suggestions.append({"name": name, "path": None})
+        except Exception:
+            pass
+
+    return JsonResponse({"suggestions": suggestions[:6]})
+
+
 def plan_new(request):
     error = None
     if request.method == "POST":
@@ -479,11 +542,10 @@ def plan_new(request):
             error = "Please enter a trip title."
         else:
             import frontmatter as fm
-            slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+            base_slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+            slug = f"{base_slug}-{secrets.token_hex(2)}"
             path = PLANS_DIR / f"{slug}.md"
-            if path.exists():
-                error = f"A trip named '{slug}' already exists."
-            else:
+            if True:
                 passphrase = _generate_passphrase()
                 description_raw = request.POST.get("description", "").strip()
                 locations_raw = request.POST.get("locations", "").strip()
@@ -536,7 +598,11 @@ def plan_new(request):
                 _mark_plan_authenticated(request, slug)
                 request.session["new_plan_passphrase"] = passphrase
                 return HttpResponseRedirect(f"/plans/{slug}/created/")
-    return render(request, "plans/plan_new.html", {"error": error})
+    return render(request, "plans/plan_new.html", {
+        "error": error,
+        "prefill_title": request.GET.get("title", ""),
+        "prefill_locations": request.GET.get("locations", ""),
+    })
 
 
 @_require_plan_auth
@@ -960,6 +1026,68 @@ def plan_budget_save(request, slug, city_slug):
 
 
 @_require_plan_auth
+@csrf_exempt
+@_require_plan_auth
+def api_plan_add_stop(request, slug):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=405)
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "invalid JSON"}, status=400)
+
+    city_name = data.get("city", "").strip()
+    if not city_name:
+        return JsonResponse({"error": "city required"}, status=400)
+
+    path = PLANS_DIR / f"{slug}.md"
+    if not path.is_file():
+        return JsonResponse({"error": "plan not found"}, status=404)
+
+    import frontmatter as fm
+    post = fm.load(path)
+
+    city_path = resolve_location_name(city_name)
+    if city_path:
+        city_page = load_page(city_path)
+        city_title = city_page.title if city_page else city_name.title()
+    else:
+        city_path = None
+        city_title = city_name.title()
+
+    city_slug = _slugify(city_title)
+    lines = post.content.splitlines()
+
+    # Check not already a stop
+    for line in lines:
+        h2 = re.match(r"^##\s+(.+)$", line)
+        if h2:
+            existing_slug = _slugify(h2.group(1).split("|", 1)[0].strip())
+            if existing_slug == city_slug:
+                return JsonResponse({"error": f"{city_title} is already a stop"}, status=400)
+
+    lines.append(f"## {city_title}")
+    post.content = "\n".join(lines)
+    with open(path, "w", encoding="utf-8") as fh:
+        fm.dump(post, fh)
+
+    stop_url = f"/plans/{slug}/{city_slug}/"
+    image_url = None
+    if city_path:
+        city_page = load_page(city_path)
+        img = _image_path(city_page) if city_page else None
+        if img:
+            image_url = f"/content-image/{img}"
+
+    return JsonResponse({
+        "ok": True,
+        "city": city_title,
+        "city_slug": city_slug,
+        "url": stop_url,
+        "image_url": image_url,
+    })
+
+
 def plan_edit(request, slug):
     path = PLANS_DIR / f"{slug}.md"
     if not path.is_file():

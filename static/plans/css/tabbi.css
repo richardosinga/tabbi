@@ -420,7 +420,16 @@ body:has(.tabbi-nav) select {
   position: relative;
 }
 
+.plan-right-col { display: flex; flex-direction: column; gap: 0; min-width: 0; }
 .plan-dest-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.plan-no-stops-title { font-size: 0.85rem; color: #A6A6A6; margin: 0 0 12px; text-align: center; }
+.plan-add-stop { margin-top: 16px; padding-top: 16px; }
+.plan-add-stop .tabbi-empty-input-row { max-width: 100%; }
+.plan-add-stop .dest-suggestions { margin-top: 8px; }
+.plan-add-stop-error { font-size: 0.8rem; color: #c0392b; margin-top: 6px; }
+.plan-add-stop-inspo { font-size: 0.82rem; color: #C8C8C8; margin-top: 12px; text-align: center; }
+.plan-add-stop-inspo-link { color: #C8C8C8; text-decoration: none; }
+.plan-add-stop-inspo-link:hover { color: #e7a328; }
 
 .plan-dest-tile {
   position: relative;
@@ -1461,6 +1470,15 @@ span.plan-poi-title--draft::after { content: none; }
   letter-spacing: 0;
 }
 
+/* ── Destination suggestions ─────────────────────────────────────────────── */
+.dest-suggestions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; margin-bottom: 4px; }
+.dest-suggestions-label { font-size: 0.75rem; color: #A6A6A6; font-weight: 600; width: 100%; }
+.dest-suggestions-loading { font-style: italic; }
+.dest-chip { font-family: 'Lexend Exa', sans-serif; font-size: 0.78rem; font-weight: 700; padding: 5px 12px; border: 2px solid #180A0A; border-radius: 999px; background: #fffdf7; color: #180A0A; cursor: pointer; box-shadow: 2px 2px 0 #180A0A; transition: all 0.1s; white-space: nowrap; }
+.dest-chip:hover { background: #e7a328; transform: translate(-1px, -1px); box-shadow: 3px 3px 0 #180A0A; }
+.dest-chip--free { border-style: dashed; color: #535050; }
+.dest-chip--added { background: #d4f0e3; border-style: solid; color: #1a6640; box-shadow: none; transform: none; cursor: default; }
+
 /* ── Passphrase ───────────────────────────────────────────────────────────── */
 
 .plan-passphrase-box {
@@ -1634,6 +1652,12 @@ span.plan-poi-title--draft::after { content: none; }
 }
 .tabbi-empty-headline { font-size: 1.4rem; font-weight: 800; color: #180A0A; letter-spacing: -0.03em; margin: 0 0 10px; }
 .tabbi-empty-sub { font-size: 0.85rem; color: #A6A6A6; line-height: 1.6; margin: 0 0 28px; }
+.tabbi-empty-starter { width: 100%; max-width: 480px; margin: 0 auto 8px; }
+.tabbi-empty-input-row { display: flex; gap: 8px; align-items: center; }
+.tabbi-empty-title-input { flex: 1; font-family: 'Lexend Exa', sans-serif; font-size: 0.88rem; padding: 11px 16px; border: 2.5px solid #180A0A; border-radius: 999px; background: #fff; color: #180A0A; outline: none; box-shadow: 3px 3px 0 #180A0A; }
+.tabbi-empty-title-input:focus { border-color: #e7a328; box-shadow: 3px 3px 0 #e7a328; }
+.tabbi-empty-title-input::placeholder { color: #C8C8C8; }
+.tabbi-empty-starter .dest-suggestions { max-width: 480px; margin: 8px auto 0; justify-content: center; }
 .tabbi-empty-join { margin-top: 16px; font-size: 0.8rem; color: #A6A6A6; }
 .tabbi-empty-join-btn {
   background: none;
@@ -1769,7 +1793,7 @@ span.plan-poi-title--draft::after { content: none; }
     min-height: 0;
     max-height: 320px;
   }
-  .plan-dest-grid { order: 1; }
+  .plan-right-col { order: 1; }
 
   /* Stop page: stack map below POI list */
   .plan-stop-layout {
