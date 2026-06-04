@@ -24,7 +24,7 @@
       </div>
     </div>
 
-    <div class="plan-dest-grid">
+    <div class="plan-dest-grid" id="plan-dest-grid">
     {% for stop in plan.stops %}
     <div class="plan-dest-tile" onclick="window.location='{{ stop.url }}'"
          {% if stop.city_image_url %}style="background-image:url('{{ stop.city_image_url }}')"{% endif %}>
@@ -40,20 +40,18 @@
         {% endif %}
       </div>
     </div>
-    {% empty %}
-    <div class="plan-no-stops">
-      <p class="plan-no-stops-title">No destinations yet.</p>
-      <p class="plan-no-stops-sub">Where are you headed?</p>
-      <div class="tabbi-empty-starter">
-        <div class="tabbi-empty-input-row">
-          <input type="text" id="detail-dest-input" class="tabbi-empty-title-input" placeholder="e.g. Middelburg, Bruges…" autocomplete="off">
-          <a id="detail-edit-btn" href="/plans/{{ plan.slug }}/edit/" class="tabbi-btn">Add →</a>
-        </div>
-        <div id="detail-dest-suggestions" class="dest-suggestions" hidden></div>
-      </div>
-    </div>
     {% endfor %}
     </div><!-- /.plan-dest-grid -->
+
+    <div class="plan-add-stop">
+      {% if not plan.stops %}<p class="plan-no-stops-title">No destinations yet — where are you headed?</p>{% endif %}
+      <div class="tabbi-empty-input-row">
+        <input type="text" id="detail-dest-input" class="tabbi-empty-title-input" placeholder="Add a destination…" autocomplete="off">
+        <button type="button" id="detail-add-btn" class="tabbi-btn">Add →</button>
+      </div>
+      <div id="detail-dest-suggestions" class="dest-suggestions" hidden></div>
+      <div id="detail-add-error" class="plan-add-stop-error" hidden></div>
+    </div>
   </div><!-- /.plan-overview-layout -->
 
   {% if total_budget.total %}
@@ -124,18 +122,55 @@
 <script>
 (function () {
   var input = document.getElementById('detail-dest-input');
-  var btn = document.getElementById('detail-edit-btn');
+  var addBtn = document.getElementById('detail-add-btn');
   var box = document.getElementById('detail-dest-suggestions');
+  var errBox = document.getElementById('detail-add-error');
+  var grid = document.getElementById('plan-dest-grid');
   if (!input) return;
 
-  var timer, lastQuery = '';
+  var timer, lastQuery = '', stopCount = grid.querySelectorAll('.plan-dest-tile').length;
+
+  function addStop(cityName) {
+    if (!cityName) return;
+    addBtn.disabled = true;
+    addBtn.textContent = 'Adding…';
+    errBox.hidden = true;
+    fetch('/plans/{{ plan.slug }}/add-stop/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+      body: JSON.stringify({city: cityName})
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.error) { errBox.textContent = data.error; errBox.hidden = false; return; }
+      stopCount++;
+      var tile = document.createElement('div');
+      tile.className = 'plan-dest-tile';
+      tile.style.cursor = 'pointer';
+      if (data.image_url) tile.style.backgroundImage = "url('" + data.image_url + "')";
+      tile.onclick = function() { window.location = data.url; };
+      tile.innerHTML = '<div class="plan-dest-tile-overlay">'
+        + '<div class="plan-dest-tile-num">' + stopCount + '</div>'
+        + '<div class="plan-dest-tile-info"><div class="plan-dest-tile-city">' + data.city + '</div>'
+        + '<div class="plan-dest-tile-count">0 places</div></div></div>';
+      grid.appendChild(tile);
+      input.value = '';
+      box.hidden = true;
+      lastQuery = '';
+      // Remove "no destinations" message if present
+      var noStops = document.querySelector('.plan-no-stops-title');
+      if (noStops) noStops.remove();
+    })
+    .catch(function() { errBox.textContent = 'Something went wrong.'; errBox.hidden = false; })
+    .finally(function() { addBtn.disabled = false; addBtn.textContent = 'Add →'; });
+  }
 
   function renderChips(suggestions) {
     box.innerHTML = '';
     if (!suggestions.length) { box.hidden = true; return; }
     var label = document.createElement('span');
     label.className = 'dest-suggestions-label';
-    label.textContent = 'Suggested destinations — click to add to the input:';
+    label.textContent = 'Suggested:';
     box.appendChild(label);
     suggestions.forEach(function (s) {
       var chip = document.createElement('button');
@@ -144,12 +179,10 @@
       chip.textContent = '+ ' + s.name;
       chip.title = s.path ? 'In the world66 guide' : 'Not yet in the world66 guide';
       chip.addEventListener('click', function () {
-        var cur = input.value.trim();
-        var parts = cur ? cur.split(',').map(function(p){ return p.trim(); }).filter(Boolean) : [];
-        if (parts.indexOf(s.name) === -1) { parts.push(s.name); input.value = parts.join(', '); }
         chip.classList.add('dest-chip--added');
         chip.textContent = '✓ ' + s.name;
         chip.disabled = true;
+        addStop(s.name);
       });
       box.appendChild(chip);
     });
@@ -167,13 +200,15 @@
       .catch(function () { box.hidden = true; });
   }
 
+  addBtn.addEventListener('click', function () { addStop(input.value.trim()); });
+
   input.addEventListener('input', function () {
     clearTimeout(timer);
     timer = setTimeout(function () { fetchSuggestions(input.value.trim()); }, 600);
   });
 
   input.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') { e.preventDefault(); btn.click(); }
+    if (e.key === 'Enter') { e.preventDefault(); addStop(input.value.trim()); }
   });
 
   fetchSuggestions('{{ plan.title|escapejs }}');

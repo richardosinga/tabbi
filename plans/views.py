@@ -1026,6 +1026,68 @@ def plan_budget_save(request, slug, city_slug):
 
 
 @_require_plan_auth
+@csrf_exempt
+@_require_plan_auth
+def api_plan_add_stop(request, slug):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=405)
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "invalid JSON"}, status=400)
+
+    city_name = data.get("city", "").strip()
+    if not city_name:
+        return JsonResponse({"error": "city required"}, status=400)
+
+    path = PLANS_DIR / f"{slug}.md"
+    if not path.is_file():
+        return JsonResponse({"error": "plan not found"}, status=404)
+
+    import frontmatter as fm
+    post = fm.load(path)
+
+    city_path = resolve_location_name(city_name)
+    if city_path:
+        city_page = load_page(city_path)
+        city_title = city_page.title if city_page else city_name.title()
+    else:
+        city_path = None
+        city_title = city_name.title()
+
+    city_slug = _slugify(city_title)
+    lines = post.content.splitlines()
+
+    # Check not already a stop
+    for line in lines:
+        h2 = re.match(r"^##\s+(.+)$", line)
+        if h2:
+            existing_slug = _slugify(h2.group(1).split("|", 1)[0].strip())
+            if existing_slug == city_slug:
+                return JsonResponse({"error": f"{city_title} is already a stop"}, status=400)
+
+    lines.append(f"## {city_title}")
+    post.content = "\n".join(lines)
+    with open(path, "w", encoding="utf-8") as fh:
+        fm.dump(post, fh)
+
+    stop_url = f"/plans/{slug}/{city_slug}/"
+    image_url = None
+    if city_path:
+        city_page = load_page(city_path)
+        img = _image_path(city_page) if city_page else None
+        if img:
+            image_url = f"/content-image/{img}"
+
+    return JsonResponse({
+        "ok": True,
+        "city": city_title,
+        "city_slug": city_slug,
+        "url": stop_url,
+        "image_url": image_url,
+    })
+
+
 def plan_edit(request, slug):
     path = PLANS_DIR / f"{slug}.md"
     if not path.is_file():

@@ -8,6 +8,7 @@ urlpatterns = [
     path("join/", views.plan_join, name="plan_join"),
     path("<slug:slug>/created/", views.plan_created, name="plan_created"),
     path("<slug:slug>/edit/", views.plan_edit, name="plan_edit"),
+    path("<slug:slug>/add-stop/", views.api_plan_add_stop, name="api_plan_add_stop"),
     path("<slug:slug>/add/", views.plan_poi_add, name="plan_poi_add"),
     path("<slug:slug>/<slug:city_slug>/add/", views.plan_poi_add, name="plan_poi_add_city"),
     path("<slug:slug>/<slug:city_slug>/remove/", views.plan_poi_remove, name="plan_poi_remove"),
