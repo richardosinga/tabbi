@@ -53,6 +53,7 @@
         <div id="detail-dest-suggestions" class="dest-suggestions" hidden></div>
         <div id="detail-add-error" class="plan-add-stop-error" hidden></div>
       </div>
+      <p class="plan-add-stop-inspo">Need more inspo? <a href="/connect/" class="plan-add-stop-inspo-link">Connect your AI and use Tabbi there →</a></p>
     </div><!-- /.plan-right-col -->
   </div><!-- /.plan-overview-layout -->
 
@@ -130,7 +131,9 @@
   var grid = document.getElementById('plan-dest-grid');
   if (!input) return;
 
-  var timer, lastQuery = '', stopCount = grid.querySelectorAll('.plan-dest-tile').length;
+  var timer, lastQuery = '';
+  var stopCount = grid.querySelectorAll('.plan-dest-tile').length;
+  var hadStopsOnLoad = stopCount > 0;
 
   function addStop(cityName) {
     if (!cityName) return;
@@ -145,6 +148,7 @@
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.error) { errBox.textContent = data.error; errBox.hidden = false; return; }
+      var wasFirst = stopCount === 0;
       stopCount++;
       var tile = document.createElement('div');
       tile.className = 'plan-dest-tile';
@@ -157,11 +161,11 @@
         + '<div class="plan-dest-tile-count">0 places</div></div></div>';
       grid.appendChild(tile);
       input.value = '';
-      box.hidden = true;
       lastQuery = '';
-      // Remove "no destinations" message if present
       var noStops = document.querySelector('.plan-no-stops-title');
       if (noStops) noStops.remove();
+      // Keep suggestions visible after first stop added; hide after that
+      if (!wasFirst) box.hidden = true;
     })
     .catch(function() { errBox.textContent = 'Something went wrong.'; errBox.hidden = false; })
     .finally(function() { addBtn.disabled = false; addBtn.textContent = 'Add →'; });
@@ -213,7 +217,8 @@
     if (e.key === 'Enter') { e.preventDefault(); addStop(input.value.trim()); }
   });
 
-  fetchSuggestions('{{ plan.title|escapejs }}');
+  // Only auto-suggest on load when there are no stops yet
+  if (!hadStopsOnLoad) fetchSuggestions('{{ plan.title|escapejs }}');
 })();
 </script>
 {% endblock %}
