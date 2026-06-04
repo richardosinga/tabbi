@@ -442,31 +442,44 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
     else:
         poi_instruction = "1. No new world66 POIs to add.\n"
 
-    sections.append(
-        "## Instructions\n"
-        + poi_instruction
-        + (f"2. Check if the selected world66 places cover the traveller's interests ({preferences}). "
-           f"Before writing anything new, call search_world66 for any interest area that has no coverage "
-           f"(e.g. 'restaurants {city_title}', 'parks {city_title}') — use world66 paths if found. "
-           f"Only write new places for genuine gaps where world66 has nothing.\n"
-           if preferences else
-           f"2. Before writing new places, call search_world66 for any obvious gaps "
-           f"(e.g. 'restaurants {city_title}', 'parks {city_title}'). Use world66 paths if found.\n")
-        + f"3. Only if world66 has no coverage for a category: write 1 new place to fill that gap. Total places per stop should not exceed 10.\n"
-        f"   Default categories to fill: Landmark, Museum, Park, Market, Neighbourhood, Viewpoint, Gallery.\n"
-        f"   Only add Restaurant or Bar if the traveller explicitly mentioned food, eating, bars, or nightlife in their preferences.\n"
-        f"   For each new place:\n"
-        f"   - 2-4 paragraphs of prose, under 280 words, per the style guide below\n"
-        f"   - One category: Landmark|Museum|Restaurant|Market|Park|Neighbourhood|Viewpoint|Bar|Gallery\n"
-        f"   - Exact latitude/longitude — call the geocode tool for each place.\n"
-        f"     NEVER guess or estimate coordinates. Wrong coords break the map.\n"
-        f"   - A direct image_url from Wikimedia Commons if one exists\n"
-        f"4. Write a short intro for the city stop (2-4 sentences). "
-        f"Write it in the same language the traveller used — if their preferences were in Dutch, write Dutch; French, write French; etc. "
-        f"Make it specific and personal to their trip: mention the dates, the group, what they plan to do there. "
-        f"POI descriptions (the `body` field) must always be in English.\n"
-        f"5. Call submit_pois with the intro and all new places."
-    )
+    current_count = len(already_in_plan)
+    remaining = max(0, 10 - current_count)
+
+    if current_count >= 8:
+        sections.append(
+            f"## Instructions\n"
+            f"This stop already has {current_count} place(s) — it is well-covered. "
+            f"**Do not call add_pois_to_plan, submit_pois, or search_world66.** "
+            f"{'No further additions are possible (limit reached).' if current_count >= 10 else f'You may add at most {remaining} more only if the user explicitly asks for it.'}\n\n"
+            f"If no intro exists yet, write one (2-4 sentences, traveller's language) and call submit_pois with an empty pois list and only the intro field."
+        )
+    else:
+        sections.append(
+            "## Instructions\n"
+            + poi_instruction
+            + (f"2. Check if the selected world66 places cover the traveller's interests ({preferences}). "
+               f"Before writing anything new, call search_world66 for any interest area that has no coverage "
+               f"(e.g. 'restaurants {city_title}', 'parks {city_title}') — use world66 paths if found. "
+               f"Only write new places for genuine gaps where world66 has nothing.\n"
+               if preferences else
+               f"2. Before writing new places, call search_world66 for any obvious gaps "
+               f"(e.g. 'restaurants {city_title}', 'parks {city_title}'). Use world66 paths if found.\n")
+            + f"3. Only if world66 has no coverage for a category: write 1 new place to fill that gap. "
+            f"Remaining capacity: {remaining} place(s) total (already have {current_count}/10). Stop once reached.\n"
+            f"   Default categories to fill: Landmark, Museum, Park, Market, Neighbourhood, Viewpoint, Gallery.\n"
+            f"   Only add Restaurant or Bar if the traveller explicitly mentioned food, eating, bars, or nightlife.\n"
+            f"   For each new place:\n"
+            f"   - 2-4 paragraphs of prose, under 280 words, per the style guide below\n"
+            f"   - One category: Landmark|Museum|Restaurant|Market|Park|Neighbourhood|Viewpoint|Bar|Gallery\n"
+            f"   - Exact latitude/longitude — call the geocode tool for each place.\n"
+            f"     NEVER guess or estimate coordinates. Wrong coords break the map.\n"
+            f"   - A direct image_url from Wikimedia Commons if one exists\n"
+            f"4. Write a short intro for the city stop (2-4 sentences). "
+            f"Write it in the same language the traveller used — if their preferences were in Dutch, write Dutch; French, write French; etc. "
+            f"Make it specific and personal to their trip: mention the dates, the group, what they plan to do there. "
+            f"POI descriptions (the `body` field) must always be in English.\n"
+            f"5. Call submit_pois with the intro and all new places. Once submitted, this city is done — do not call research_city again for {city_title}."
+        )
     if style_md:
         sections.append(f"## Writing style guide\n{style_md}")
     return "\n\n".join(sections)
