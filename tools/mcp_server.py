@@ -377,9 +377,12 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
     sections = [f"## What we have for {city_title}"]
 
     if already_in_plan:
+        stop_full = len(already_in_plan) >= 10
         sections.append(
-            f"### Already in the plan ({len(already_in_plan)}) — do NOT add these again\n"
+            f"### Already in the plan ({len(already_in_plan)}/10) — do NOT add these again\n"
             + "\n".join(f"- {item}" for item in already_in_plan)
+            + ("\n\n**This stop is full (10/10). Do NOT call add_pois_to_plan or submit_pois for this city.**" if stop_full else
+               f"\n\nRoom for {10 - len(already_in_plan)} more place(s) maximum.")
         )
 
     if existing_pois:

@@ -1463,9 +1463,16 @@ def api_plan_add_pois(request):
     if not _check_plan_auth(body, plan_slug):
         return JsonResponse({"error": "unauthorized"}, status=403)
 
+    MAX_PLACES = 10
+    existing = _read_plan_items(plan_slug).get(city_slug, [])
+    if len(existing) >= MAX_PLACES:
+        return JsonResponse({"added": 0, "message": f"Stop already has {len(existing)} places (max {MAX_PLACES}). No more added."})
+
     added = 0
     for path in body.get("poi_paths", []):
         if isinstance(path, str) and path.strip():
+            if len(existing) + added >= MAX_PLACES:
+                break
             if _plan_file_add(plan_slug, city_slug, path.strip()):
                 added += 1
     return JsonResponse({"added": added})
@@ -1534,6 +1541,14 @@ def api_research_submit(request):
         return JsonResponse({"error": "city_title and pois are required"}, status=400)
     if plan_slug and not _check_plan_auth(body, plan_slug):
         return JsonResponse({"error": "unauthorized"}, status=403)
+
+    MAX_PLACES = 10
+    if plan_slug and city_slug:
+        existing_count = len(_read_plan_items(plan_slug).get(city_slug, []))
+        remaining = MAX_PLACES - existing_count
+        if remaining <= 0:
+            return JsonResponse({"accepted": 0, "message": f"Stop already has {existing_count} places (max {MAX_PLACES}). No more added."})
+        pois = pois[:remaining]
 
     if not city_path:
         city_path = re.sub(r"[^a-z0-9]+", "-", city_title.lower()).strip("-")
