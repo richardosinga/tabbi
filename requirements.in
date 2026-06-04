@@ -6,3 +6,5 @@ twilio
 beautifulsoup4
 gunicorn
 mcp[cli]
+apsw
+sqlite-vec

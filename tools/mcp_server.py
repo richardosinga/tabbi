@@ -58,6 +58,130 @@ TABBI_BASE_URL = os.environ.get("TABBI_BASE_URL", "http://localhost:8001").rstri
 WORLD66_DIR = Path(os.environ.get("WORLD66_DIR", str(REPO_PATH / "world66")))
 
 # ---------------------------------------------------------------------------
+# Embedding similarity helpers (optional — gracefully disabled if deps absent)
+# ---------------------------------------------------------------------------
+
+_TAG_TO_CATEGORY = {
+    "museum": "Museum",
+    "gallery": "Gallery",
+    "sight": "Landmark",
+    "landmark": "Landmark",
+    "architecture": "Landmark",
+    "park": "Park",
+    "garden": "Park",
+    "nature": "Park",
+    "restaurant": "Restaurant",
+    "food": "Restaurant",
+    "bar": "Bar",
+    "pub": "Bar",
+    "nightlife": "Bar",
+    "market": "Market",
+    "shopping": "Market",
+    "neighbourhood": "Neighbourhood",
+    "viewpoint": "Viewpoint",
+}
+_ALL_CATEGORIES = {"Landmark", "Museum", "Park", "Market", "Neighbourhood", "Viewpoint", "Gallery"}
+_FOOD_CATEGORIES = {"Restaurant", "Bar"}
+
+
+def _covered_categories(poi_paths: list[str]) -> set[str]:
+    """Return broad categories already represented by the given POI paths."""
+    covered = set()
+    for path in poi_paths:
+        if path.startswith("~pois/"):
+            # local override: ~pois/{plan_slug}/{city_path}/{slug}
+            rest = path[len("~pois/"):]
+            md = WORLD66_DIR.parent / "plans" / "pois" / rest
+            md = md.with_suffix(".md") if not md.suffix else md
+        else:
+            md = WORLD66_DIR / "content" / (path + ".md")
+        try:
+            text = md.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        in_tags = False
+        for line in text.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("category:"):
+                raw = stripped.split(":", 1)[1].strip().strip('"\'').lower()
+                cat = _TAG_TO_CATEGORY.get(raw, raw.capitalize())
+                covered.add(cat)
+            elif stripped == "tags:":
+                in_tags = True
+            elif in_tags:
+                if stripped.startswith("- "):
+                    tag = stripped[2:].strip().lower()
+                    cat = _TAG_TO_CATEGORY.get(tag)
+                    if cat:
+                        covered.add(cat)
+                elif stripped and not stripped.startswith("#"):
+                    in_tags = False  # end of tags list
+    return covered
+
+
+def _similarity_rank(city_path: str, plan_poi_paths: list[str], candidates: list[dict]) -> list[dict]:
+    """Return candidates re-sorted by similarity to plan_poi_paths using search.db.
+
+    Falls back to the original order if search.db / apsw / sqlite_vec are unavailable.
+    """
+    db_path = WORLD66_DIR / "search.db"
+    if not db_path.exists():
+        return candidates
+
+    w66_plan_paths = [
+        p + ".md" for p in plan_poi_paths
+        if not p.startswith("~") and not p.startswith("content/")
+    ]
+    if not w66_plan_paths:
+        return candidates
+
+    try:
+        import apsw
+        import sqlite_vec
+    except ImportError:
+        return candidates
+
+    try:
+        conn = apsw.Connection(str(db_path), flags=apsw.SQLITE_OPEN_READONLY)
+        conn.enable_load_extension(True)
+        sqlite_vec.load(conn)
+
+        prefix = city_path if not city_path.startswith("content/") else city_path[len("content/"):]
+        total = conn.execute("SELECT count(*) FROM embeddings").fetchone()[0]
+        knn_k = min(total, 4096)
+
+        scores: dict[str, float] = {}
+        for plan_path in w66_plan_paths:
+            emb = conn.execute(
+                "SELECT embedding FROM embeddings WHERE path=?", (plan_path,)
+            ).fetchone()
+            if not emb:
+                continue
+            rows = conn.execute(
+                "SELECT path, distance FROM embeddings WHERE embedding MATCH ? AND k=? ORDER BY distance",
+                (emb[0], knn_k),
+            ).fetchall()
+            for p, d in rows:
+                if not p.startswith(prefix):
+                    continue
+                candidate_path = p[:-3] if p.endswith(".md") else p  # strip .md
+                if candidate_path not in scores or d < scores[candidate_path]:
+                    scores[candidate_path] = d
+    except Exception:
+        return candidates
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+    def sort_key(c):
+        return scores.get(c["path"], 1.0)
+
+    return sorted(candidates, key=sort_key)
+
+
+# ---------------------------------------------------------------------------
 # Tool definitions
 # ---------------------------------------------------------------------------
 
@@ -426,15 +550,32 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
         sections.append(f"No existing world66 content for {city_title} — research from scratch.")
 
     # Filter out world66 POIs already in the plan so add_pois_to_plan only gets new ones
-    already_titles = {a.lower() for a in already_in_plan}
-    new_pois = [p for p in existing_pois if p["title"].lower() not in already_titles]
+    already_paths = {a.lower() for a in already_in_plan}
+    already_titles = {a.rsplit("/", 1)[-1].replace("_", " ").lower() for a in already_in_plan}
+    new_pois = [p for p in existing_pois if p["path"].lower() not in already_paths and p["title"].lower() not in already_titles]
+
+    # Use embedding similarity to rank new_pois by closeness to existing plan content
+    if already_in_plan and new_pois and city_path:
+        new_pois = _similarity_rank(city_path, already_in_plan, new_pois)
+        ranked_note = " (sorted by similarity to your existing selections — top entries are most relevant)"
+    else:
+        ranked_note = ""
+
+    # Determine which broad categories are already covered
+    covered = _covered_categories(already_in_plan) if already_in_plan else set()
+    gap_categories = sorted(_ALL_CATEGORIES - covered)
+    food_note = (
+        "Restaurant and Bar are already covered."
+        if _FOOD_CATEGORIES.issubset(covered) else
+        "Only add Restaurant or Bar if the traveller explicitly mentioned food, eating, bars, or nightlife."
+    )
 
     if new_pois:
         prefs_note = f" Traveller profile: {preferences}. Pick places that match." if preferences else \
             " Pick the most essential ones a first-time visitor should not miss."
         poi_instruction = (
-            f"1. From the {len(new_pois)} world66 place(s) above, select 6–8 that best fit this trip.{prefs_note} "
-            f"Skip duplicates, obscure entries, and anything that doesn't stand on its own. "
+            f"1. From the {len(new_pois)} world66 place(s) below, select 6–8 that best fit this trip.{prefs_note} "
+            f"Skip duplicates, obscure entries, and anything that doesn't stand on its own.{ranked_note} "
             f"Call add_pois_to_plan with only those selected path(s):\n"
             + "\n".join(f"   - `{p['path']}`" for p in new_pois)
             + "\n   (Pick the best 6–8 from this list, not all of them.)\n"
@@ -454,6 +595,7 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
             f"If no intro exists yet, write one (2-4 sentences, traveller's language) and call submit_pois with an empty pois list and only the intro field."
         )
     else:
+        gap_str = ", ".join(gap_categories) if gap_categories else "all standard categories already covered"
         sections.append(
             "## Instructions\n"
             + poi_instruction
@@ -466,8 +608,8 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
                f"(e.g. 'restaurants {city_title}', 'parks {city_title}'). Use world66 paths if found.\n")
             + f"3. Only if world66 has no coverage for a category: write 1 new place to fill that gap. "
             f"Remaining capacity: {remaining} place(s) total (already have {current_count}/10). Stop once reached.\n"
-            f"   Default categories to fill: Landmark, Museum, Park, Market, Neighbourhood, Viewpoint, Gallery.\n"
-            f"   Only add Restaurant or Bar if the traveller explicitly mentioned food, eating, bars, or nightlife.\n"
+            f"   Categories still missing from this stop: {gap_str}.\n"
+            f"   {food_note}\n"
             f"   For each new place:\n"
             f"   - 2-4 paragraphs of prose, under 280 words, per the style guide below\n"
             f"   - One category: Landmark|Museum|Restaurant|Market|Park|Neighbourhood|Viewpoint|Bar|Gallery\n"
