@@ -25,20 +25,6 @@ def _add_cors(response):
     return response
 
 
-def _sse_response(responses):
-    def stream():
-        for resp in responses:
-            yield f"event: message\ndata: {json.dumps(resp)}\n\n"
-
-    r = StreamingHttpResponse(stream(), content_type="text/event-stream")
-    r["Cache-Control"] = "no-cache"
-    r["X-Accel-Buffering"] = "no"
-    return r
-
-
-def _wants_sse(request):
-    return "text/event-stream" in request.META.get("HTTP_ACCEPT", "")
-
 
 @csrf_exempt
 def mcp_endpoint(request):
@@ -91,10 +77,8 @@ def _mcp_post(request):
 
     responses = [r for m in messages if isinstance(m, dict) for r in [_handle(m)] if r is not None]
 
-    if _wants_sse(request):
-        r = _sse_response(responses)
-    elif not responses:
-        r = HttpResponse(status=204)
+    if not responses:
+        r = HttpResponse(status=202)
     else:
         data = responses[0] if len(responses) == 1 else responses
         r = JsonResponse(data, safe=False)
