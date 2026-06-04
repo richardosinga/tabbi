@@ -396,11 +396,11 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
         prefs_note = f" Traveller profile: {preferences}. Pick places that match." if preferences else \
             " Pick the most essential ones a first-time visitor should not miss."
         poi_instruction = (
-            f"1. From the {len(new_pois)} world66 place(s) above, select 8–12 that best fit this trip.{prefs_note} "
+            f"1. From the {len(new_pois)} world66 place(s) above, select 6–8 that best fit this trip.{prefs_note} "
             f"Skip duplicates, obscure entries, and anything that doesn't stand on its own. "
             f"Call add_pois_to_plan with only those selected path(s):\n"
             + "\n".join(f"   - `{p['path']}`" for p in new_pois)
-            + "\n   (Pick the best 8–12 from this list, not all of them.)\n"
+            + "\n   (Pick the best 6–8 from this list, not all of them.)\n"
         )
     else:
         poi_instruction = "1. No new world66 POIs to add.\n"
@@ -415,7 +415,7 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
            if preferences else
            f"2. Before writing new places, call search_world66 for any obvious gaps "
            f"(e.g. 'restaurants {city_title}', 'parks {city_title}'). Use world66 paths if found.\n")
-        + f"3. Only if world66 has no coverage for a category: write 1-2 new places to fill that gap.\n"
+        + f"3. Only if world66 has no coverage for a category: write 1 new place to fill that gap. Total places per stop should not exceed 10.\n"
         f"   Default categories to fill: Landmark, Museum, Park, Market, Neighbourhood, Viewpoint, Gallery.\n"
         f"   Only add Restaurant or Bar if the traveller explicitly mentioned food, eating, bars, or nightlife in their preferences.\n"
         f"   For each new place:\n"
