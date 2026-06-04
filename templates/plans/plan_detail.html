@@ -24,34 +24,36 @@
       </div>
     </div>
 
-    <div class="plan-dest-grid" id="plan-dest-grid">
-    {% for stop in plan.stops %}
-    <div class="plan-dest-tile" onclick="window.location='{{ stop.url }}'"
-         {% if stop.city_image_url %}style="background-image:url('{{ stop.city_image_url }}')"{% endif %}>
-      <div class="plan-dest-tile-overlay">
-        <div class="plan-dest-tile-num">{{ forloop.counter }}</div>
-        <div class="plan-dest-tile-info">
-          <div class="plan-dest-tile-city">{{ stop.city }}</div>
-          {% if stop.dates %}<div class="plan-dest-tile-dates">{{ stop.dates }}</div>{% endif %}
-          <div class="plan-dest-tile-count">{{ stop.items|length }} place{% if stop.items|length != 1 %}s{% endif %}</div>
+    <div class="plan-right-col">
+      <div class="plan-dest-grid" id="plan-dest-grid">
+      {% for stop in plan.stops %}
+      <div class="plan-dest-tile" onclick="window.location='{{ stop.url }}'"
+           {% if stop.city_image_url %}style="background-image:url('{{ stop.city_image_url }}')"{% endif %}>
+        <div class="plan-dest-tile-overlay">
+          <div class="plan-dest-tile-num">{{ forloop.counter }}</div>
+          <div class="plan-dest-tile-info">
+            <div class="plan-dest-tile-city">{{ stop.city }}</div>
+            {% if stop.dates %}<div class="plan-dest-tile-dates">{{ stop.dates }}</div>{% endif %}
+            <div class="plan-dest-tile-count">{{ stop.items|length }} place{% if stop.items|length != 1 %}s{% endif %}</div>
+          </div>
+          {% if stop.destination_url %}
+          <a href="{{ stop.destination_url }}" class="plan-dest-tile-explore" target="_blank" rel="noopener" onclick="event.stopPropagation()">Explore ›</a>
+          {% endif %}
         </div>
-        {% if stop.destination_url %}
-        <a href="{{ stop.destination_url }}" class="plan-dest-tile-explore" target="_blank" rel="noopener" onclick="event.stopPropagation()">Explore ›</a>
-        {% endif %}
       </div>
-    </div>
-    {% endfor %}
-    </div><!-- /.plan-dest-grid -->
+      {% endfor %}
+      </div><!-- /.plan-dest-grid -->
 
-    <div class="plan-add-stop">
-      {% if not plan.stops %}<p class="plan-no-stops-title">No destinations yet — where are you headed?</p>{% endif %}
-      <div class="tabbi-empty-input-row">
-        <input type="text" id="detail-dest-input" class="tabbi-empty-title-input" placeholder="Add a destination…" autocomplete="off">
-        <button type="button" id="detail-add-btn" class="tabbi-btn">Add →</button>
+      <div class="plan-add-stop">
+        {% if not plan.stops %}<p class="plan-no-stops-title">No destinations yet — where are you headed?</p>{% endif %}
+        <div class="tabbi-empty-input-row">
+          <input type="text" id="detail-dest-input" class="tabbi-empty-title-input" placeholder="Add a destination…" autocomplete="off">
+          <button type="button" id="detail-add-btn" class="tabbi-btn">Add →</button>
+        </div>
+        <div id="detail-dest-suggestions" class="dest-suggestions" hidden></div>
+        <div id="detail-add-error" class="plan-add-stop-error" hidden></div>
       </div>
-      <div id="detail-dest-suggestions" class="dest-suggestions" hidden></div>
-      <div id="detail-add-error" class="plan-add-stop-error" hidden></div>
-    </div>
+    </div><!-- /.plan-right-col -->
   </div><!-- /.plan-overview-layout -->
 
   {% if total_budget.total %}
