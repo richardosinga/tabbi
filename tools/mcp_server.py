@@ -145,6 +145,38 @@ TOOLS = [
         },
     },
     {
+        "name": "update_poi",
+        "description": (
+            "Override a world66 POI with corrected or updated information for a specific plan. "
+            "Use this when the user reports an error (wrong coordinates, outdated description, wrong category, etc.). "
+            "Reads the existing world66 data, applies your corrections, and saves a local override that only affects this plan. "
+            "Call geocode first if coordinates need fixing. "
+            "After calling this tool the plan will use the corrected version instead of the world66 original."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "plan_slug":   {"type": "string"},
+                "passphrase":  {"type": "string"},
+                "city_slug":   {"type": "string"},
+                "poi_path":    {"type": "string", "description": "Existing path in the plan, e.g. 'europe/sweden/stockholm/icebar' or '~pois/...'"},
+                "updates": {
+                    "type": "object",
+                    "description": "Fields to update. Only include fields that need changing.",
+                    "properties": {
+                        "title":     {"type": "string"},
+                        "body":      {"type": "string", "description": "Full replacement description (2-4 paragraphs)"},
+                        "category":  {"type": "string"},
+                        "latitude":  {"type": "number"},
+                        "longitude": {"type": "number"},
+                        "image_url": {"type": "string"},
+                    },
+                },
+            },
+            "required": ["plan_slug", "passphrase", "city_slug", "poi_path", "updates"],
+        },
+    },
+    {
         "name": "add_pois_to_plan",
         "description": (
             "Add existing world66 POI content paths directly to a trip plan. "
@@ -168,7 +200,9 @@ TOOLS = [
             "Call after research_city once you've written up the missing places. "
             "IMPORTANT: latitude and longitude are required for every POI. "
             "Call the geocode tool for each place before submitting — do NOT guess or estimate coordinates. "
-            "Wrong coordinates break the map."
+            "Wrong coordinates break the map. "
+            "LIMIT: each stop holds a maximum of 10 places total. "
+            "research_city tells you how many are already there — do not submit more than the remaining slots."
         ),
         "inputSchema": {
             "type": "object",
@@ -475,6 +509,22 @@ def tool_remove_poi_from_plan(plan_slug: str, passphrase: str, poi_path: str) ->
         return f"Failed to remove: {e}"
 
 
+def tool_update_poi(plan_slug: str, passphrase: str, city_slug: str, poi_path: str, updates: dict) -> str:
+    try:
+        result = _http_post(f"{TABBI_BASE_URL}/api/plan/update-poi", {
+            "plan_slug": plan_slug, "passphrase": passphrase,
+            "city_slug": city_slug, "poi_path": poi_path, "updates": updates,
+        })
+        if result.get("error"):
+            return f"Failed to update: {result['error']}"
+        return (
+            f"Updated '{result.get('title', poi_path)}' and saved as a local override at `{result.get('local_path')}`.\n"
+            f"The plan now uses the corrected version instead of the world66 original."
+        )
+    except RuntimeError as e:
+        return f"Failed to update: {e}"
+
+
 def tool_geocode(query: str) -> str:
     try:
         url = f"https://nominatim.openstreetmap.org/search?q={urllib.parse.quote(query)}&format=json&limit=1"
@@ -613,6 +663,12 @@ def _handle(message: dict) -> dict | None:
                     plan_slug=args["plan_slug"], passphrase=args["passphrase"],
                     city_path=args.get("city_path", ""), city_slug=args.get("city_slug", ""),
                     intro=args.get("intro", ""),
+                )
+            elif name == "update_poi":
+                text = tool_update_poi(
+                    plan_slug=args["plan_slug"], passphrase=args["passphrase"],
+                    city_slug=args["city_slug"], poi_path=args["poi_path"],
+                    updates=args["updates"],
                 )
             elif name == "remove_poi_from_plan":
                 text = tool_remove_poi_from_plan(
