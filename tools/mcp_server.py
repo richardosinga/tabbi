@@ -61,124 +61,97 @@ WORLD66_DIR = Path(os.environ.get("WORLD66_DIR", str(REPO_PATH / "world66")))
 # Embedding similarity helpers (optional — gracefully disabled if deps absent)
 # ---------------------------------------------------------------------------
 
-_TAG_TO_CATEGORY = {
-    "museum": "Museum",
-    "gallery": "Gallery",
-    "sight": "Landmark",
-    "landmark": "Landmark",
-    "architecture": "Landmark",
-    "park": "Park",
-    "garden": "Park",
-    "nature": "Park",
-    "restaurant": "Restaurant",
-    "food": "Restaurant",
-    "bar": "Bar",
-    "pub": "Bar",
-    "nightlife": "Bar",
-    "market": "Market",
-    "shopping": "Market",
-    "neighbourhood": "Neighbourhood",
-    "viewpoint": "Viewpoint",
-}
-_ALL_CATEGORIES = {"Landmark", "Museum", "Park", "Market", "Neighbourhood", "Viewpoint", "Gallery"}
-_FOOD_CATEGORIES = {"Restaurant", "Bar"}
+def _read_poi_tags(path: str) -> set[str]:
+    """Return the set of tags from a POI markdown file."""
+    if path.startswith("~pois/"):
+        rest = path[len("~pois/"):]
+        md = WORLD66_DIR.parent / "plans" / "pois" / rest
+        md = md.with_suffix(".md") if not md.suffix else md
+    else:
+        md = WORLD66_DIR / "content" / (path + ".md")
+    try:
+        text = md.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return set()
+    tags = set()
+    in_tags = False
+    for line in text.splitlines():
+        s = line.strip()
+        if s == "tags:":
+            in_tags = True
+        elif in_tags:
+            if s.startswith("- "):
+                tags.add(s[2:].strip().lower())
+            elif s and not s.startswith("#"):
+                break
+    return tags
 
 
-def _covered_categories(poi_paths: list[str]) -> set[str]:
-    """Return broad categories already represented by the given POI paths."""
-    covered = set()
-    for path in poi_paths:
-        if path.startswith("~pois/"):
-            # local override: ~pois/{plan_slug}/{city_path}/{slug}
-            rest = path[len("~pois/"):]
-            md = WORLD66_DIR.parent / "plans" / "pois" / rest
-            md = md.with_suffix(".md") if not md.suffix else md
-        else:
-            md = WORLD66_DIR / "content" / (path + ".md")
-        try:
-            text = md.read_text(encoding="utf-8", errors="ignore")
-        except OSError:
-            continue
-        in_tags = False
-        for line in text.splitlines():
-            stripped = line.strip()
-            if stripped.startswith("category:"):
-                raw = stripped.split(":", 1)[1].strip().strip('"\'').lower()
-                cat = _TAG_TO_CATEGORY.get(raw, raw.capitalize())
-                covered.add(cat)
-            elif stripped == "tags:":
-                in_tags = True
-            elif in_tags:
-                if stripped.startswith("- "):
-                    tag = stripped[2:].strip().lower()
-                    cat = _TAG_TO_CATEGORY.get(tag)
-                    if cat:
-                        covered.add(cat)
-                elif stripped and not stripped.startswith("#"):
-                    in_tags = False  # end of tags list
-    return covered
+def _similarity_rank(plan_poi_paths: list[str], candidates: list[dict], city_path: str = "") -> tuple[list[dict], str]:
+    """Re-sort candidates by similarity to plan_poi_paths.
 
-
-def _similarity_rank(city_path: str, plan_poi_paths: list[str], candidates: list[dict]) -> list[dict]:
-    """Return candidates re-sorted by similarity to plan_poi_paths using search.db.
-
-    Falls back to the original order if search.db / apsw / sqlite_vec are unavailable.
+    Tries embedding cosine distance from search.db first; falls back to tag overlap.
+    Returns (sorted_candidates, method_note) where method_note describes what was used.
     """
-    db_path = WORLD66_DIR / "search.db"
-    if not db_path.exists():
-        return candidates
+    if not plan_poi_paths or not candidates:
+        return candidates, ""
 
+    # --- Try embedding similarity via search.db ---
+    db_path = WORLD66_DIR / "search.db"
     w66_plan_paths = [
         p + ".md" for p in plan_poi_paths
         if not p.startswith("~") and not p.startswith("content/")
     ]
-    if not w66_plan_paths:
-        return candidates
-
-    try:
-        import apsw
-        import sqlite_vec
-    except ImportError:
-        return candidates
-
-    try:
-        conn = apsw.Connection(str(db_path), flags=apsw.SQLITE_OPEN_READONLY)
-        conn.enable_load_extension(True)
-        sqlite_vec.load(conn)
-
-        prefix = city_path if not city_path.startswith("content/") else city_path[len("content/"):]
-        total = conn.execute("SELECT count(*) FROM embeddings").fetchone()[0]
-        knn_k = min(total, 4096)
-
-        scores: dict[str, float] = {}
-        for plan_path in w66_plan_paths:
-            emb = conn.execute(
-                "SELECT embedding FROM embeddings WHERE path=?", (plan_path,)
-            ).fetchone()
-            if not emb:
-                continue
-            rows = conn.execute(
-                "SELECT path, distance FROM embeddings WHERE embedding MATCH ? AND k=? ORDER BY distance",
-                (emb[0], knn_k),
-            ).fetchall()
-            for p, d in rows:
-                if not p.startswith(prefix):
-                    continue
-                candidate_path = p[:-3] if p.endswith(".md") else p  # strip .md
-                if candidate_path not in scores or d < scores[candidate_path]:
-                    scores[candidate_path] = d
-    except Exception:
-        return candidates
-    finally:
+    if db_path.exists() and w66_plan_paths:
         try:
+            import apsw
+            import sqlite_vec
+            conn = apsw.Connection(str(db_path), flags=apsw.SQLITE_OPEN_READONLY)
+            conn.enable_load_extension(True)
+            sqlite_vec.load(conn)
+            # Verify embeddings table exists
+            conn.execute("SELECT 1 FROM embeddings LIMIT 1")
+
+            prefix = city_path if not city_path.startswith("content/") else city_path[len("content/"):]
+            total = conn.execute("SELECT count(*) FROM embeddings").fetchone()[0]
+            knn_k = min(total, 4096)
+            scores: dict[str, float] = {}
+            for plan_path in w66_plan_paths:
+                emb = conn.execute(
+                    "SELECT embedding FROM embeddings WHERE path=?", (plan_path,)
+                ).fetchone()
+                if not emb:
+                    continue
+                rows = conn.execute(
+                    "SELECT path, distance FROM embeddings WHERE embedding MATCH ? AND k=? ORDER BY distance",
+                    (emb[0], knn_k),
+                ).fetchall()
+                for p, d in rows:
+                    if prefix and not p.startswith(prefix):
+                        continue
+                    cp = p[:-3] if p.endswith(".md") else p
+                    if cp not in scores or d < scores[cp]:
+                        scores[cp] = d
             conn.close()
+            if scores:
+                ranked = sorted(candidates, key=lambda c: scores.get(c["path"], 1.0))
+                return ranked, "sorted by embedding similarity to your existing selections"
         except Exception:
             pass
 
-    def sort_key(c):
-        return scores.get(c["path"], 1.0)
+    # --- Fallback: tag overlap ---
+    plan_tags: set[str] = set()
+    for p in plan_poi_paths:
+        plan_tags |= _read_poi_tags(p)
+    if not plan_tags:
+        return candidates, ""
 
-    return sorted(candidates, key=sort_key)
+    def tag_score(c: dict) -> int:
+        tags = _read_poi_tags(c["path"])
+        return -len(tags & plan_tags)  # negative so more overlap sorts first
+
+    ranked = sorted(candidates, key=tag_score)
+    return ranked, "sorted by tag similarity to your existing selections"
 
 
 # ---------------------------------------------------------------------------
@@ -554,21 +527,12 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
     already_titles = {a.rsplit("/", 1)[-1].replace("_", " ").lower() for a in already_in_plan}
     new_pois = [p for p in existing_pois if p["path"].lower() not in already_paths and p["title"].lower() not in already_titles]
 
-    # Use embedding similarity to rank new_pois by closeness to existing plan content
-    if already_in_plan and new_pois and city_path:
-        new_pois = _similarity_rank(city_path, already_in_plan, new_pois)
-        ranked_note = " (sorted by similarity to your existing selections — top entries are most relevant)"
+    # Rank new_pois by similarity to what's already in the plan
+    if already_in_plan and new_pois:
+        new_pois, ranked_note = _similarity_rank(already_in_plan, new_pois, city_path)
+        ranked_note = f" ({ranked_note})" if ranked_note else ""
     else:
         ranked_note = ""
-
-    # Determine which broad categories are already covered
-    covered = _covered_categories(already_in_plan) if already_in_plan else set()
-    gap_categories = sorted(_ALL_CATEGORIES - covered)
-    food_note = (
-        "Restaurant and Bar are already covered."
-        if _FOOD_CATEGORIES.issubset(covered) else
-        "Only add Restaurant or Bar if the traveller explicitly mentioned food, eating, bars, or nightlife."
-    )
 
     if new_pois:
         prefs_note = f" Traveller profile: {preferences}. Pick places that match." if preferences else \
@@ -595,21 +559,19 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
             f"If no intro exists yet, write one (2-4 sentences, traveller's language) and call submit_pois with an empty pois list and only the intro field."
         )
     else:
-        gap_str = ", ".join(gap_categories) if gap_categories else "all standard categories already covered"
         sections.append(
             "## Instructions\n"
             + poi_instruction
-            + (f"2. Check if the selected world66 places cover the traveller's interests ({preferences}). "
-               f"Before writing anything new, call search_world66 for any interest area that has no coverage "
-               f"(e.g. 'restaurants {city_title}', 'parks {city_title}') — use world66 paths if found. "
-               f"Only write new places for genuine gaps where world66 has nothing.\n"
+            + (f"2. Check if the selected world66 places fit the traveller's interests ({preferences}). "
+               f"Before writing anything new, call search_world66 for more places like those — "
+               f"(e.g. '{preferences} {city_title}') — use world66 paths if found. "
+               f"Only write new places where world66 has nothing similar.\n"
                if preferences else
-               f"2. Before writing new places, call search_world66 for any obvious gaps "
-               f"(e.g. 'restaurants {city_title}', 'parks {city_title}'). Use world66 paths if found.\n")
-            + f"3. Only if world66 has no coverage for a category: write 1 new place to fill that gap. "
+               f"2. Before writing new places, call search_world66 for more places similar to those already selected "
+               f"(e.g. same types of venues, same vibe). Use world66 paths if found.\n")
+            + f"3. Only if world66 has no coverage for a type already in this trip: write 1 new place. "
             f"Remaining capacity: {remaining} place(s) total (already have {current_count}/10). Stop once reached.\n"
-            f"   Categories still missing from this stop: {gap_str}.\n"
-            f"   {food_note}\n"
+            f"   Match the character of what's already there — if the trip is food-focused, add food; if cultural, add culture.\n"
             f"   For each new place:\n"
             f"   - 2-4 paragraphs of prose, under 280 words, per the style guide below\n"
             f"   - One category: Landmark|Museum|Restaurant|Market|Park|Neighbourhood|Viewpoint|Bar|Gallery\n"
