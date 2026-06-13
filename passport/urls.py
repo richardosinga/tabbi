@@ -8,6 +8,7 @@ urlpatterns = [
     path("<str:slug>/protect", views.passport_protect, name="passport_protect"),
     path("<str:slug>/login/", views.passport_login, name="passport_login"),
     path("<str:slug>/swipe", views.passport_swipe, name="passport_swipe"),
+    path("<str:slug>/recommendations", views.passport_recommendations, name="passport_recommendations"),
     path("<str:slug>", views.passport_detail, name="passport_detail"),
     path("<str:slug>/", views.passport_detail),
 ]

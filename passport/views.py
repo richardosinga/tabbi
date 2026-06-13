@@ -8,6 +8,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from functools import wraps
 from pathlib import Path
+from typing import Optional
 
 from django.conf import settings
 from django.http import Http404
@@ -24,7 +25,7 @@ SEARCH_DB = Path(settings.BASE_DIR) / "search.db"
 # Auth helpers
 # ---------------------------------------------------------------------------
 
-def _hash_password(password: str, salt: str | None = None) -> str:
+def _hash_password(password: str, salt: Optional[str] = None) -> str:
     if salt is None:
         salt = secrets.token_hex(16)
     h = hashlib.sha256(f"{salt}:{password}".encode()).hexdigest()
@@ -88,7 +89,7 @@ def _passport_path(slug: str) -> Path:
     return PASSPORT_DIR / slug / "passport.json"
 
 
-def _load_passport(slug: str) -> dict | None:
+def _load_passport(slug: str) -> Optional[dict]:
     path = _passport_path(slug)
     if not path.is_file():
         return None
@@ -193,7 +194,7 @@ def _poi_categories(poi: dict) -> list[str]:
     return [p["id"] for p in _PROFILE_DEFS if any(k in text for k in p["keywords"])]
 
 
-def _compute_traveler_profile(liked_pois: list[dict], skipped_pois: list[dict] | None = None) -> dict:
+def _compute_traveler_profile(liked_pois: list, skipped_pois: Optional[list] = None) -> dict:
     n = len(liked_pois)
     accuracy = round(92 * n / (n + 8)) if n > 0 else 0
     skipped_pois = skipped_pois or []
@@ -314,7 +315,7 @@ def _diverse_pick(pois: list[dict], n: int) -> list[dict]:
 
 
 def _load_swipe_poi_groups(
-    n_cities: int = 8, pois_per_city: int = 6, excluded_paths: set | None = None
+    n_cities: int = 8, pois_per_city: int = 6, excluded_paths: Optional[set] = None
 ) -> list[dict]:
     """Return POI groups for the swipe UI.
 
@@ -615,7 +616,7 @@ def _embedding_recommendations(liked_pois: list[dict], k: int = 3) -> list[dict]
         return []
 
 
-def _fallback_city_image() -> str | None:
+def _fallback_city_image() -> Optional[str]:
     """Return a cover image URL from the top-scoring city that has one."""
     if not SEARCH_DB.is_file():
         return None
@@ -632,6 +633,17 @@ def _fallback_city_image() -> str | None:
     except Exception:
         pass
     return None
+
+
+@_require_auth
+def passport_recommendations(request, slug):
+    from django.http import JsonResponse
+    passport = _load_passport(slug)
+    if not passport:
+        return JsonResponse({"error": "not found"}, status=404)
+    liked_pois = passport.get("liked_pois", [])
+    recs = _embedding_recommendations(liked_pois, k=3) if liked_pois else []
+    return JsonResponse({"recommendations": recs})
 
 
 @_require_auth

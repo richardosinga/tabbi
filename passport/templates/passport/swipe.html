@@ -272,6 +272,14 @@ body { overflow-x: hidden; }
 
 .sidebar-liked-count { font-size: .75rem; color: #9b9590; }
 .sidebar-redo-link   { font-size: .72rem; color: #e05c3a; text-decoration: none; display: none; }
+
+/* Profile interest bars */
+.profile-bars { display: flex; flex-direction: column; gap: 7px; }
+.profile-bar-row { display: grid; grid-template-columns: 1.4rem 1fr 2rem; align-items: center; gap: 5px; }
+.profile-bar-emoji { font-size: .85rem; text-align: center; line-height: 1; }
+.profile-bar-track { height: 6px; background: #f0ece7; border-radius: 3px; overflow: hidden; }
+.profile-bar-fill  { height: 100%; background: #e05c3a; border-radius: 3px; transition: width .4s ease; }
+.profile-bar-pct   { font-size: .65rem; color: #9b9590; text-align: right; }
 .sidebar-redo-link:hover { text-decoration: underline; }
 
 .sidebar-spacer { flex: 1; }
@@ -384,6 +392,11 @@ body { overflow-x: hidden; }
         <div class="top-profile-sub"    id="topSub"></div>
       </div>
 
+      <div id="profileBarsWrap" style="display:none;">
+        <div class="sidebar-heading">Your interests</div>
+        <div class="profile-bars" id="profileBars"></div>
+      </div>
+
       <div id="matchPoisWrap" style="display:none;">
         <div class="sidebar-heading" id="matchHeading">Places shaping your profile</div>
         <div class="match-poi-list" id="matchPoiList" style="margin-top:8px;"></div>
@@ -433,8 +446,9 @@ body { overflow-x: hidden; }
   ];
 
   /* ---- State ---- */
-  var liked   = EXISTING_LIKED.slice();
-  var skipped = [];  // negative signals: same shape as liked entries
+  var liked        = EXISTING_LIKED.slice();
+  var skipped      = [];  // negative signals: same shape as liked entries
+  var embeddingRecs = [];  // filled by fetchRecommendations()
   var ACTIVE_GROUPS = [];
   var selectedPaths = {};
   var groupIdx = 0, poiIdx = 0, pickedInGroup = 0;
@@ -485,6 +499,20 @@ body { overflow-x: hidden; }
     return scores;
   }
 
+  /* category % breakdown from the full liked list (includes existing passport POIs) */
+  function computeProfileBars() {
+    var counts = {};
+    PROFILES.forEach(function(p) { counts[p.id] = 0; });
+    liked.forEach(function(poi) {
+      poiCategories(poi).forEach(function(p) { counts[p.id]++; });
+    });
+    var total = PROFILES.reduce(function(s, p) { return s + counts[p.id]; }, 0);
+    if (total === 0) return [];
+    return PROFILES.map(function(p) {
+      return { p: p, pct: Math.round(counts[p.id] / total * 100), count: counts[p.id] };
+    }).filter(function(x) { return x.count > 0; }).sort(function(a, b) { return b.pct - a.pct; });
+  }
+
   /* find unseen POIs from the loaded pool that best match the current profile */
   function topPredictedPois(max) {
     if (!liked.length) return [];
@@ -506,6 +534,31 @@ body { overflow-x: hidden; }
     return candidates.slice(0, max);
   }
 
+  function renderMatchPois() {
+    var matchWrap = document.getElementById('matchPoisWrap');
+    if (!embeddingRecs.length) { matchWrap.style.display = 'none'; return; }
+    matchWrap.style.display = '';
+    document.getElementById('matchHeading').textContent = 'You might also like';
+    document.getElementById('matchPoiList').innerHTML = embeddingRecs.map(function(m) {
+      var blurb = m.snippet ? m.snippet.slice(0, 80) + (m.snippet.length > 80 ? '…' : '') : '';
+      return '<a href="/' + m.url_path + '" class="match-poi-item" target="_blank" rel="noopener">' +
+        (m.city ? '<div class="match-poi-city">' + m.city + '</div>' : '') +
+        '<div class="match-poi-title">' + m.title + '</div>' +
+        (blurb ? '<div class="match-poi-theme">' + blurb + '</div>' : '') +
+      '</a>';
+    }).join('');
+    document.getElementById('likedCount').textContent =
+      liked.length + ' liked · ' + skipped.length + ' skipped';
+  }
+
+  function fetchRecommendations() {
+    fetch('/passport/' + PASSPORT_SLUG + '/recommendations', {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    }).then(function(r) { return r.json(); })
+      .then(function(data) { embeddingRecs = data.recommendations || []; renderMatchPois(); })
+      .catch(function() {});
+  }
+
   function updateSidebar() {
     var n   = liked.length;
     var acc = accuracy(n);
@@ -515,18 +568,19 @@ body { overflow-x: hidden; }
     var emptyEl   = document.getElementById('sidebarEmpty');
     var topCard   = document.getElementById('topProfileCard');
     var matchWrap = document.getElementById('matchPoisWrap');
+    var barsWrap  = document.getElementById('profileBarsWrap');
     var redoLink  = document.getElementById('redoLink');
 
     if (n === 0) {
       emptyEl.style.display   = '';
       topCard.style.display   = 'none';
       matchWrap.style.display = 'none';
+      barsWrap.style.display  = 'none';
       redoLink.style.display  = 'none';
       return;
     }
     emptyEl.style.display   = 'none';
     topCard.style.display   = '';
-    matchWrap.style.display = '';
     redoLink.style.display  = '';
 
     var scores = scoreProfiles();
@@ -539,20 +593,21 @@ body { overflow-x: hidden; }
     document.getElementById('topLabel').textContent = top.p.label;
     document.getElementById('topSub').textContent   = 'based on ' + n + ' liked place' + (n===1?'':'s');
 
-    var preds = topPredictedPois(3);
-    document.getElementById('matchHeading').textContent = preds.length ? 'You might also like' : 'Places shaping your profile';
-    document.getElementById('matchPoiList').innerHTML = preds.map(function(m) {
-      var themeLabel = m.cats.length ? m.cats[0].emoji + ' ' + m.cats[0].label : '';
-      return '<a href="/' + m.poi.url_path + '" class="match-poi-item" target="_blank" rel="noopener">' +
-        (m.city ? '<div class="match-poi-city">' + m.city + '</div>' : '') +
-        '<div class="match-poi-title">' + m.poi.title + '</div>' +
-        (themeLabel ? '<div class="match-poi-theme">' + themeLabel + '</div>' : '') +
-      '</a>';
-    }).join('');
+    renderMatchPois();
 
-    var total = n + skipped.length;
-    document.getElementById('likedCount').textContent =
-      n + ' liked · ' + skipped.length + ' skipped';
+    var bars = computeProfileBars();
+    if (bars.length) {
+      barsWrap.style.display = '';
+      document.getElementById('profileBars').innerHTML = bars.map(function(b) {
+        return '<div class="profile-bar-row">' +
+          '<span class="profile-bar-emoji">' + b.p.emoji + '</span>' +
+          '<div class="profile-bar-track"><div class="profile-bar-fill" style="width:' + b.pct + '%"></div></div>' +
+          '<span class="profile-bar-pct">' + b.pct + '%</span>' +
+        '</div>';
+      }).join('');
+    } else {
+      barsWrap.style.display = 'none';
+    }
   }
 
   /* ---- Background helper ---- */
@@ -585,7 +640,9 @@ body { overflow-x: hidden; }
     fd.append('liked',   JSON.stringify(liked));
     fd.append('skipped', JSON.stringify(skipped));
     fd.append('csrfmiddlewaretoken', CSRF);
-    fetch('/passport/' + PASSPORT_SLUG + '/swipe/save', {method:'POST', body:fd}).catch(function(){});
+    fetch('/passport/' + PASSPORT_SLUG + '/swipe/save', {method:'POST', body:fd})
+      .then(function() { fetchRecommendations(); })
+      .catch(function(){});
   }
 
   window.addEventListener('beforeunload', function() {
@@ -803,6 +860,7 @@ body { overflow-x: hidden; }
 
   /* ---- Boot ---- */
   updateSidebar();
+  if (EXISTING_LIKED.length) fetchRecommendations();
 
   if (GROUPS.length) {
     buildPicker();
