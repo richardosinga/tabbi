@@ -1,5 +1,35 @@
 {% extends "plans/base.html" %}
 {% block title %}{{ passport.title }} — Tab.bi{% endblock %}
+
+{% block topnav %}
+<style>
+.tabbi-nav {
+  position: relative !important;
+  background: transparent !important;
+  border-bottom: 1.5px solid rgba(255,255,255,.15) !important;
+  overflow: hidden !important;
+}
+.tabbi-nav::before {
+  content: '';
+  position: absolute; inset: -30px; z-index: 0;
+  {% if cover_image_url %}background: url('{{ cover_image_url }}') center/cover no-repeat;
+  {% else %}background: #180A0A;{% endif %}
+  filter: blur(18px) brightness(.42) saturate(.7);
+}
+.tabbi-nav > * { position: relative; z-index: 1; }
+.tabbi-nav-logo-text { color: #fff !important; }
+.tabbi-nav-logo-dot  { color: #e7a328 !important; }
+.tabbi-nav-passport-link { color: rgba(255,255,255,.8) !important; }
+.tabbi-nav-actions .tabbi-btn {
+  border-color: rgba(255,255,255,.3) !important;
+  background: transparent !important;
+  color: rgba(255,255,255,.85) !important;
+}
+.tabbi-nav-actions .tabbi-btn:hover { background: rgba(255,255,255,.12) !important; color: #fff !important; }
+</style>
+{{ block.super }}
+{% endblock %}
+
 {% block wide_content %}
 <style>
 .tabbi-footer { margin-top: 0 !important; }
@@ -78,23 +108,35 @@
 /* Theme bars */
 .profile-bars { min-width: 200px; flex: 0 0 240px; }
 @media (max-width: 600px) { .profile-bars { flex: 1; } }
-.theme-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-.theme-bar-emoji { font-size: .95rem; width: 20px; flex-shrink: 0; }
-.theme-bar-label { font-size: .8rem; color: rgba(255,255,255,.65); min-width: 120px; }
-.theme-bar-track { flex: 1; height: 5px; background: rgba(255,255,255,.12); border-radius: 3px; }
+.theme-bar-row {
+  display: grid;
+  grid-template-columns: 22px 9rem 1fr 2.2rem;
+  align-items: center; gap: 8px; margin-bottom: 12px;
+}
+.theme-bar-emoji { font-size: .95rem; }
+.theme-bar-label { font-size: .8rem; color: rgba(255,255,255,.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.theme-bar-track { height: 5px; background: rgba(255,255,255,.12); border-radius: 3px; }
 .theme-bar-fill  { height: 100%; background: #e7a328; border-radius: 3px; }
-.theme-bar-pct { font-size: .72rem; color: rgba(255,255,255,.4); width: 28px; text-align: right; flex-shrink: 0; }
+.theme-bar-pct { font-size: .72rem; color: rgba(255,255,255,.4); text-align: right; }
 
 /* Stats row */
 .stats-row { display: flex; gap: 16px; flex-wrap: wrap; }
 .stat-box {
-  background: #fff; border: 2px solid #180A0A; border-radius: 12px;
+  border: 2px solid #180A0A; border-radius: 12px;
   box-shadow: 3px 3px 0 #180A0A; padding: 20px 24px; flex: 1; min-width: 120px;
 }
+.stat-box:nth-child(1) { background: #fdf3e0; }
+.stat-box:nth-child(2) { background: #e8f4ec; }
+.stat-box:nth-child(3) { background: #e8eef9; }
+.stat-box:nth-child(4) { background: #f6eaf9; }
 .stat-box-num {
   font-family: 'Fraunces', serif; font-size: 2.4rem; font-weight: 300;
   color: #180A0A; line-height: 1;
 }
+.stat-box:nth-child(1) .stat-box-num { color: #b8720a; }
+.stat-box:nth-child(2) .stat-box-num { color: #277a47; }
+.stat-box:nth-child(3) .stat-box-num { color: #2c5fa3; }
+.stat-box:nth-child(4) .stat-box-num { color: #7a3a9c; }
 .stat-box-label { font-size: .75rem; color: #6b6560; margin-top: 4px; }
 
 /* Predictions */
@@ -275,7 +317,7 @@
       <div class="section-label">Based on your profile, you'll love</div>
       <div class="poi-grid similar-grid">
         {% for poi in similar_pois %}
-        <a href="/{{ poi.url_path }}" class="poi-card poi-card--similar">
+        <a href="{{ w66_url }}/{{ poi.url_path }}" class="poi-card poi-card--similar">
           <div class="poi-card-body">
             {% if poi.city %}<div class="poi-card-city">{{ poi.city }}</div>{% endif %}
             <div class="poi-card-title">{{ poi.title }}</div>
@@ -292,7 +334,7 @@
       <div class="section-label">Places you liked</div>
       <div class="poi-grid">
         {% for poi in liked_pois %}
-        <a href="/{{ poi.url_path }}" class="poi-card">
+        <a href="{{ w66_url }}/{{ poi.url_path }}" class="poi-card">
           <div class="poi-card-body">
             {% if poi.city %}<div class="poi-card-city">{{ poi.city }}</div>{% endif %}
             <div class="poi-card-title">{{ poi.title }}</div>

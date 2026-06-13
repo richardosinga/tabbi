@@ -398,7 +398,7 @@ body { overflow-x: hidden; }
       </div>
 
       <div id="matchPoisWrap" style="display:none;">
-        <div class="sidebar-heading" id="matchHeading">Places shaping your profile</div>
+        <div class="sidebar-heading" id="matchHeading">Best matches for your profile</div>
         <div class="match-poi-list" id="matchPoiList" style="margin-top:8px;"></div>
         <div class="sidebar-liked-count" id="likedCount"></div>
       </div>
@@ -538,7 +538,7 @@ body { overflow-x: hidden; }
     var matchWrap = document.getElementById('matchPoisWrap');
     if (!embeddingRecs.length) { matchWrap.style.display = 'none'; return; }
     matchWrap.style.display = '';
-    document.getElementById('matchHeading').textContent = 'You might also like';
+    document.getElementById('matchHeading').textContent = 'Best matches for your profile';
     document.getElementById('matchPoiList').innerHTML = embeddingRecs.map(function(m) {
       var blurb = m.snippet ? m.snippet.slice(0, 80) + (m.snippet.length > 80 ? '…' : '') : '';
       return '<a href="/' + m.url_path + '" class="match-poi-item" target="_blank" rel="noopener">' +

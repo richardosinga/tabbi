@@ -21,8 +21,6 @@ ALLOWED_HOSTS = (
 INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.sessions",
-    "plans",
-    "concierge",
     "passport",
     "world66_content",
 ]
@@ -53,7 +51,6 @@ TEMPLATES = [
         "OPTIONS": {
             "context_processors": [
                 "django.template.context_processors.request",
-                "plans.context_processors.world66_url",
             ],
         },
     },

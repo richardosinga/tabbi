@@ -679,4 +679,5 @@ def passport_detail(request, slug):
         "step": passport.get("step", 0),
         "profile": profile,
         "similar_pois": similar_pois,
+        "w66_url": settings.WORLD66_SITE_URL.rstrip("/"),
     })
