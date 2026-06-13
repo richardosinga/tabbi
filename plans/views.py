@@ -814,17 +814,33 @@ def plan_stop(request, slug, city_slug):
             "nature": ["nature", "park", "garden", "outdoors"],
         }
         expanded_keywords = set()
+        liked_poi_paths = set()
         all_keywords = list(plan.get("keywords", []))
-        # Merge passport interests if a passport is linked
+
+        # Pull tags from POIs already in this stop to reinforce the current plan's theme
+        for item in stop["items"]:
+            p = item.get("page")
+            if p:
+                for tag in p.tags:
+                    all_keywords.append(tag)
+
+        # Merge passport liked POI signals if a passport is linked
         passport_slug = plan.get("passport_slug", "")
         if passport_slug:
             try:
                 from passport.views import _load_passport
                 pp = _load_passport(passport_slug)
                 if pp:
-                    all_keywords = all_keywords + list(pp.get("interests", []))
+                    for poi in pp.get("liked_pois", []):
+                        liked_poi_paths.add(poi.get("url_path", ""))
+                        # Treat the POI's parent city as a soft destination signal (ignored here)
+                        # but use any recognisable category tag from the POI path slug
+                        slug_parts = (poi.get("url_path") or "").split("/")
+                        if slug_parts:
+                            all_keywords.append(slug_parts[-1].replace("_", " "))
             except Exception:
                 pass
+
         for k in all_keywords:
             kn = k.lower().strip()
             expanded_keywords.add(_normalize(kn))
@@ -857,7 +873,8 @@ def plan_stop(request, slug, city_slug):
             poi_text = slug_norm + " " + title_norm + " " + " ".join(tags_norm)
             note_match = any(n in poi_text or poi_text in n for n in note_needles) if note_needles else False
             keyword_match = any(k in poi_text for k in expanded_keywords) if expanded_keywords else False
-            score = (2 if note_match else 0) + (2 if keyword_match else 0) + (1 if img else 0)
+            liked_match = rel in liked_poi_paths
+            score = (2 if note_match else 0) + (2 if keyword_match else 0) + (3 if liked_match else 0) + (1 if img else 0)
             if not page.meta.get("snippet") and page.body:
                 first = next((p.strip() for p in page.body.split("\n\n") if p.strip()), "")
                 if first:
@@ -867,7 +884,8 @@ def plan_stop(request, slug, city_slug):
                 "page": page,
                 "image_url": f"/content-image/{img}" if img else None,
                 "_score": score,
-                "note_match": note_match or keyword_match,
+                "note_match": note_match or keyword_match or liked_match,
+                "liked_match": liked_match,
                 "category": _suggestion_category(page.tags),
                 "placeholder_emoji": ph_emoji,
                 "placeholder_bg": ph_bg,

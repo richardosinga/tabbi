@@ -950,6 +950,14 @@ span.plan-poi-title--draft::after { content: none; }
 .plan-suggestion-tile--food   { border-top-color: #EA580C; }
 .plan-suggestion-tile--drinks { border-top-color: #2563EB; }
 
+.plan-suggestion-tile-top { position: relative; }
+.plan-suggestion-liked {
+  position: absolute; top: 5px; right: 5px;
+  background: #e05c3a; color: white;
+  font-size: .65rem; line-height: 1;
+  padding: 2px 5px; border-radius: 10px;
+  font-style: normal; pointer-events: none;
+}
 .plan-suggestion-tile-img {
   height: 100px;
   background-size: cover;
