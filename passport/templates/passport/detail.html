@@ -2,119 +2,311 @@
 {% block title %}{{ passport.title }} — Tab.bi{% endblock %}
 {% block wide_content %}
 <style>
-.passport-page { background: #ede8df; min-height: 100vh; }
+.tabbi-footer { margin-top: 0 !important; }
+#content { min-height: 0 !important; padding: 0 !important; }
+.pp { background: #ede8df; min-height: 100vh; }
 
-.passport-cover {
+/* Cover */
+.pp-cover {
   background: #180A0A; color: #fff;
-  padding: 48px 40px 40px;
+  padding: 72px 52px 52px; min-height: 340px;
   display: flex; align-items: flex-end; justify-content: space-between;
-  gap: 24px; flex-wrap: wrap; position: relative; overflow: hidden; min-height: 260px;
+  gap: 24px; flex-wrap: wrap; position: relative; overflow: hidden;
 }
-.cover-bg {
-  position: absolute; inset: 0;
+.pp-cover-bg {
+  position: absolute; inset: -40px;
   background-size: cover; background-position: center;
-  filter: brightness(.4) saturate(.8); z-index: 0;
+  filter: blur(18px) brightness(.52) saturate(.8); z-index: 0;
 }
-.cover-left, .cover-actions { position: relative; z-index: 1; }
-.cover-eyebrow { font-size: .7rem; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: #e7a328; margin-bottom: 10px; }
-.cover-title { font-size: clamp(2rem, 5vw, 3.8rem); font-weight: 700; line-height: 1.1; margin-bottom: 8px; }
-.cover-sub { font-size: .9rem; color: rgba(255,255,255,.5); }
-.cover-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
-.cover-btn {
-  padding: 9px 20px; border-radius: 6px; font-size: .85rem; font-weight: 500;
-  border: 1px solid rgba(255,255,255,.25); color: rgba(255,255,255,.75);
+.pp-cover::after {
+  content: ''; position: absolute; inset: 0; z-index: 0;
+  background: linear-gradient(to bottom, rgba(24,10,10,.2) 0%, rgba(24,10,10,.65) 100%);
+}
+.pp-cover-left, .pp-cover-actions { position: relative; z-index: 2; }
+.pp-eyebrow { font-size: .68rem; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: #e7a328; margin-bottom: 10px; }
+.pp-name { font-family: 'Fraunces', serif; font-size: clamp(2.6rem, 7vw, 5rem); font-weight: 300; line-height: 1.05; margin-bottom: 10px; }
+.pp-cover-sub { font-size: .88rem; color: rgba(255,255,255,.45); }
+.pp-cover-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+.pp-btn {
+  padding: 9px 20px; border-radius: 6px; font-size: .83rem; font-weight: 500;
+  border: 1.5px solid rgba(255,255,255,.22); color: rgba(255,255,255,.7);
   background: transparent; cursor: pointer; text-decoration: none; display: inline-block; white-space: nowrap;
 }
-.cover-btn:hover { background: rgba(255,255,255,.1); color: #fff; text-decoration: none; }
-.cover-btn.primary { background: #e7a328; border-color: #e7a328; color: #180A0A; }
-.cover-btn.primary:hover { background: #c8891a; }
+.pp-btn:hover { background: rgba(255,255,255,.1); color: #fff; text-decoration: none; }
+.pp-btn.primary { background: #e7a328; border-color: #e7a328; color: #180A0A; font-weight: 700; }
+.pp-btn.primary:hover { background: #c8891a; text-decoration: none; color: #180A0A; }
 
-.passport-body { max-width: 1100px; margin: 0 auto; padding: 48px 32px 80px; }
-@media (max-width: 700px) { .passport-body { padding: 24px 16px 60px; } }
+/* Body */
+.pp-body { max-width: 980px; margin: 0 auto; padding: 48px 32px 80px; display: flex; flex-direction: column; gap: 48px; }
+@media (max-width: 700px) { .pp-body { padding: 28px 16px 60px; gap: 36px; } }
 
-.section-label { font-size: .7rem; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; color: #535050; margin-bottom: 18px; padding-left: 2px; }
+.section-label { font-size: .67rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #6b6560; margin-bottom: 16px; }
 
+/* Profile card */
+.profile-card {
+  background: #180A0A; color: #fff;
+  border-radius: 16px; overflow: hidden;
+  position: relative;
+}
+.profile-card-bg {
+  position: absolute; inset: -40px;
+  background-size: cover; background-position: center;
+  filter: blur(24px) brightness(.38) saturate(.6); z-index: 0;
+}
+.profile-card-inner {
+  position: relative; z-index: 1;
+  padding: 36px 36px 32px;
+  display: flex; gap: 36px; flex-wrap: wrap; align-items: flex-start;
+}
+@media (max-width: 600px) { .profile-card-inner { padding: 28px 24px; gap: 24px; } }
+.profile-main { flex: 1; min-width: 200px; }
+.profile-accuracy {
+  display: inline-block;
+  font-size: .7rem; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: #e7a328;
+  border: 1.5px solid rgba(231,163,40,.3); border-radius: 20px;
+  padding: 3px 10px; margin-bottom: 18px;
+}
+.profile-type-emoji { font-size: 2.8rem; display: block; margin-bottom: 8px; line-height: 1; }
+.profile-type-label {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(1.5rem, 4vw, 2.2rem); font-weight: 300;
+  color: #fff; line-height: 1.15; margin-bottom: 14px;
+}
+.profile-text { font-size: .9rem; color: rgba(255,255,255,.65); line-height: 1.65; max-width: 460px; }
+
+/* Theme bars */
+.profile-bars { min-width: 200px; flex: 0 0 240px; }
+@media (max-width: 600px) { .profile-bars { flex: 1; } }
+.theme-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.theme-bar-emoji { font-size: .95rem; width: 20px; flex-shrink: 0; }
+.theme-bar-label { font-size: .8rem; color: rgba(255,255,255,.65); min-width: 120px; }
+.theme-bar-track { flex: 1; height: 5px; background: rgba(255,255,255,.12); border-radius: 3px; }
+.theme-bar-fill  { height: 100%; background: #e7a328; border-radius: 3px; }
+.theme-bar-pct { font-size: .72rem; color: rgba(255,255,255,.4); width: 28px; text-align: right; flex-shrink: 0; }
+
+/* Stats row */
+.stats-row { display: flex; gap: 16px; flex-wrap: wrap; }
+.stat-box {
+  background: #fff; border: 2px solid #180A0A; border-radius: 12px;
+  box-shadow: 3px 3px 0 #180A0A; padding: 20px 24px; flex: 1; min-width: 120px;
+}
+.stat-box-num {
+  font-family: 'Fraunces', serif; font-size: 2.4rem; font-weight: 300;
+  color: #180A0A; line-height: 1;
+}
+.stat-box-label { font-size: .75rem; color: #6b6560; margin-top: 4px; }
+
+/* Predictions */
+.predictions-wrap { display: flex; flex-wrap: wrap; gap: 10px; }
+.prediction-tag {
+  background: #fff; color: #180A0A;
+  border: 2px solid #180A0A; border-radius: 20px;
+  box-shadow: 2px 2px 0 #180A0A;
+  padding: 6px 16px; font-size: .82rem; font-weight: 500;
+}
+
+/* City breakdown */
+.cities-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.city-chip {
+  display: flex; align-items: center; gap: 6px;
+  background: #fff; border: 2px solid #180A0A; border-radius: 20px;
+  box-shadow: 2px 2px 0 #180A0A;
+  padding: 5px 14px; font-size: .82rem;
+}
+.city-chip-count {
+  background: #e7a328; color: #180A0A;
+  font-size: .68rem; font-weight: 700;
+  border-radius: 10px; padding: 1px 7px; line-height: 1.4;
+}
+
+/* POI grid */
 .poi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
 }
+.similar-grid { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 600px) { .similar-grid { grid-template-columns: 1fr; } }
 .poi-card {
-  background: #fff;
-  border: 2.5px solid #180A0A;
-  border-radius: 14px; overflow: hidden;
-  box-shadow: 4px 4px 0 #180A0A;
+  background: #fff; border: 2.5px solid #180A0A; border-radius: 12px;
+  overflow: hidden; box-shadow: 3px 3px 0 #180A0A;
   text-decoration: none; color: inherit;
   display: flex; flex-direction: column;
   transition: transform .12s, box-shadow .12s;
 }
-.poi-card:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 #180A0A; text-decoration: none; }
-.poi-card-img { height: 140px; background-size: cover; background-position: center; background-color: #e8e3dc; }
+.poi-card:hover { transform: translate(-2px,-2px); box-shadow: 5px 5px 0 #180A0A; text-decoration: none; }
+.poi-card--similar { border-color: #e7a328; box-shadow: 3px 3px 0 #e7a328; background: #fffdf5; }
+.poi-card--similar:hover { box-shadow: 5px 5px 0 #e7a328; }
 .poi-card-body { padding: 14px 16px 16px; flex: 1; }
-.poi-card-city { font-size: .67rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #e05c3a; margin-bottom: 4px; }
-.poi-card-title { font-size: 1rem; font-weight: 600; color: #180A0A; line-height: 1.3; margin-bottom: 6px; }
-.poi-card-snippet { font-size: .8rem; color: #535050; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.poi-card-city  { font-size: .65rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #e05c3a; margin-bottom: 4px; }
+.poi-card-title { font-size: .95rem; font-weight: 600; color: #180A0A; line-height: 1.3; margin-bottom: 6px; }
+.poi-card-snippet { font-size: .78rem; color: #535050; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
 .empty-state {
-  background: #fff;
-  border: 2.5px solid #180A0A; border-radius: 12px;
-  box-shadow: 4px 4px 0 #180A0A;
-  padding: 40px 32px; text-align: center; color: #535050;
+  background: #fff; border: 2.5px solid #180A0A; border-radius: 12px;
+  box-shadow: 4px 4px 0 #180A0A; padding: 40px 32px; text-align: center; color: #535050;
 }
 .empty-state p { margin-bottom: 16px; }
 .cta-btn {
   background: #e7a328; color: #180A0A;
-  border: 2.5px solid #180A0A; border-radius: 8px;
-  box-shadow: 3px 3px 0 #180A0A;
+  border: 2.5px solid #180A0A; border-radius: 8px; box-shadow: 3px 3px 0 #180A0A;
   padding: 11px 26px; font-weight: 700; font-size: .9rem;
   text-decoration: none; display: inline-block;
 }
 .cta-btn:hover { background: #c8891a; color: #180A0A; text-decoration: none; }
 </style>
 
-<div class="passport-page">
-  <div class="passport-cover">
+<div class="pp">
+
+  <div class="pp-cover">
     {% if cover_image_url %}
-    <div class="cover-bg" style="background-image: url('{{ cover_image_url }}')"></div>
+    <div class="pp-cover-bg" style="background-image: url('{{ cover_image_url }}')"></div>
     {% endif %}
-    <div class="cover-left">
-      <div class="cover-eyebrow">Travel Passport</div>
-      <h1 class="cover-title">{{ passport.title }}</h1>
-      {% if liked_pois %}
-      <div class="cover-sub">{{ liked_pois|length }} place{{ liked_pois|length|pluralize }} saved</div>
+    <div class="pp-cover-left">
+      <div class="pp-eyebrow">Travel Passport</div>
+      <h1 class="pp-name">{{ passport.title }}</h1>
+      {% if profile.n_liked %}
+      <div class="pp-cover-sub">{{ profile.top_emoji }} {{ profile.top_label }} &middot; {{ profile.accuracy }}% accurate</div>
       {% endif %}
     </div>
-    <div class="cover-actions">
+    <div class="pp-cover-actions">
       {% if step < 1 %}
-        <a href="/passport/{{ passport.slug }}/swipe" class="cover-btn primary">Start swiping &rarr;</a>
+        <a href="/passport/{{ passport.slug }}/swipe" class="pp-btn primary">Start swiping &rarr;</a>
       {% else %}
-        <a href="/passport/{{ passport.slug }}/swipe?redo=1" class="cover-btn">Swipe again</a>
+        <a href="/passport/{{ passport.slug }}/swipe" class="pp-btn primary">Add more places &rarr;</a>
+        <a href="/passport/{{ passport.slug }}/swipe?redo=1" class="pp-btn">Start over</a>
       {% endif %}
-      <a href="/passport" class="cover-btn">All passports</a>
+      <a href="/passport" class="pp-btn">All passports</a>
     </div>
   </div>
 
-  <div class="passport-body">
-    {% if liked_pois %}
-    <div class="section-label">Places you liked</div>
-    <div class="poi-grid">
-      {% for poi in liked_pois %}
-      <a href="/{{ poi.url_path }}" class="poi-card">
-        <div class="poi-card-img"
-             {% if poi.image_url %}style="background-image: url('{{ poi.image_url }}')"{% endif %}>
+  <div class="pp-body">
+
+    {% if profile.n_liked %}
+
+    <!-- Profile card -->
+    <div>
+      <div class="section-label">Your travel profile</div>
+      <div class="profile-card">
+        {% if profile_image_url %}
+        <div class="profile-card-bg" style="background-image: url('{{ profile_image_url }}')"></div>
+        {% endif %}
+        <div class="profile-card-inner">
+          <div class="profile-main">
+            <span class="profile-accuracy">{{ profile.accuracy }}% accurate</span>
+            <span class="profile-type-emoji">{{ profile.top_emoji }}</span>
+            <div class="profile-type-label">{{ profile.top_label }}</div>
+            <div class="profile-text">{{ profile.profile_text }}</div>
+          </div>
+          {% if profile.active %}
+          <div class="profile-bars">
+            {% for item in profile.active %}
+            <div class="theme-bar-row">
+              <span class="theme-bar-emoji">{{ item.emoji }}</span>
+              <span class="theme-bar-label">{{ item.label }}</span>
+              <div class="theme-bar-track">
+                <div class="theme-bar-fill" style="width: {{ item.pct }}%"></div>
+              </div>
+              <span class="theme-bar-pct">{{ item.pct }}%</span>
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
         </div>
-        <div class="poi-card-body">
-          {% if poi.city %}<div class="poi-card-city">{{ poi.city }}</div>{% endif %}
-          <div class="poi-card-title">{{ poi.title }}</div>
-          {% if poi.snippet %}<div class="poi-card-snippet">{{ poi.snippet }}</div>{% endif %}
-        </div>
-      </a>
-      {% endfor %}
+      </div>
     </div>
+
+    <!-- Stats -->
+    <div>
+      <div class="section-label">Stats</div>
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-box-num">{{ profile.n_liked }}</div>
+          <div class="stat-box-label">Places liked</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-box-num">{{ profile.cities|length }}</div>
+          <div class="stat-box-label">Cities explored</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-box-num">{{ profile.accuracy }}%</div>
+          <div class="stat-box-label">Profile accuracy</div>
+        </div>
+        {% if profile.active %}
+        <div class="stat-box">
+          <div class="stat-box-num">{{ profile.active.0.emoji }}</div>
+          <div class="stat-box-label">Top theme: {{ profile.active.0.label }}</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if profile.cities %}
+    <!-- Cities -->
+    <div>
+      <div class="section-label">Cities in your passport</div>
+      <div class="cities-row">
+        {% for city, count in profile.cities %}
+        <div class="city-chip">
+          {{ city }}
+          {% if count > 1 %}<span class="city-chip-count">{{ count }}</span>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if profile.predictions %}
+    <!-- Predictions -->
+    <div>
+      <div class="section-label">You'll probably love</div>
+      <div class="predictions-wrap">
+        {% for p in profile.predictions %}
+        <div class="prediction-tag">{{ p }}</div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if similar_pois %}
+    <!-- Embedding-based recommendations -->
+    <div>
+      <div class="section-label">Based on your profile, you'll love</div>
+      <div class="poi-grid similar-grid">
+        {% for poi in similar_pois %}
+        <a href="/{{ poi.url_path }}" class="poi-card poi-card--similar">
+          <div class="poi-card-body">
+            {% if poi.city %}<div class="poi-card-city">{{ poi.city }}</div>{% endif %}
+            <div class="poi-card-title">{{ poi.title }}</div>
+            {% if poi.snippet %}<div class="poi-card-snippet">{{ poi.snippet }}</div>{% endif %}
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Liked places -->
+    <div>
+      <div class="section-label">Places you liked</div>
+      <div class="poi-grid">
+        {% for poi in liked_pois %}
+        <a href="/{{ poi.url_path }}" class="poi-card">
+          <div class="poi-card-body">
+            {% if poi.city %}<div class="poi-card-city">{{ poi.city }}</div>{% endif %}
+            <div class="poi-card-title">{{ poi.title }}</div>
+            {% if poi.snippet %}<div class="poi-card-snippet">{{ poi.snippet }}</div>{% endif %}
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+
     {% else %}
     <div class="empty-state">
       {% if step < 1 %}
-      <p>Swipe through places to build your passport.</p>
+      <p>Swipe through places to build your travel profile.</p>
       <a href="/passport/{{ passport.slug }}/swipe" class="cta-btn">Start swiping &rarr;</a>
       {% else %}
       <p>You didn't like any places. Try again?</p>
@@ -122,6 +314,7 @@
       {% endif %}
     </div>
     {% endif %}
+
   </div>
 </div>
 {% endblock %}

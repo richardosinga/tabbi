@@ -129,6 +129,21 @@ body:has(.tabbi-nav) select {
   color: #180A0A;
 }
 .tabbi-btn--sm { font-size: 0.75rem; padding: 6px 14px; }
+.tabbi-btn--full { width: 100%; justify-content: center; }
+
+/* ── Auth pages (plan login / signup) ────────────────────────────────────── */
+.tabbi-auth-page { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 64px); }
+.tabbi-auth-card { background: #fff; border: 3px solid #180A0A; border-radius: 20px; box-shadow: 6px 6px 0 #180A0A; padding: 40px 36px; width: 100%; max-width: 400px; }
+.tabbi-auth-title { font-size: 1.3rem; font-weight: 800; color: #180A0A; margin: 0 0 6px; letter-spacing: -0.03em; }
+.tabbi-auth-title em { font-style: normal; color: #e7a328; }
+.tabbi-auth-sub { font-size: 0.85rem; color: #888; margin: 0 0 24px; }
+.tabbi-auth-error { font-size: 0.85rem; color: #c0392b; background: #fdf0ee; border: 1.5px solid #e8b4ae; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; }
+.tabbi-auth-field { margin-bottom: 16px; }
+.tabbi-auth-input { width: 100%; font-family: 'Lexend Exa', sans-serif; font-size: 0.9rem; padding: 12px 16px; border: 2.5px solid #180A0A; border-radius: 12px; background: #fffdf7; color: #180A0A; outline: none; box-sizing: border-box; }
+.tabbi-auth-input:focus { border-color: #e7a328; }
+.tabbi-auth-help { font-size: 0.78rem; color: #A6A6A6; margin-top: 20px; text-align: center; }
+.tabbi-auth-help a { color: #e7a328; text-decoration: none; }
+.tabbi-auth-help a:hover { text-decoration: underline; }
 
 /* ── Page scaffold ────────────────────────────────────────────────────────── */
 
@@ -950,14 +965,6 @@ span.plan-poi-title--draft::after { content: none; }
 .plan-suggestion-tile--food   { border-top-color: #EA580C; }
 .plan-suggestion-tile--drinks { border-top-color: #2563EB; }
 
-.plan-suggestion-tile-top { position: relative; }
-.plan-suggestion-liked {
-  position: absolute; top: 5px; right: 5px;
-  background: #e05c3a; color: white;
-  font-size: .65rem; line-height: 1;
-  padding: 2px 5px; border-radius: 10px;
-  font-style: normal; pointer-events: none;
-}
 .plan-suggestion-tile-img {
   height: 100px;
   background-size: cover;
