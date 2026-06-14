@@ -45,6 +45,9 @@ WORLD66_DIR = Path(os.environ.get("WORLD66_DIR", str(BASE_DIR / "world66")))
 WORLD66_CONTENT_DIR = WORLD66_DIR / "content"
 WORLD66_SITE_URL = os.environ.get("WORLD66_SITE_URL", "https://world66.ai")
 
+# Tabbi bookable experience content — overlays world66 content
+TABBI_CONTENT_DIR = BASE_DIR / "tabbi_content"
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",

@@ -15,6 +15,7 @@ import frontmatter
 from django.conf import settings
 
 CONTENT_DIR = Path(getattr(settings, "WORLD66_CONTENT_DIR", Path(settings.BASE_DIR) / "content"))
+TABBI_CONTENT_DIR = Path(getattr(settings, "TABBI_CONTENT_DIR", "")) if getattr(settings, "TABBI_CONTENT_DIR", None) else None
 
 NAV_TYPES = {"section", "section_group", "neighbourhood", "theme"}
 
@@ -26,6 +27,7 @@ DISPLAY_PROPERTIES = {
     "opening_hours": "Opening Hours",
     "closing_time": "Closing Time",
     "price": "Price",
+    "duration": "Duration",
     "admission": "Admission",
     "isbn": "ISBN",
     "author": "Author",
@@ -34,6 +36,7 @@ DISPLAY_PROPERTIES = {
     "accessibility": "Accessibility",
     "zipcode": "Zip Code",
     "price_per_night": "Price/Night",
+    "booking_url": "Book",
 }
 
 
@@ -153,18 +156,21 @@ class Page:
         return by_tag
 
     def _legacy_dir_pois(self):
-        dir_path = CONTENT_DIR / self.path
-        if not dir_path.is_dir():
-            if "/" in self.path:
-                dir_path = CONTENT_DIR / self.path.rsplit("/", 1)[0] / self.slug
-        if not dir_path.is_dir():
-            return []
         pois = []
-        for entry in sorted(dir_path.iterdir()):
-            if entry.is_file() and entry.suffix == ".md":
-                page = _load_page_from_file(entry, self.path + "/" + entry.stem)
-                if page and page.page_type == "poi":
-                    pois.append(page)
+        seen = set()
+        roots = [CONTENT_DIR] + ([TABBI_CONTENT_DIR] if TABBI_CONTENT_DIR else [])
+        for root in roots:
+            dir_path = root / self.path
+            if not dir_path.is_dir() and "/" in self.path:
+                dir_path = root / self.path.rsplit("/", 1)[0] / self.slug
+            if not dir_path.is_dir():
+                continue
+            for entry in sorted(dir_path.iterdir()):
+                if entry.is_file() and entry.suffix == ".md":
+                    page = _load_page_from_file(entry, self.path + "/" + entry.stem)
+                    if page and page.page_type == "poi" and page.path not in seen:
+                        seen.add(page.path)
+                        pois.append(page)
         return pois
 
     def pois(self):
@@ -182,34 +188,37 @@ def _find_city_path(path):
 
 
 def build_city_tag_index(city_path):
-    city_dir = CONTENT_DIR / city_path
-    if not city_dir.is_dir():
-        return {}
     index = {}
     seen = set()
-    for md_file in sorted(city_dir.rglob("*.md")):
-        result = _load_md(md_file)
-        if not result:
+    dirs_to_scan = [(CONTENT_DIR, CONTENT_DIR / city_path)]
+    if TABBI_CONTENT_DIR:
+        dirs_to_scan.append((TABBI_CONTENT_DIR, TABBI_CONTENT_DIR / city_path))
+    for root_dir, city_dir in dirs_to_scan:
+        if not city_dir.is_dir():
             continue
-        meta, _ = result
-        if meta.get("type") not in ("poi", "neighbourhood", "theme"):
-            continue
-        raw_tags = meta.get("tags", [])
-        if isinstance(raw_tags, str):
-            raw_tags = [t.strip() for t in raw_tags.split(",")]
-        if not raw_tags:
-            continue
-        rel = md_file.relative_to(CONTENT_DIR)
-        parts = list(rel.parts)
-        stem = parts[-1][:-3]
-        url_path = "/".join(parts[:-1] + [stem])
-        if url_path in seen:
-            continue
-        seen.add(url_path)
-        page = _load_page_from_file(md_file, url_path)
-        if page:
-            for t in raw_tags:
-                index.setdefault(t, []).append(page)
+        for md_file in sorted(city_dir.rglob("*.md")):
+            result = _load_md(md_file)
+            if not result:
+                continue
+            meta, _ = result
+            if meta.get("type") not in ("poi", "neighbourhood", "theme"):
+                continue
+            raw_tags = meta.get("tags", [])
+            if isinstance(raw_tags, str):
+                raw_tags = [t.strip() for t in raw_tags.split(",")]
+            if not raw_tags:
+                continue
+            rel = md_file.relative_to(root_dir)
+            parts = list(rel.parts)
+            stem = parts[-1][:-3]
+            url_path = "/".join(parts[:-1] + [stem])
+            if url_path in seen:
+                continue
+            seen.add(url_path)
+            page = _load_page_from_file(md_file, url_path)
+            if page:
+                for t in raw_tags:
+                    index.setdefault(t, []).append(page)
     return index
 
 
@@ -235,6 +244,14 @@ def _load_page_from_file(file_path, url_path):
 
 def load_page(path):
     slug = path.rsplit("/", 1)[-1] if "/" in path else path
+
+    if TABBI_CONTENT_DIR:
+        for md_file in [
+            TABBI_CONTENT_DIR / path / f"{slug}.md",
+            TABBI_CONTENT_DIR / f"{path}.md",
+        ]:
+            if md_file.is_file():
+                return _load_page_from_file(md_file, path)
 
     for md_file in [
         CONTENT_DIR / path / f"{slug}.md",
