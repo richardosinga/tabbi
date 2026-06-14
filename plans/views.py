@@ -594,8 +594,8 @@ def plan_new(request):
                         matched = False
                         for length in range(min(4, len(title_words) - i), 0, -1):
                             phrase = " ".join(title_words[i:i+length])
-                            path = resolve_location_name(phrase, title)
-                            if path and _is_city_path(path):
+                            resolved_path = resolve_location_name(phrase, title)
+                            if resolved_path and _is_city_path(resolved_path):
                                 city_headings.append(f"## {phrase}")
                                 i += length
                                 matched = True
