@@ -2,13 +2,13 @@
 {% block title %}New passport — Tab.bi{% endblock %}
 {% block content %}
 <style>
-.pp-wrap { max-width: 480px; margin: 64px auto; padding: 0 24px; }
+.pp-wrap { max-width: 860px; margin: 56px auto; padding: 0 24px; display: flex; gap: 40px; align-items: flex-start; flex-wrap: wrap; }
 .pp-card {
-  background: #fff;
+  background: #fff; flex: 1; min-width: 280px;
   border: 2.5px solid #180A0A;
   border-radius: 16px;
   box-shadow: 4px 4px 0 #180A0A;
-  padding: 48px;
+  padding: 44px;
 }
 .pp-card h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; color: #180A0A; }
 .pp-card .subtitle { color: #535050; margin-bottom: 32px; }
@@ -31,6 +31,12 @@
   font-family: inherit;
 }
 .pp-btn:hover { background: #c8891a; }
+.pp-why { flex: 1; min-width: 260px; padding-top: 8px; }
+.pp-why h2 { font-size: 1.1rem; font-weight: 700; color: #180A0A; margin-bottom: 20px; }
+.pp-why-item { display: flex; gap: 14px; margin-bottom: 22px; align-items: flex-start; }
+.pp-why-icon { font-size: 1.4rem; line-height: 1; flex-shrink: 0; margin-top: 2px; }
+.pp-why-text strong { display: block; font-size: .9rem; font-weight: 700; color: #180A0A; margin-bottom: 3px; }
+.pp-why-text span { font-size: .84rem; color: #535050; line-height: 1.5; }
 </style>
 <div class="pp-wrap">
   <div class="pp-card">
@@ -45,6 +51,31 @@
       </div>
       <button type="submit" class="pp-btn">Create passport &rarr;</button>
     </form>
+  </div>
+
+  <div class="pp-why">
+    <h2>What's a passport for?</h2>
+    <div class="pp-why-item">
+      <span class="pp-why-icon">🎯</span>
+      <div class="pp-why-text">
+        <strong>Personalised suggestions</strong>
+        <span>Swipe through places you've loved and we build a travel profile — so every recommendation is tuned to your taste, not a generic list.</span>
+      </div>
+    </div>
+    <div class="pp-why-item">
+      <span class="pp-why-icon">🗂️</span>
+      <div class="pp-why-text">
+        <strong>One per trip style</strong>
+        <span>Travelling solo through Southeast Asia? Planning a family road trip? Make a passport for each — each one learns from a different set of experiences.</span>
+      </div>
+    </div>
+    <div class="pp-why-item">
+      <span class="pp-why-icon">✈️</span>
+      <div class="pp-why-text">
+        <strong>Connects to your trips</strong>
+        <span>Link a passport to a trip plan and get suggestions that actually match how you travel — not just what's popular.</span>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}

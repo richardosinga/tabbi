@@ -48,6 +48,6 @@ WORDS = [
 WORDS = list(dict.fromkeys(WORDS))[:256]
 
 
-def generate_passphrase(n: int = 4) -> str:
-    """Return n random words from the wordlist joined by spaces."""
-    return " ".join(secrets.choice(WORDS) for _ in range(n))
+def generate_passphrase(n: int = 3) -> str:
+    """Return n random words from the wordlist joined by dashes."""
+    return "-".join(secrets.choice(WORDS) for _ in range(n))

@@ -19,6 +19,7 @@
 }
 .phrase-words { font-size: 1.5rem; font-weight: 300; letter-spacing: .02em; line-height: 1.4; word-spacing: .15em; }
 .phrase-words span { display: inline-block; padding: 2px 4px; border-radius: 4px; }
+.phrase-sep { opacity: .4; padding: 0 2px; }
 .copy-btn {
   display: block; margin: 12px auto 0;
   background: transparent; border: 1px solid rgba(255,255,255,.3);
@@ -54,8 +55,8 @@
 
     <div class="phrase-box">
       <div class="phrase-words" id="phraseWords">
-        {% for word in phrase.split %}
-          <span>{{ word }}</span>{% if not forloop.last %}&nbsp;{% endif %}
+        {% for word in phrase_words %}
+          <span>{{ word }}</span>{% if not forloop.last %}<span class="phrase-sep">-</span>{% endif %}
         {% endfor %}
       </div>
       <button class="copy-btn" id="copyBtn" type="button" onclick="copyPhrase()">Copy to clipboard</button>

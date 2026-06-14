@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "plans",
     "concierge",
     "passport",
+    "world66_content",
 ]
 
 MIDDLEWARE = [

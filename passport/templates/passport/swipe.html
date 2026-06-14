@@ -1,0 +1,876 @@
+{% extends "plans/base.html" %}
+{% block title %}Discover your travel style — {{ passport.title }}{% endblock %}
+{% block wide_content %}
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+body { overflow-x: hidden; }
+.tabbi-footer { margin-top: 0 !important; }
+#content { min-height: 0 !important; padding: 0 !important; }
+
+.swipe-shell { display: flex; flex-direction: column; background: #f9f6f2; }
+
+/* ---- Header: just branding ---- */
+.swipe-header {
+  background: #180A0A; color: #fff;
+  padding: 12px 20px;
+  display: flex; align-items: center; gap: 12px;
+}
+.swipe-header-name { font-size: .88rem; opacity: .6; flex: 1; }
+.swipe-header-acc  { font-size: .8rem; color: #e7a328; font-weight: 700; }
+
+/* ---- Two-column layout ---- */
+.swipe-wrapper { display: flex; flex: 1; }
+.swipe-center {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 32px 24px; gap: 24px;
+  position: relative; overflow: hidden;
+  background: #180A0A;
+  min-height: 600px;
+}
+/* Blurred city bg */
+.swipe-center-bg {
+  position: absolute; inset: -40px;
+  background-size: cover; background-position: center;
+  filter: blur(20px) brightness(.45) saturate(.7);
+  opacity: 0; transition: opacity 1s ease;
+  z-index: 0;
+}
+.swipe-center > *:not(.swipe-center-bg) { position: relative; z-index: 1; }
+
+.swipe-sidebar {
+  width: 270px; flex-shrink: 0;
+  background: #fff; border-left: 2px solid #180A0A;
+  padding: 24px 18px 24px; display: flex; flex-direction: column; gap: 18px;
+}
+@media (max-width: 720px) {
+  .swipe-wrapper { flex-direction: column; }
+  .swipe-sidebar { width: 100%; border-left: none; border-top: 2px solid #180A0A; padding: 18px 16px; }
+}
+
+/* ---- City picker ---- */
+.city-picker {
+  display: none; flex-direction: column;
+  width: 100%; gap: 24px;
+  padding: 32px 28px 28px; overflow-y: auto;
+  position: relative; z-index: 1;
+}
+.city-picker-header { text-align: center; flex-shrink: 0; }
+.city-picker-title {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(1.6rem, 5vw, 2.4rem); font-weight: 300;
+  color: #fff; margin-bottom: 6px;
+}
+.city-picker-sub { font-size: .88rem; color: rgba(255,255,255,.55); }
+
+.city-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+}
+@media (max-width: 900px) { .city-picker-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 560px) { .city-picker-grid { grid-template-columns: repeat(3, 1fr); } }
+
+.city-card {
+  position: relative; height: 160px;
+  border-radius: 12px; overflow: hidden; cursor: pointer;
+  border: 2.5px solid transparent;
+  transition: border-color .15s, transform .12s;
+  background: #2a1515;
+}
+.city-card:hover { transform: scale(1.03); }
+.city-card.been       { border-color: #27ae60; }
+.city-card.bucketlist { border-color: #e7a328; }
+.city-card-bg {
+  position: absolute; inset: -6px;
+  background-size: cover; background-position: center;
+  filter: brightness(.82) saturate(.9);
+  transition: filter .15s;
+}
+.city-card.been .city-card-bg,
+.city-card.bucketlist .city-card-bg { filter: brightness(.62) saturate(.8); }
+.city-card-name {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  padding: 30px 10px 10px;
+  font-size: .9rem; font-weight: 600; color: #fff;
+  background: linear-gradient(transparent, rgba(0,0,0,.75));
+  z-index: 1; line-height: 1.2;
+}
+.city-card-badge {
+  position: absolute; top: 8px; right: 8px; z-index: 2;
+  padding: 3px 9px; border-radius: 10px;
+  font-size: .62rem; font-weight: 700; letter-spacing: .04em;
+  opacity: 0; transform: scale(.6); transition: opacity .15s, transform .15s;
+  white-space: nowrap;
+}
+.city-card.been       .city-card-badge { background: #27ae60; color: #fff;    opacity: 1; transform: scale(1); }
+.city-card.bucketlist .city-card-badge { background: #e7a328; color: #180A0A; opacity: 1; transform: scale(1); }
+
+.city-picker-footer {
+  flex-shrink: 0; display: flex; align-items: center;
+  justify-content: space-between; gap: 16px; flex-wrap: wrap;
+}
+.city-picker-count { font-size: .84rem; color: rgba(255,255,255,.5); }
+.city-picker-btn {
+  background: #e7a328; color: #180A0A;
+  border: 2.5px solid #180A0A; border-radius: 8px;
+  box-shadow: 3px 3px 0 rgba(0,0,0,.35);
+  padding: 11px 28px; font-size: .92rem; font-weight: 700; cursor: pointer;
+  transition: transform .1s, box-shadow .1s;
+}
+.city-picker-btn:disabled { opacity: .3; cursor: default; pointer-events: none; }
+.city-picker-btn:not(:disabled):hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 rgba(0,0,0,.35); }
+
+/* ---- City intro ---- */
+.city-intro {
+  display: none; flex-direction: column;
+  align-items: center; justify-content: center;
+  flex: 1; padding: 56px 32px; text-align: center; gap: 16px; width: 100%;
+}
+.city-intro-eyebrow {
+  font-size: .68rem; font-weight: 700; letter-spacing: .18em;
+  text-transform: uppercase; color: #e7a328;
+}
+.city-intro-name {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(2.8rem, 10vw, 5rem); font-weight: 300;
+  color: #fff; line-height: 1.05;
+}
+.city-intro-hint { font-size: .9rem; color: rgba(255,255,255,.55); }
+.city-start-btn {
+  background: #e7a328; color: #180A0A;
+  border: 2.5px solid #180A0A; border-radius: 8px; box-shadow: 3px 3px 0 #180A0A;
+  padding: 12px 38px; font-size: .95rem; font-weight: 700; cursor: pointer;
+  margin-top: 6px; transition: transform .1s, box-shadow .1s;
+}
+.city-start-btn:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 #180A0A; }
+.city-start-btn:active { transform: translate(1px,1px); box-shadow: 2px 2px 0 #180A0A; }
+
+/* ---- Cards ---- */
+.swipe-cards-wrap {
+  display: none; flex-direction: column;
+  align-items: center; gap: 20px; width: 100%;
+}
+.swipe-city-label {
+  font-size: .68rem; font-weight: 700; letter-spacing: .14em;
+  text-transform: uppercase; color: #e7a328;
+}
+.card-stage { position: relative; width: min(420px, 94vw); height: 360px; }
+.card-ghost {
+  position: absolute; inset: 0;
+  background: white; border: 2px solid #180A0A; border-radius: 18px;
+}
+.card-ghost:nth-child(1) { transform: translateY(8px) scale(.95); z-index: 1; box-shadow: 3px 3px 0 #180A0A; }
+.card-ghost:nth-child(2) { transform: translateY(4px) scale(.975); z-index: 2; box-shadow: 3px 3px 0 #180A0A; }
+
+.card-main {
+  position: absolute; inset: 0; z-index: 10;
+  background: white; border: 2.5px solid #180A0A; border-radius: 18px;
+  box-shadow: 5px 5px 0 #180A0A;
+  display: flex; flex-direction: column; padding: 30px 30px 22px;
+  cursor: grab; user-select: none; touch-action: none; will-change: transform;
+}
+.card-main:active { cursor: grabbing; }
+.card-poi-title {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(1.35rem, 3.5vw, 1.75rem); font-weight: 300; line-height: 1.25;
+  color: #180A0A; margin-bottom: 14px; flex-shrink: 0;
+}
+.card-poi-snippet {
+  font-size: .88rem; color: #535050; line-height: 1.62; flex: 1; overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 7; -webkit-box-orient: vertical;
+}
+.card-poi-link {
+  font-size: .75rem; color: #e05c3a; text-decoration: none;
+  margin-top: 12px; display: inline-block; font-weight: 600; flex-shrink: 0;
+}
+.card-poi-link:hover { text-decoration: underline; }
+
+.vote-overlay {
+  position: absolute; font-size: 1rem; font-weight: 800;
+  opacity: 0; border: 2.5px solid; padding: 4px 12px; border-radius: 6px;
+  pointer-events: none; z-index: 20;
+}
+.vote-overlay.yes { top: 16px; right: 16px; color: #27ae60; border-color: #27ae60; transform: rotate(-9deg); }
+.vote-overlay.no  { top: 16px; left: 16px;  color: #e74c3c; border-color: #e74c3c; transform: rotate(9deg); }
+
+.action-buttons { display: flex; gap: 22px; align-items: center; }
+.action-btn {
+  width: 58px; height: 58px; border-radius: 50%;
+  border: 2.5px solid; background: white; font-size: 1.4rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 3px 3px 0 #180A0A; transition: transform .1s, box-shadow .1s;
+}
+.action-btn:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 #180A0A; }
+.action-btn:active { transform: translate(1px,1px); box-shadow: 2px 2px 0 #180A0A; }
+.action-btn.no-btn  { border-color: #e74c3c; color: #e74c3c; }
+.action-btn.yes-btn { border-color: #27ae60; color: #27ae60; }
+.action-btn.yes-btn.maxed { opacity: .28; cursor: default; pointer-events: none; }
+
+.pick-dots { display: flex; gap: 8px; align-items: center; }
+.pick-dot {
+  width: 11px; height: 11px; border-radius: 50%;
+  background: rgba(255,255,255,.3); border: 1.5px solid rgba(255,255,255,.5);
+  transition: background .2s, transform .25s cubic-bezier(.34,1.5,.64,1);
+}
+.pick-dot.filled { background: #27ae60; border-color: #27ae60; transform: scale(1.25); }
+
+.keyboard-hint { font-size: .68rem; color: rgba(255,255,255,.4); text-align: center; }
+
+/* ---- Done screen ---- */
+.swipe-done {
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; gap: 18px; padding: 56px 24px; flex: 1; width: 100%;
+}
+.swipe-done h3 {
+  font-family: 'Fraunces', serif; font-size: 2rem; font-weight: 300; color: #fff;
+}
+.swipe-done p { color: rgba(255,255,255,.6); max-width: 340px; line-height: 1.6; }
+.done-btn {
+  background: #e7a328; color: #180A0A;
+  border: 2.5px solid #180A0A; border-radius: 8px; box-shadow: 3px 3px 0 #180A0A;
+  padding: 13px 36px; font-size: .95rem; font-weight: 700; cursor: pointer;
+}
+.done-btn:hover { background: #c8891a; }
+
+/* ---- Sidebar ---- */
+.sidebar-passport-name { font-size: .78rem; color: #9b9590; font-weight: 500; }
+
+.sidebar-accuracy {
+  font-family: 'Fraunces', serif;
+  font-size: 2rem; font-weight: 300; color: #180A0A; line-height: 1;
+}
+.sidebar-accuracy-sub { font-size: .75rem; color: #9b9590; margin-top: 2px; }
+
+.sidebar-heading {
+  font-size: .63rem; font-weight: 700; letter-spacing: .15em;
+  text-transform: uppercase; color: #9b9590; margin-bottom: 8px;
+}
+.sidebar-empty { font-size: .82rem; color: #b0aaa4; line-height: 1.5; }
+
+.top-profile-card {
+  display: none; background: #f9f6f2;
+  border: 2px solid #180A0A; border-radius: 10px; box-shadow: 2px 2px 0 #180A0A;
+  padding: 14px 14px 12px;
+}
+.top-profile-emoji { font-size: 1.6rem; display: block; margin-bottom: 4px; }
+.top-profile-label { font-family: 'Fraunces', serif; font-size: 1rem; font-weight: 400; color: #180A0A; }
+.top-profile-sub   { font-size: .72rem; color: #6b6560; margin-top: 2px; }
+
+/* Matching POI mini-list */
+.match-poi-list { display: flex; flex-direction: column; gap: 8px; }
+.match-poi-item {
+  background: #fff; border: 1.5px solid #e0dbd4; border-radius: 8px;
+  padding: 8px 10px; text-decoration: none; color: inherit;
+  transition: border-color .12s;
+}
+.match-poi-item:hover { border-color: #180A0A; text-decoration: none; }
+.match-poi-city { font-size: .6rem; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: #e05c3a; margin-bottom: 2px; }
+.match-poi-title { font-size: .78rem; font-weight: 600; color: #180A0A; line-height: 1.25; }
+.match-poi-theme { font-size: .65rem; color: #9b9590; margin-top: 2px; }
+
+.sidebar-liked-count { font-size: .75rem; color: #9b9590; }
+.sidebar-redo-link   { font-size: .72rem; color: #e05c3a; text-decoration: none; display: none; }
+
+/* Profile interest bars */
+.profile-bars { display: flex; flex-direction: column; gap: 7px; }
+.profile-bar-row { display: grid; grid-template-columns: 1.4rem 1fr 2rem; align-items: center; gap: 5px; }
+.profile-bar-emoji { font-size: .85rem; text-align: center; line-height: 1; }
+.profile-bar-track { height: 6px; background: #f0ece7; border-radius: 3px; overflow: hidden; }
+.profile-bar-fill  { height: 100%; background: #e05c3a; border-radius: 3px; transition: width .4s ease; }
+.profile-bar-pct   { font-size: .65rem; color: #9b9590; text-align: right; }
+.sidebar-redo-link:hover { text-decoration: underline; }
+
+.sidebar-spacer { flex: 1; }
+
+.sidebar-save-btn {
+  display: block; width: 100%; text-align: center;
+  background: #180A0A; color: #fff;
+  border: 2.5px solid #180A0A; border-radius: 8px; box-shadow: 3px 3px 0 rgba(0,0,0,.2);
+  padding: 11px 16px; font-size: .85rem; font-weight: 700; cursor: pointer;
+  transition: background .15s;
+}
+.sidebar-save-btn:hover { background: #2d1515; }
+</style>
+
+<div class="swipe-shell">
+
+  <!-- Minimal header -->
+  <div class="swipe-header">
+    <span class="swipe-header-name">{{ passport.title }}</span>
+    <span class="swipe-header-acc" id="headerAcc"></span>
+  </div>
+
+  <div class="swipe-wrapper">
+
+    <!-- Centre column -->
+    <div class="swipe-center" id="swipeCenter">
+      <div class="swipe-center-bg" id="centerBg"></div>
+
+      <!-- City picker -->
+      <div class="city-picker" id="cityPicker">
+        <div class="city-picker-header">
+          <div class="city-picker-title">Start building your travel passport</div>
+          <div class="city-picker-sub">Tell us about cities you visited or want to visit and we'll build a profile that you can use throughout your trips.</div>
+        </div>
+        <div class="city-picker-grid" id="pickerGrid"></div>
+        <div class="city-picker-footer">
+          <span class="city-picker-count" id="pickerCount">Select at least one city</span>
+          <button class="city-picker-btn" id="pickerBtn" disabled>Start swiping &rarr;</button>
+        </div>
+      </div>
+
+      <!-- City intro -->
+      <div class="city-intro" id="cityIntro">
+        <div class="city-intro-eyebrow" id="introEyebrow"></div>
+        <div class="city-intro-name"    id="introName"></div>
+        <div class="city-intro-hint"    id="introHint"></div>
+        <button class="city-start-btn"  id="introStart">Start swiping &rarr;</button>
+      </div>
+
+      <!-- Card swiping -->
+      <div class="swipe-cards-wrap" id="cardsWrap">
+        <div class="swipe-city-label" id="cityLabel"></div>
+
+        <div class="card-stage">
+          <div class="card-ghost"></div>
+          <div class="card-ghost"></div>
+          <div class="card-main" id="cardMain">
+            <div class="card-poi-title"   id="cardTitle"></div>
+            <div class="card-poi-snippet" id="cardSnippet"></div>
+            <a   class="card-poi-link"    id="cardLink" href="#" target="_blank" rel="noopener">Read more →</a>
+            <div class="vote-overlay yes" id="voteYes">LIKE ✓</div>
+            <div class="vote-overlay no"  id="voteNo">SKIP ✗</div>
+          </div>
+        </div>
+
+        <div class="action-buttons">
+          <button class="action-btn no-btn"  id="btnNo"  title="Skip (←)">✗</button>
+          <div class="pick-dots">
+            <div class="pick-dot" id="pdot0"></div>
+            <div class="pick-dot" id="pdot1"></div>
+            <div class="pick-dot" id="pdot2"></div>
+          </div>
+          <button class="action-btn yes-btn" id="btnYes" title="Like (→)">✓</button>
+        </div>
+
+        <div class="keyboard-hint">← skip &nbsp;|&nbsp; → like</div>
+      </div>
+
+      <!-- Done -->
+      <div class="swipe-done" id="donePage">
+        <div style="font-size:3rem">🌍</div>
+        <h3>Passport ready.</h3>
+        <p id="doneMsg"></p>
+        <form method="post" id="saveForm">
+          {% csrf_token %}
+          <input type="hidden" name="liked"   id="likedField"   value="[]">
+          <input type="hidden" name="skipped" id="skippedField" value="[]">
+          <button type="submit" class="done-btn">View my passport &rarr;</button>
+        </form>
+      </div>
+
+    </div><!-- /swipe-center -->
+
+    <!-- Sidebar: complete passport summary -->
+    <div class="swipe-sidebar">
+      <div>
+        <div class="sidebar-passport-name">{{ passport.title }}</div>
+        <div class="sidebar-accuracy" id="sidebarAcc">0%</div>
+        <div class="sidebar-accuracy-sub">passport accuracy</div>
+      </div>
+
+      <div>
+        <div class="sidebar-heading">What we know about you</div>
+        <div class="sidebar-empty" id="sidebarEmpty">Swipe to reveal your travel personality.</div>
+      </div>
+
+      <div class="top-profile-card" id="topProfileCard">
+        <span class="top-profile-emoji" id="topEmoji"></span>
+        <div class="top-profile-label"  id="topLabel"></div>
+        <div class="top-profile-sub"    id="topSub"></div>
+      </div>
+
+      <div id="profileBarsWrap" style="display:none;">
+        <div class="sidebar-heading">Your interests</div>
+        <div class="profile-bars" id="profileBars"></div>
+      </div>
+
+      <div id="matchPoisWrap" style="display:none;">
+        <div class="sidebar-heading" id="matchHeading">Best matches for your profile</div>
+        <div class="match-poi-list" id="matchPoiList" style="margin-top:8px;"></div>
+        <div class="sidebar-liked-count" id="likedCount"></div>
+      </div>
+
+      <a class="sidebar-redo-link" id="redoLink" href="?redo=1">↺ Start over</a>
+
+      <div class="sidebar-spacer"></div>
+
+      <button class="sidebar-save-btn" id="saveExitBtn">Save &amp; exit</button>
+    </div>
+
+  </div><!-- /swipe-wrapper -->
+</div>
+
+<!-- Hidden form for Save & exit -->
+<form method="post" id="exitForm" style="display:none;">
+  {% csrf_token %}
+  <input type="hidden" name="liked"       id="exitLikedField"      value="[]">
+  <input type="hidden" name="skipped"    id="exitSkippedField"    value="[]">
+  <input type="hidden" name="city_modes" id="exitCityModesField"  value="{}">
+</form>
+
+<script>
+(function() {
+  var GROUPS         = {{ groups_json|safe }};
+  var EXISTING_LIKED = {{ existing_liked_json|safe }};
+  var PASSPORT_SLUG  = '{{ passport.slug|escapejs }}';
+  var CSRF           = '{{ csrf_token }}';
+  var MAX_PICKS      = 3;
+
+  var PROFILES = [
+    { id:'sights',    emoji:'🏛️', label:'History & Landmarks',
+      keys:['museum','palace','castle','cathedral','church','basilica','temple','monument','tower','ruin','fort','historic','shrine'] },
+    { id:'food',      emoji:'🍜', label:'Food & Cuisine',
+      keys:['restaurant','cafe','bistro','food','kitchen','dining','gastro','terrace','brasserie','trattoria','taverna'] },
+    { id:'bars',      emoji:'🍸', label:'Bars & Drinks',
+      keys:['/bar','_bar','pub','cocktail','wine','beer','brewery','tavern','gin','whisky','speakeasy'] },
+    { id:'nightlife', emoji:'🌙', label:'Nightlife',
+      keys:['club','nightlife','jazz','dance','lounge','cabaret','disco'] },
+    { id:'art',       emoji:'🎨', label:'Art & Culture',
+      keys:['gallery','theater','theatre','opera','cinema','exhibition','mural','sculpture','contemporary'] },
+    { id:'nature',    emoji:'🌿', label:'Nature & Outdoors',
+      keys:['park','garden','beach','river','lake','forest','botanical','waterfall','bay','island','promenade'] },
+    { id:'markets',   emoji:'🛒', label:'Markets & Local Life',
+      keys:['market','souk','bazar','bazaar','flea','antique'] },
+  ];
+
+  /* ---- State ---- */
+  var liked        = EXISTING_LIKED.slice();
+  var skipped      = [];  // negative signals: same shape as liked entries
+  var embeddingRecs = [];  // filled by fetchRecommendations()
+  var ACTIVE_GROUPS = [];
+  var selectedPaths = {};
+  var groupIdx = 0, poiIdx = 0, pickedInGroup = 0;
+  var dragging = false, dragX0 = null, dragX = 0;
+
+  /* ---- DOM ---- */
+  var centerBg   = document.getElementById('centerBg');
+  var cityPicker = document.getElementById('cityPicker');
+  var cityIntro  = document.getElementById('cityIntro');
+  var cardsWrap  = document.getElementById('cardsWrap');
+  var donePage   = document.getElementById('donePage');
+  var cityLabel  = document.getElementById('cityLabel');
+  var cardMain   = document.getElementById('cardMain');
+  var cardTitle  = document.getElementById('cardTitle');
+  var cardSnippet= document.getElementById('cardSnippet');
+  var cardLink   = document.getElementById('cardLink');
+  var voteYes    = document.getElementById('voteYes');
+  var voteNo     = document.getElementById('voteNo');
+  var btnYes     = document.getElementById('btnYes');
+  var pdots      = [document.getElementById('pdot0'), document.getElementById('pdot1'), document.getElementById('pdot2')];
+  var likedField = document.getElementById('likedField');
+  var exitField  = document.getElementById('exitLikedField');
+
+  /* ---- Sidebar / accuracy ---- */
+  function accuracy(n) { return Math.round(92 * n / (n + 8)); }
+
+  function poiCategories(poi) {
+    var txt = ((poi.url_path||'') + ' ' + (poi.title||'')).toLowerCase();
+    return PROFILES.filter(function(p) {
+      return p.keys.some(function(k) { return txt.indexOf(k) >= 0; });
+    });
+  }
+
+  /* ratio-based scoring: likes / (likes + skips) per category */
+  function scoreProfiles() {
+    var likes = {}, seen = {};
+    PROFILES.forEach(function(p) { likes[p.id] = 0; seen[p.id] = 0; });
+    liked.forEach(function(poi) {
+      poiCategories(poi).forEach(function(p) { likes[p.id]++; seen[p.id]++; });
+    });
+    skipped.forEach(function(poi) {
+      poiCategories(poi).forEach(function(p) { seen[p.id]++; });
+    });
+    var scores = {};
+    PROFILES.forEach(function(p) {
+      scores[p.id] = seen[p.id] > 0 ? likes[p.id] / seen[p.id] : 0;
+    });
+    return scores;
+  }
+
+  /* category % breakdown from the full liked list (includes existing passport POIs) */
+  function computeProfileBars() {
+    var counts = {};
+    PROFILES.forEach(function(p) { counts[p.id] = 0; });
+    liked.forEach(function(poi) {
+      poiCategories(poi).forEach(function(p) { counts[p.id]++; });
+    });
+    var total = PROFILES.reduce(function(s, p) { return s + counts[p.id]; }, 0);
+    if (total === 0) return [];
+    return PROFILES.map(function(p) {
+      return { p: p, pct: Math.round(counts[p.id] / total * 100), count: counts[p.id] };
+    }).filter(function(x) { return x.count > 0; }).sort(function(a, b) { return b.pct - a.pct; });
+  }
+
+  /* find unseen POIs from the loaded pool that best match the current profile */
+  function topPredictedPois(max) {
+    if (!liked.length) return [];
+    var catScores = scoreProfiles();
+    var seenPaths = {};
+    liked.forEach(function(p)   { seenPaths[p.url_path] = true; });
+    skipped.forEach(function(p) { seenPaths[p.url_path] = true; });
+
+    var candidates = [];
+    GROUPS.forEach(function(g) {
+      g.pois.forEach(function(p) {
+        if (seenPaths[p.url_path]) return;
+        var cats = poiCategories(p);
+        var s = cats.reduce(function(acc, c) { return acc + (catScores[c.id] || 0); }, 0);
+        if (s > 0) candidates.push({ poi: p, city: g.city, s: s, cats: cats });
+      });
+    });
+    candidates.sort(function(a, b) { return b.s - a.s; });
+    return candidates.slice(0, max);
+  }
+
+  function renderMatchPois() {
+    var matchWrap = document.getElementById('matchPoisWrap');
+    if (!embeddingRecs.length) { matchWrap.style.display = 'none'; return; }
+    matchWrap.style.display = '';
+    document.getElementById('matchHeading').textContent = 'Best matches for your profile';
+    document.getElementById('matchPoiList').innerHTML = embeddingRecs.map(function(m) {
+      var blurb = m.snippet ? m.snippet.slice(0, 80) + (m.snippet.length > 80 ? '…' : '') : '';
+      return '<a href="/' + m.url_path + '" class="match-poi-item" target="_blank" rel="noopener">' +
+        (m.city ? '<div class="match-poi-city">' + m.city + '</div>' : '') +
+        '<div class="match-poi-title">' + m.title + '</div>' +
+        (blurb ? '<div class="match-poi-theme">' + blurb + '</div>' : '') +
+      '</a>';
+    }).join('');
+    document.getElementById('likedCount').textContent =
+      liked.length + ' liked · ' + skipped.length + ' skipped';
+  }
+
+  function fetchRecommendations() {
+    fetch('/passport/' + PASSPORT_SLUG + '/recommendations', {
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    }).then(function(r) { return r.json(); })
+      .then(function(data) { embeddingRecs = data.recommendations || []; renderMatchPois(); })
+      .catch(function() {});
+  }
+
+  function updateSidebar() {
+    var n   = liked.length;
+    var acc = accuracy(n);
+    document.getElementById('sidebarAcc').textContent  = acc + '%';
+    document.getElementById('headerAcc').textContent   = acc + '% accurate';
+
+    var emptyEl   = document.getElementById('sidebarEmpty');
+    var topCard   = document.getElementById('topProfileCard');
+    var matchWrap = document.getElementById('matchPoisWrap');
+    var barsWrap  = document.getElementById('profileBarsWrap');
+    var redoLink  = document.getElementById('redoLink');
+
+    if (n === 0) {
+      emptyEl.style.display   = '';
+      topCard.style.display   = 'none';
+      matchWrap.style.display = 'none';
+      barsWrap.style.display  = 'none';
+      redoLink.style.display  = 'none';
+      return;
+    }
+    emptyEl.style.display   = 'none';
+    topCard.style.display   = '';
+    redoLink.style.display  = '';
+
+    var scores = scoreProfiles();
+    var ranked = PROFILES.map(function(p) {
+      return { p:p, s:scores[p.id] };
+    }).sort(function(a,b){ return b.s-a.s; });
+    var top = ranked[0];
+
+    document.getElementById('topEmoji').textContent = top.p.emoji;
+    document.getElementById('topLabel').textContent = top.p.label;
+    document.getElementById('topSub').textContent   = 'based on ' + n + ' liked place' + (n===1?'':'s');
+
+    renderMatchPois();
+
+    var bars = computeProfileBars();
+    if (bars.length) {
+      barsWrap.style.display = '';
+      document.getElementById('profileBars').innerHTML = bars.map(function(b) {
+        return '<div class="profile-bar-row">' +
+          '<span class="profile-bar-emoji">' + b.p.emoji + '</span>' +
+          '<div class="profile-bar-track"><div class="profile-bar-fill" style="width:' + b.pct + '%"></div></div>' +
+          '<span class="profile-bar-pct">' + b.pct + '%</span>' +
+        '</div>';
+      }).join('');
+    } else {
+      barsWrap.style.display = 'none';
+    }
+  }
+
+  /* ---- Background helper ---- */
+  function setBg(imageUrl) {
+    if (!imageUrl) return;
+    var img = new Image();
+    img.onload = function() {
+      centerBg.style.backgroundImage = 'url("' + imageUrl + '")';
+      centerBg.style.opacity = '1';
+    };
+    img.src = imageUrl;
+  }
+
+  function crossfadeBg(imageUrl) {
+    if (!imageUrl) return;
+    var img = new Image();
+    img.onload = function() {
+      centerBg.style.opacity = '0';
+      setTimeout(function() {
+        centerBg.style.backgroundImage = 'url("' + imageUrl + '")';
+        centerBg.style.opacity = '1';
+      }, 300);
+    };
+    img.src = imageUrl;
+  }
+
+  /* ---- Autosave ---- */
+  function autoSave() {
+    var fd = new FormData();
+    fd.append('liked',       JSON.stringify(liked));
+    fd.append('skipped',     JSON.stringify(skipped));
+    fd.append('city_modes',  JSON.stringify(selectedPaths));
+    fd.append('csrfmiddlewaretoken', CSRF);
+    fetch('/passport/' + PASSPORT_SLUG + '/swipe/save', {method:'POST', body:fd})
+      .then(function() { fetchRecommendations(); })
+      .catch(function(){});
+  }
+
+  window.addEventListener('beforeunload', function() {
+    var fd = new FormData();
+    fd.append('liked',       JSON.stringify(liked));
+    fd.append('skipped',     JSON.stringify(skipped));
+    fd.append('city_modes',  JSON.stringify(selectedPaths));
+    fd.append('csrfmiddlewaretoken', CSRF);
+    navigator.sendBeacon('/passport/' + PASSPORT_SLUG + '/swipe/save', fd);
+  });
+
+  document.getElementById('saveExitBtn').addEventListener('click', function() {
+    exitField.value = JSON.stringify(liked);
+    document.getElementById('exitSkippedField').value = JSON.stringify(skipped);
+    document.getElementById('exitCityModesField').value = JSON.stringify(selectedPaths);
+    document.getElementById('exitForm').submit();
+  });
+
+  /* ---- Screen switching ---- */
+  var ALL_SCREENS = [cityPicker, cityIntro, cardsWrap, donePage];
+  function showOnly(el) {
+    ALL_SCREENS.forEach(function(s) { s.style.display = s===el ? 'flex' : 'none'; });
+  }
+
+  /* ---- Card logic ---- */
+  function curGroup() { return ACTIVE_GROUPS[groupIdx]; }
+  function curPoi()   { return curGroup().pois[poiIdx]; }
+
+  function updateDots() {
+    for (var i=0; i<3; i++) pdots[i].classList.toggle('filled', i<pickedInGroup);
+    btnYes.classList.toggle('maxed', pickedInGroup >= MAX_PICKS);
+  }
+
+  function loadCard(animate) {
+    var p = curPoi();
+    cardTitle.textContent   = p.title;
+    cardSnippet.textContent = p.snippet || '';
+    cardLink.href = '/' + p.url_path;
+    voteYes.style.opacity = voteNo.style.opacity = '0';
+    updateDots();
+    if (animate) {
+      cardMain.style.transition = 'none';
+      cardMain.style.opacity    = '0.4';
+      cardMain.style.transform  = 'scale(0.92) translateY(10px)';
+      void cardMain.offsetWidth;
+      cardMain.style.transition = 'transform .38s cubic-bezier(.34,1.3,.64,1), opacity .26s ease';
+      cardMain.style.transform  = '';
+      cardMain.style.opacity    = '';
+    }
+  }
+
+  function showIntro() {
+    var g = curGroup();
+    var modeLabel = g.mode === 'been' ? 'A city you know' : 'On your wish list';
+    document.getElementById('introEyebrow').textContent = modeLabel + ' · ' + (groupIdx+1) + ' of ' + ACTIVE_GROUPS.length;
+    document.getElementById('introName').textContent    = g.city;
+    document.getElementById('introHint').textContent    = g.mode === 'been'
+      ? 'Pick the highlights you actually loved'
+      : 'Pick the spots you\'d love to visit';
+    crossfadeBg(g.image_url);
+    showOnly(cityIntro);
+  }
+
+  function startGroup() {
+    showOnly(cardsWrap);
+    cityLabel.textContent = curGroup().city.toUpperCase();
+    poiIdx = 0; pickedInGroup = 0;
+    loadCard(true);
+  }
+
+  function showDone() {
+    showOnly(donePage);
+    // keep whatever city bg is already showing
+    document.getElementById('doneMsg').textContent =
+      'You liked ' + liked.length + ' place' + (liked.length===1?'':'s') + '.';
+    likedField.value   = JSON.stringify(liked);
+    document.getElementById('skippedField').value = JSON.stringify(skipped);
+    updateSidebar();
+  }
+
+  function advanceGroup() {
+    autoSave();
+    groupIdx++;
+    setTimeout(groupIdx >= ACTIVE_GROUPS.length ? showDone : showIntro, 360);
+  }
+
+  function recordVote(yes) {
+    var g = curGroup(), p = curPoi();
+    var entry = { url_path:p.url_path, title:p.title, snippet:p.snippet,
+                  city:g.city, city_path:g.city_path, image_url:g.image_url, mode:g.mode||'' };
+    if (yes) {
+      liked.push(entry);
+      pickedInGroup++;
+    } else {
+      skipped.push(entry);
+    }
+    updateSidebar();
+    poiIdx++;
+    if (pickedInGroup >= MAX_PICKS || poiIdx >= curGroup().pois.length) {
+      advanceGroup();
+    } else {
+      setTimeout(function() { loadCard(true); }, 340);
+    }
+  }
+
+  function animateSwipe(dir, cb) {
+    cardMain.style.transition = 'none';
+    void cardMain.offsetWidth;
+    cardMain.style.transition = 'transform .3s ease, opacity .28s ease';
+    cardMain.style.transform  = 'translateX(' + (dir>0?'115%':'-115%') + ') rotate(' + (dir>0?'11deg':'-11deg') + ')';
+    cardMain.style.opacity    = '0';
+    (dir>0 ? voteYes : voteNo).style.opacity = '1';
+    setTimeout(cb, 280);
+  }
+
+  function swipeYes() {
+    if (pickedInGroup >= MAX_PICKS) return;
+    animateSwipe(1, function() { recordVote(true); });
+  }
+  function swipeNo() {
+    animateSwipe(-1, function() { recordVote(false); });
+  }
+
+  /* ---- Events ---- */
+  btnYes.addEventListener('click', swipeYes);
+  document.getElementById('btnNo').addEventListener('click', swipeNo);
+  document.getElementById('introStart').addEventListener('click', startGroup);
+  document.addEventListener('keydown', function(e) {
+    if (donePage.style.display!=='none' || cityPicker.style.display!=='none') return;
+    if (cityIntro.style.display!=='none') {
+      if (e.key==='Enter'||e.key===' ') { e.preventDefault(); startGroup(); }
+      return;
+    }
+    if (e.key==='ArrowRight') { e.preventDefault(); swipeYes(); }
+    else if (e.key==='ArrowLeft') { e.preventDefault(); swipeNo(); }
+  });
+
+  /* drag */
+  function onStart(x) { dragX0=x; dragX=0; dragging=false; }
+  function onMove(x) {
+    if (dragX0===null) return;
+    dragX = x - dragX0;
+    if (Math.abs(dragX)>8) dragging=true;
+    cardMain.style.transition='none';
+    cardMain.style.transform='translateX('+dragX+'px) rotate('+(dragX*.055)+'deg)';
+    if      (dragX> 28) { voteYes.style.opacity=Math.min((dragX-28)/55,1)+''; voteNo.style.opacity='0'; }
+    else if (dragX<-28) { voteNo.style.opacity=Math.min((-dragX-28)/55,1)+''; voteYes.style.opacity='0'; }
+    else                { voteYes.style.opacity=voteNo.style.opacity='0'; }
+  }
+  function onEnd() {
+    if (dragX0===null) return;
+    var dx=dragX; dragX0=null;
+    if      (dx> 75) { dragging=false; swipeYes(); }
+    else if (dx<-75) { dragging=false; swipeNo(); }
+    else {
+      cardMain.style.transition='transform .26s ease';
+      cardMain.style.transform='';
+      voteYes.style.opacity=voteNo.style.opacity='0';
+      setTimeout(function(){dragging=false;},60);
+    }
+  }
+
+  cardMain.addEventListener('mousedown', function(e){ if(e.target.tagName!=='A') onStart(e.clientX); });
+  document.addEventListener('mousemove', function(e){ if(dragX0!==null) onMove(e.clientX); });
+  document.addEventListener('mouseup',   onEnd);
+  cardMain.addEventListener('touchstart', function(e){ onStart(e.touches[0].clientX); },{passive:true});
+  document.addEventListener('touchmove',  function(e){ if(dragX0!==null) onMove(e.touches[0].clientX); },{passive:true});
+  document.addEventListener('touchend',   onEnd);
+
+  /* ---- City picker ---- */
+  function updatePickerCount() {
+    var n = Object.keys(selectedPaths).length;
+    document.getElementById('pickerCount').textContent =
+      n ? n + ' cit' + (n===1?'y':'ies') + ' selected' : 'Select at least one city';
+    document.getElementById('pickerBtn').disabled = n === 0;
+  }
+
+  function toggleCity(path, cardEl) {
+    var cur = selectedPaths[path];
+    if (!cur)              selectedPaths[path] = 'been';
+    else if (cur==='been') selectedPaths[path] = 'bucketlist';
+    else                   delete selectedPaths[path];
+    var state = selectedPaths[path] || '';
+    cardEl.classList.toggle('been',       state==='been');
+    cardEl.classList.toggle('bucketlist', state==='bucketlist');
+    var badge = cardEl.querySelector('.city-card-badge');
+    if (badge) badge.textContent = state==='been' ? '✓ Been' : state==='bucketlist' ? '★ Wish list' : '';
+    updatePickerCount();
+  }
+
+  function startFromPicker() {
+    ACTIVE_GROUPS = GROUPS
+      .filter(function(g) { return !!selectedPaths[g.city_path]; })
+      .map(function(g) { return Object.assign({}, g, { mode: selectedPaths[g.city_path] }); });
+    if (!ACTIVE_GROUPS.length) return;
+    groupIdx = 0;
+    showIntro();
+  }
+
+  function buildPicker() {
+    var grid = document.getElementById('pickerGrid');
+    grid.innerHTML = GROUPS.map(function(g) {
+      var bg = g.image_url ? "background-image:url('" + g.image_url + "')" : '';
+      return '<div class="city-card" data-path="' + g.city_path + '">' +
+        '<div class="city-card-bg" style="' + bg + '"></div>' +
+        '<div class="city-card-name">' + g.city + '</div>' +
+        '<div class="city-card-badge"></div>' +
+      '</div>';
+    }).join('');
+    grid.querySelectorAll('.city-card').forEach(function(card) {
+      card.addEventListener('click', function() { toggleCity(card.dataset.path, card); });
+    });
+    document.getElementById('pickerBtn').addEventListener('click', startFromPicker);
+  }
+
+  /* ---- Boot ---- */
+  updateSidebar();
+  if (EXISTING_LIKED.length) fetchRecommendations();
+
+  if (GROUPS.length) {
+    buildPicker();
+    if (GROUPS[0].image_url) setBg(GROUPS[0].image_url);
+    showOnly(cityPicker);
+  } else {
+    showDone();
+  }
+})();
+</script>
+{% endblock %}

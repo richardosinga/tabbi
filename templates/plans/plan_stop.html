@@ -276,6 +276,7 @@
                   <span class="plan-suggestion-tile-emoji">{{ s.placeholder_emoji }}</span>
                 </div>
                 {% endif %}
+                {% if s.liked_match %}<span class="plan-suggestion-liked" title="In your passport">♥</span>{% endif %}
               </div>
               <div class="plan-suggestion-tile-body">
                 <a class="plan-suggestion-title" href="{{ WORLD66_SITE_URL }}/{{ s.page.path }}" target="_blank" rel="noopener">{{ s.page.title }}</a>

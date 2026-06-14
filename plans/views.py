@@ -593,7 +593,7 @@ def plan_new(request):
                     meta["passport"] = passport_slugs[0]
                 post = fm.Post(body, **meta)
                 with open(path, "w", encoding="utf-8") as fh:
-                    fm.dump(post, fh)
+                    fh.write(fm.dumps(post))
                 _save_password(slug, passphrase)
                 _mark_plan_authenticated(request, slug)
                 request.session["new_plan_passphrase"] = passphrase
@@ -667,11 +667,43 @@ def plan_detail(request, slug):
     total_budget["currency"] = currency
     total_budget["total"] = sum(total_budget[k] for k in ("hotel", "food", "activities", "travel"))
 
+    from passport.views import _load_passport as _lp
+    linked_passport = None
+    if plan.get("passport_slug"):
+        pp = _lp(plan["passport_slug"])
+        if pp:
+            linked_passport = {"slug": pp["slug"], "title": pp.get("title") or pp["slug"]}
+
+    session_passport_slugs = request.session.get("authenticated_passports", [])
+    session_passports = []
+    for ps in session_passport_slugs:
+        pp = _lp(ps)
+        if pp:
+            session_passports.append({"slug": pp["slug"], "title": pp.get("title") or pp["slug"]})
+
     return render(request, "plans/plan_detail.html", {
         "plan": plan,
         "stop_markers": mark_safe(json.dumps(stop_markers)),
         "total_budget": total_budget,
+        "linked_passport": linked_passport,
+        "session_passports": session_passports,
     })
+
+
+@_require_plan_auth
+@require_POST
+def plan_set_passport(request, slug):
+    import frontmatter as _fmb
+    path = PLANS_DIR / f"{slug}.md"
+    post = _fmb.load(str(path))
+    new_passport = request.POST.get("passport_slug", "").strip()
+    if new_passport:
+        post.metadata["passport"] = new_passport
+    else:
+        post.metadata.pop("passport", None)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(_fmb.dumps(post))
+    return HttpResponseRedirect(f"/plans/{slug}/")
 
 
 @_require_plan_auth
@@ -814,17 +846,33 @@ def plan_stop(request, slug, city_slug):
             "nature": ["nature", "park", "garden", "outdoors"],
         }
         expanded_keywords = set()
+        liked_poi_paths = set()
         all_keywords = list(plan.get("keywords", []))
-        # Merge passport interests if a passport is linked
+
+        # Pull tags from POIs already in this stop to reinforce the current plan's theme
+        for item in stop["items"]:
+            p = item.get("page")
+            if p:
+                for tag in p.tags:
+                    all_keywords.append(tag)
+
+        # Merge passport liked POI signals if a passport is linked
         passport_slug = plan.get("passport_slug", "")
         if passport_slug:
             try:
                 from passport.views import _load_passport
                 pp = _load_passport(passport_slug)
                 if pp:
-                    all_keywords = all_keywords + list(pp.get("interests", []))
+                    for poi in pp.get("liked_pois", []):
+                        liked_poi_paths.add(poi.get("url_path", ""))
+                        # Treat the POI's parent city as a soft destination signal (ignored here)
+                        # but use any recognisable category tag from the POI path slug
+                        slug_parts = (poi.get("url_path") or "").split("/")
+                        if slug_parts:
+                            all_keywords.append(slug_parts[-1].replace("_", " "))
             except Exception:
                 pass
+
         for k in all_keywords:
             kn = k.lower().strip()
             expanded_keywords.add(_normalize(kn))
@@ -857,7 +905,8 @@ def plan_stop(request, slug, city_slug):
             poi_text = slug_norm + " " + title_norm + " " + " ".join(tags_norm)
             note_match = any(n in poi_text or poi_text in n for n in note_needles) if note_needles else False
             keyword_match = any(k in poi_text for k in expanded_keywords) if expanded_keywords else False
-            score = (2 if note_match else 0) + (2 if keyword_match else 0) + (1 if img else 0)
+            liked_match = rel in liked_poi_paths
+            score = (2 if note_match else 0) + (2 if keyword_match else 0) + (3 if liked_match else 0) + (1 if img else 0)
             if not page.meta.get("snippet") and page.body:
                 first = next((p.strip() for p in page.body.split("\n\n") if p.strip()), "")
                 if first:
@@ -867,7 +916,8 @@ def plan_stop(request, slug, city_slug):
                 "page": page,
                 "image_url": f"/content-image/{img}" if img else None,
                 "_score": score,
-                "note_match": note_match or keyword_match,
+                "note_match": note_match or keyword_match or liked_match,
+                "liked_match": liked_match,
                 "category": _suggestion_category(page.tags),
                 "placeholder_emoji": ph_emoji,
                 "placeholder_bg": ph_bg,
@@ -942,7 +992,7 @@ def _plan_save_budget(slug, city_slug, budget_data):
     budgets[city_slug] = {k: v for k, v in budget_data.items() if v is not None}
     post.metadata["budgets"] = budgets
     with open(path, "w", encoding="utf-8") as fh:
-        fm.dump(post, fh)
+        fh.write(fm.dumps(post))
 
 
 def _parse_poi_price(poi_path):
@@ -978,7 +1028,7 @@ def _budget_add_poi_price(slug, city_slug, poi_path):
     budgets[city_slug] = stop_budget
     post.metadata["budgets"] = budgets
     with open(path, "w", encoding="utf-8") as fh:
-        fm.dump(post, fh)
+        fh.write(fm.dumps(post))
 
 
 def _budget_remove_poi_price(slug, city_slug, poi_path):
@@ -1006,7 +1056,7 @@ def _budget_remove_poi_price(slug, city_slug, poi_path):
     budgets[city_slug] = stop_budget
     post.metadata["budgets"] = budgets
     with open(path, "w", encoding="utf-8") as fh:
-        fm.dump(post, fh)
+        fh.write(fm.dumps(post))
 
 
 @_require_plan_auth
@@ -1069,7 +1119,7 @@ def api_plan_add_stop(request, slug):
     lines.append(f"## {city_title}")
     post.content = "\n".join(lines)
     with open(path, "w", encoding="utf-8") as fh:
-        fm.dump(post, fh)
+        fh.write(fm.dumps(post))
 
     stop_url = f"/plans/{slug}/{city_slug}/"
     image_url = None
@@ -1098,7 +1148,7 @@ def plan_edit(request, slug):
         post = fm.load(path)
         post.content = body
         with open(path, "w", encoding="utf-8") as fh:
-            fm.dump(post, fh)
+            fh.write(fm.dumps(post))
         return HttpResponseRedirect(f"/plans/{slug}/")
     post = fm.load(path)
     return render(request, "plans/plan_edit.html", {
@@ -1142,14 +1192,14 @@ def _plan_file_add(slug, city_slug, poi_path):
         lines.append(f"- {poi_path}")
         post.content = "\n".join(lines)
         with open(path, "w", encoding="utf-8") as fh:
-            fm.dump(post, fh)
+            fh.write(fm.dumps(post))
         return True
     if any(l.strip().lstrip("-* ") == poi_path for l in lines):
         return False
     lines.insert(insert_at, f"- {poi_path}")
     post.content = "\n".join(lines)
     with open(path, "w", encoding="utf-8") as fh:
-        fm.dump(post, fh)
+        fh.write(fm.dumps(post))
     return True
 
 
@@ -1163,7 +1213,7 @@ def _plan_file_remove(slug, poi_path):
         return False
     post.content = "\n".join(new_lines)
     with open(path, "w", encoding="utf-8") as fh:
-        fm.dump(post, fh)
+        fh.write(fm.dumps(post))
     return True
 
 
@@ -1230,7 +1280,7 @@ def plan_note_edit(request, slug, city_slug):
         ]
         post.content = "\n".join(new_lines)
         with open(path, "w", encoding="utf-8") as fh:
-            fm.dump(post, fh)
+            fh.write(fm.dumps(post))
     return HttpResponseRedirect(request.POST.get("next", f"/plans/{slug}/{city_slug}/"))
 
 

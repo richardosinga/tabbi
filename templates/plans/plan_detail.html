@@ -17,6 +17,92 @@
   </div>
   {% if plan.description %}<p class="plan-description">{{ plan.description }}</p>{% endif %}
 
+  <!-- Passport link indicator -->
+  <style>
+  .plan-passport-row {
+    display: flex; align-items: center; gap: 8px;
+    margin: -8px 0 18px; font-size: .8rem; color: #A6A6A6;
+  }
+  .plan-passport-icon { font-size: .9rem; }
+  .plan-passport-name { font-weight: 600; color: #535050; }
+  .plan-passport-action {
+    background: none; border: none; padding: 0; cursor: pointer;
+    font-family: inherit; font-size: .78rem; color: #e7a328;
+    text-decoration: none; font-weight: 600;
+  }
+  .plan-passport-action:hover { text-decoration: underline; }
+  .plan-passport-dropdown {
+    display: none; position: absolute; z-index: 100;
+    background: #fff; border: 2px solid #180A0A; border-radius: 10px;
+    box-shadow: 4px 4px 0 #180A0A; padding: 10px; min-width: 220px; margin-top: 4px;
+  }
+  .plan-passport-dropdown.open { display: block; }
+  .plan-passport-dropdown select {
+    width: 100%; padding: 7px 10px; border: 1.5px solid #DCDCDC; border-radius: 6px;
+    font-family: inherit; font-size: .85rem; margin-bottom: 8px; background: #fff;
+  }
+  .plan-passport-dropdown-actions { display: flex; gap: 8px; }
+  .plan-passport-dropdown button[type=submit] {
+    flex: 1; padding: 7px; background: #e7a328; color: #180A0A;
+    border: 1.5px solid #180A0A; border-radius: 6px; font-family: inherit;
+    font-size: .82rem; font-weight: 700; cursor: pointer;
+  }
+  .plan-passport-dropdown button[name=passport_slug][value=""] {
+    flex: 1; padding: 7px; background: #fff; color: #535050;
+    border: 1.5px solid #DCDCDC; border-radius: 6px; font-family: inherit;
+    font-size: .82rem; cursor: pointer;
+  }
+  </style>
+  <div class="plan-passport-row" style="position:relative;">
+    <span class="plan-passport-icon">🗂️</span>
+    {% if linked_passport %}
+      <span>Personalised with</span>
+      <a href="/passport/{{ linked_passport.slug }}/" class="plan-passport-name" style="color:#535050;text-decoration:none;">{{ linked_passport.title }}</a>
+      {% if session_passports|length > 1 %}
+        <button class="plan-passport-action" id="ppChangeBtn" type="button">Change</button>
+      {% else %}
+        <button class="plan-passport-action" id="ppChangeBtn" type="button">Unlink</button>
+      {% endif %}
+    {% elif session_passports %}
+      <span>No passport linked —</span>
+      <button class="plan-passport-action" id="ppChangeBtn" type="button">Link a passport</button>
+    {% else %}
+      <span>No passport linked —</span>
+      <a href="/passport/new" class="plan-passport-action">Create a passport →</a>
+    {% endif %}
+
+    {% if session_passports %}
+    <div class="plan-passport-dropdown" id="ppDropdown">
+      <form method="post" action="/plans/{{ plan.slug }}/set-passport/">
+        {% csrf_token %}
+        <select name="passport_slug">
+          <option value="">— No passport —</option>
+          {% for pp in session_passports %}
+          <option value="{{ pp.slug }}" {% if linked_passport and linked_passport.slug == pp.slug %}selected{% endif %}>{{ pp.title }}</option>
+          {% endfor %}
+        </select>
+        <div class="plan-passport-dropdown-actions">
+          <button type="submit">Save</button>
+        </div>
+      </form>
+    </div>
+    <script>
+    (function(){
+      var btn = document.getElementById('ppChangeBtn');
+      var dd  = document.getElementById('ppDropdown');
+      if (!btn || !dd) return;
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        dd.classList.toggle('open');
+      });
+      document.addEventListener('click', function(e) {
+        if (!dd.contains(e.target)) dd.classList.remove('open');
+      });
+    })();
+    </script>
+    {% endif %}
+  </div>
+
   <div class="plan-overview-layout">
     <div class="plan-map-wrap">
       <div id="plan-overview-map">
