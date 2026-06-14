@@ -1500,6 +1500,89 @@ def api_plan_remove_poi(request):
 
 @csrf_exempt
 @require_POST
+def api_plan_update_poi(request):
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "invalid JSON"}, status=400)
+
+    plan_slug = body.get("plan_slug", "").strip()
+    city_slug = body.get("city_slug", "").strip()
+    poi_path  = body.get("poi_path", "").strip()
+    updates   = body.get("updates", {})
+    if not plan_slug or not city_slug or not poi_path:
+        return JsonResponse({"error": "plan_slug, city_slug and poi_path are required"}, status=400)
+    if not _check_plan_auth(body, plan_slug):
+        return JsonResponse({"error": "unauthorized"}, status=403)
+
+    import frontmatter as fm
+
+    # Read existing POI — could be a w66 path or an existing local ~pois path
+    existing_meta = {}
+    existing_body = ""
+    if poi_path.startswith("~pois/"):
+        # Already a local override — read it directly
+        rel = poi_path[len("~pois/"):]
+        local_file = PLANS_DIR / "pois" / f"{rel}.md"
+        if local_file.exists():
+            post = fm.load(str(local_file))
+            existing_meta = dict(post.metadata)
+            existing_body = post.content
+    else:
+        # World66 path — read from content dir
+        from world66_content.models import load_page, CONTENT_DIR
+        page = load_page(poi_path)
+        if page:
+            existing_meta = {"title": page.title, "type": "poi",
+                             "category": getattr(page, "category", "Landmark"),
+                             "latitude": page.meta.get("latitude"),
+                             "longitude": page.meta.get("longitude")}
+            existing_body = page.meta.get("body", "") or ""
+        w66_file = CONTENT_DIR / f"{poi_path}.md"
+        if w66_file.exists():
+            post = fm.load(str(w66_file))
+            existing_meta = dict(post.metadata)
+            existing_body = post.content
+
+    # Apply updates
+    title = updates.get("title", existing_meta.get("title", poi_path.split("/")[-1].replace("-", " ").title()))
+    meta = {
+        "title":    title,
+        "type":     "poi",
+        "category": updates.get("category", existing_meta.get("category", "Landmark")),
+    }
+    for coord in ("latitude", "longitude"):
+        val = updates.get(coord, existing_meta.get(coord))
+        if val is not None:
+            meta[coord] = round(float(val), 7)
+    if updates.get("image_url") or existing_meta.get("image_url"):
+        meta["image_url"] = updates.get("image_url", existing_meta.get("image_url"))
+
+    new_body = updates.get("body", existing_body)
+
+    # Save as local override
+    slug = re.sub(r"[\s_]+", "-", re.sub(r"[^\w\s-]", "", title.lower()).strip()).strip("-") or "poi"
+    city_path_guess = next(
+        (s["city_path"] for s in _parse_plan(PLANS_DIR / f"{plan_slug}.md")["stops"]
+         if s["city_slug"] == city_slug), city_slug)
+    poi_prefix = f"{plan_slug}/{city_path_guess}"
+    local_dir = PLANS_DIR / "pois" / poi_prefix
+    local_dir.mkdir(parents=True, exist_ok=True)
+    local_file = local_dir / f"{slug}.md"
+    post = fm.Post(new_body, **meta)
+    local_file.write_text(fm.dumps(post))
+
+    local_path = f"~pois/{poi_prefix}/{slug}"
+
+    # Replace old path in plan with new local path
+    _plan_file_remove(plan_slug, poi_path)
+    _plan_file_add(plan_slug, city_slug, local_path)
+
+    return JsonResponse({"ok": True, "title": title, "local_path": local_path})
+
+
+@csrf_exempt
+@require_POST
 def api_plan_add_pois(request):
     try:
         body = json.loads(request.body)
@@ -1513,9 +1596,16 @@ def api_plan_add_pois(request):
     if not _check_plan_auth(body, plan_slug):
         return JsonResponse({"error": "unauthorized"}, status=403)
 
+    MAX_PLACES = 10
+    existing = _read_plan_items(plan_slug).get(city_slug, [])
+    if len(existing) >= MAX_PLACES:
+        return JsonResponse({"added": 0, "message": f"Stop already has {len(existing)} places (max {MAX_PLACES}). No more added."})
+
     added = 0
     for path in body.get("poi_paths", []):
         if isinstance(path, str) and path.strip():
+            if len(existing) + added >= MAX_PLACES:
+                break
             if _plan_file_add(plan_slug, city_slug, path.strip()):
                 added += 1
     return JsonResponse({"added": added})
@@ -1584,6 +1674,14 @@ def api_research_submit(request):
         return JsonResponse({"error": "city_title and pois are required"}, status=400)
     if plan_slug and not _check_plan_auth(body, plan_slug):
         return JsonResponse({"error": "unauthorized"}, status=403)
+
+    MAX_PLACES = 10
+    if plan_slug and city_slug:
+        existing_count = len(_read_plan_items(plan_slug).get(city_slug, []))
+        remaining = MAX_PLACES - existing_count
+        if remaining <= 0:
+            return JsonResponse({"accepted": 0, "message": f"Stop already has {existing_count} places (max {MAX_PLACES}). No more added."})
+        pois = pois[:remaining]
 
     if not city_path:
         city_path = re.sub(r"[^a-z0-9]+", "-", city_title.lower()).strip("-")

@@ -58,6 +58,103 @@ TABBI_BASE_URL = os.environ.get("TABBI_BASE_URL", "http://localhost:8001").rstri
 WORLD66_DIR = Path(os.environ.get("WORLD66_DIR", str(REPO_PATH / "world66")))
 
 # ---------------------------------------------------------------------------
+# Embedding similarity helpers (optional — gracefully disabled if deps absent)
+# ---------------------------------------------------------------------------
+
+def _read_poi_tags(path: str) -> set[str]:
+    """Return the set of tags from a POI markdown file."""
+    if path.startswith("~pois/"):
+        rest = path[len("~pois/"):]
+        md = WORLD66_DIR.parent / "plans" / "pois" / rest
+        md = md.with_suffix(".md") if not md.suffix else md
+    else:
+        md = WORLD66_DIR / "content" / (path + ".md")
+    try:
+        text = md.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return set()
+    tags = set()
+    in_tags = False
+    for line in text.splitlines():
+        s = line.strip()
+        if s == "tags:":
+            in_tags = True
+        elif in_tags:
+            if s.startswith("- "):
+                tags.add(s[2:].strip().lower())
+            elif s and not s.startswith("#"):
+                break
+    return tags
+
+
+def _similarity_rank(plan_poi_paths: list[str], candidates: list[dict], city_path: str = "") -> tuple[list[dict], str]:
+    """Re-sort candidates by similarity to plan_poi_paths.
+
+    Tries embedding cosine distance from search.db first; falls back to tag overlap.
+    Returns (sorted_candidates, method_note) where method_note describes what was used.
+    """
+    if not plan_poi_paths or not candidates:
+        return candidates, ""
+
+    # --- Try embedding similarity via search.db ---
+    db_path = WORLD66_DIR / "search.db"
+    w66_plan_paths = [
+        p + ".md" for p in plan_poi_paths
+        if not p.startswith("~") and not p.startswith("content/")
+    ]
+    if db_path.exists() and w66_plan_paths:
+        try:
+            import apsw
+            import sqlite_vec
+            conn = apsw.Connection(str(db_path), flags=apsw.SQLITE_OPEN_READONLY)
+            conn.enable_load_extension(True)
+            sqlite_vec.load(conn)
+            # Verify embeddings table exists
+            conn.execute("SELECT 1 FROM embeddings LIMIT 1")
+
+            prefix = city_path if not city_path.startswith("content/") else city_path[len("content/"):]
+            total = conn.execute("SELECT count(*) FROM embeddings").fetchone()[0]
+            knn_k = min(total, 4096)
+            scores: dict[str, float] = {}
+            for plan_path in w66_plan_paths:
+                emb = conn.execute(
+                    "SELECT embedding FROM embeddings WHERE path=?", (plan_path,)
+                ).fetchone()
+                if not emb:
+                    continue
+                rows = conn.execute(
+                    "SELECT path, distance FROM embeddings WHERE embedding MATCH ? AND k=? ORDER BY distance",
+                    (emb[0], knn_k),
+                ).fetchall()
+                for p, d in rows:
+                    if prefix and not p.startswith(prefix):
+                        continue
+                    cp = p[:-3] if p.endswith(".md") else p
+                    if cp not in scores or d < scores[cp]:
+                        scores[cp] = d
+            conn.close()
+            if scores:
+                ranked = sorted(candidates, key=lambda c: scores.get(c["path"], 1.0))
+                return ranked, "sorted by embedding similarity to your existing selections"
+        except Exception:
+            pass
+
+    # --- Fallback: tag overlap ---
+    plan_tags: set[str] = set()
+    for p in plan_poi_paths:
+        plan_tags |= _read_poi_tags(p)
+    if not plan_tags:
+        return candidates, ""
+
+    def tag_score(c: dict) -> int:
+        tags = _read_poi_tags(c["path"])
+        return -len(tags & plan_tags)  # negative so more overlap sorts first
+
+    ranked = sorted(candidates, key=tag_score)
+    return ranked, "sorted by tag similarity to your existing selections"
+
+
+# ---------------------------------------------------------------------------
 # Tool definitions
 # ---------------------------------------------------------------------------
 
@@ -145,6 +242,38 @@ TOOLS = [
         },
     },
     {
+        "name": "update_poi",
+        "description": (
+            "Override a world66 POI with corrected or updated information for a specific plan. "
+            "Use this when the user reports an error (wrong coordinates, outdated description, wrong category, etc.). "
+            "Reads the existing world66 data, applies your corrections, and saves a local override that only affects this plan. "
+            "Call geocode first if coordinates need fixing. "
+            "After calling this tool the plan will use the corrected version instead of the world66 original."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "plan_slug":   {"type": "string"},
+                "passphrase":  {"type": "string"},
+                "city_slug":   {"type": "string"},
+                "poi_path":    {"type": "string", "description": "Existing path in the plan, e.g. 'europe/sweden/stockholm/icebar' or '~pois/...'"},
+                "updates": {
+                    "type": "object",
+                    "description": "Fields to update. Only include fields that need changing.",
+                    "properties": {
+                        "title":     {"type": "string"},
+                        "body":      {"type": "string", "description": "Full replacement description (2-4 paragraphs)"},
+                        "category":  {"type": "string"},
+                        "latitude":  {"type": "number"},
+                        "longitude": {"type": "number"},
+                        "image_url": {"type": "string"},
+                    },
+                },
+            },
+            "required": ["plan_slug", "passphrase", "city_slug", "poi_path", "updates"],
+        },
+    },
+    {
         "name": "add_pois_to_plan",
         "description": (
             "Add existing world66 POI content paths directly to a trip plan. "
@@ -168,7 +297,9 @@ TOOLS = [
             "Call after research_city once you've written up the missing places. "
             "IMPORTANT: latitude and longitude are required for every POI. "
             "Call the geocode tool for each place before submitting — do NOT guess or estimate coordinates. "
-            "Wrong coordinates break the map."
+            "Wrong coordinates break the map. "
+            "LIMIT: each stop holds a maximum of 10 places total. "
+            "research_city tells you how many are already there — do not submit more than the remaining slots."
         ),
         "inputSchema": {
             "type": "object",
@@ -377,9 +508,12 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
     sections = [f"## What we have for {city_title}"]
 
     if already_in_plan:
+        stop_full = len(already_in_plan) >= 10
         sections.append(
-            f"### Already in the plan ({len(already_in_plan)}) — do NOT add these again\n"
+            f"### Already in the plan ({len(already_in_plan)}/10) — do NOT add these again\n"
             + "\n".join(f"- {item}" for item in already_in_plan)
+            + ("\n\n**This stop is full (10/10). Do NOT call add_pois_to_plan or submit_pois for this city.**" if stop_full else
+               f"\n\nRoom for {10 - len(already_in_plan)} more place(s) maximum.")
         )
 
     if existing_pois:
@@ -389,47 +523,67 @@ def tool_research_city(city_title: str, city_path: str = "", city_slug: str = ""
         sections.append(f"No existing world66 content for {city_title} — research from scratch.")
 
     # Filter out world66 POIs already in the plan so add_pois_to_plan only gets new ones
-    already_titles = {a.lower() for a in already_in_plan}
-    new_pois = [p for p in existing_pois if p["title"].lower() not in already_titles]
+    already_paths = {a.lower() for a in already_in_plan}
+    already_titles = {a.rsplit("/", 1)[-1].replace("_", " ").lower() for a in already_in_plan}
+    new_pois = [p for p in existing_pois if p["path"].lower() not in already_paths and p["title"].lower() not in already_titles]
+
+    # Rank new_pois by similarity to what's already in the plan
+    if already_in_plan and new_pois:
+        new_pois, ranked_note = _similarity_rank(already_in_plan, new_pois, city_path)
+        ranked_note = f" ({ranked_note})" if ranked_note else ""
+    else:
+        ranked_note = ""
 
     if new_pois:
         prefs_note = f" Traveller profile: {preferences}. Pick places that match." if preferences else \
             " Pick the most essential ones a first-time visitor should not miss."
         poi_instruction = (
-            f"1. From the {len(new_pois)} world66 place(s) above, select 8–12 that best fit this trip.{prefs_note} "
-            f"Skip duplicates, obscure entries, and anything that doesn't stand on its own. "
+            f"1. From the {len(new_pois)} world66 place(s) below, select 6–8 that best fit this trip.{prefs_note} "
+            f"Skip duplicates, obscure entries, and anything that doesn't stand on its own.{ranked_note} "
             f"Call add_pois_to_plan with only those selected path(s):\n"
             + "\n".join(f"   - `{p['path']}`" for p in new_pois)
-            + "\n   (Pick the best 8–12 from this list, not all of them.)\n"
+            + "\n   (Pick the best 6–8 from this list, not all of them.)\n"
         )
     else:
         poi_instruction = "1. No new world66 POIs to add.\n"
 
-    sections.append(
-        "## Instructions\n"
-        + poi_instruction
-        + (f"2. Check if the selected world66 places cover the traveller's interests ({preferences}). "
-           f"Before writing anything new, call search_world66 for any interest area that has no coverage "
-           f"(e.g. 'restaurants {city_title}', 'parks {city_title}') — use world66 paths if found. "
-           f"Only write new places for genuine gaps where world66 has nothing.\n"
-           if preferences else
-           f"2. Before writing new places, call search_world66 for any obvious gaps "
-           f"(e.g. 'restaurants {city_title}', 'parks {city_title}'). Use world66 paths if found.\n")
-        + f"3. Only if world66 has no coverage for a category: write 1-2 new places to fill that gap.\n"
-        f"   Default categories to fill: Landmark, Museum, Park, Market, Neighbourhood, Viewpoint, Gallery.\n"
-        f"   Only add Restaurant or Bar if the traveller explicitly mentioned food, eating, bars, or nightlife in their preferences.\n"
-        f"   For each new place:\n"
-        f"   - 2-4 paragraphs of prose, under 280 words, per the style guide below\n"
-        f"   - One category: Landmark|Museum|Restaurant|Market|Park|Neighbourhood|Viewpoint|Bar|Gallery\n"
-        f"   - Exact latitude/longitude — call the geocode tool for each place.\n"
-        f"     NEVER guess or estimate coordinates. Wrong coords break the map.\n"
-        f"   - A direct image_url from Wikimedia Commons if one exists\n"
-        f"4. Write a short intro for the city stop (2-4 sentences). "
-        f"Write it in the same language the traveller used — if their preferences were in Dutch, write Dutch; French, write French; etc. "
-        f"Make it specific and personal to their trip: mention the dates, the group, what they plan to do there. "
-        f"POI descriptions (the `body` field) must always be in English.\n"
-        f"5. Call submit_pois with the intro and all new places."
-    )
+    current_count = len(already_in_plan)
+    remaining = max(0, 10 - current_count)
+
+    if current_count >= 8:
+        sections.append(
+            f"## Instructions\n"
+            f"This stop already has {current_count} place(s) — it is well-covered. "
+            f"**Do not call add_pois_to_plan, submit_pois, or search_world66.** "
+            f"{'No further additions are possible (limit reached).' if current_count >= 10 else f'You may add at most {remaining} more only if the user explicitly asks for it.'}\n\n"
+            f"If no intro exists yet, write one (2-4 sentences, traveller's language) and call submit_pois with an empty pois list and only the intro field."
+        )
+    else:
+        sections.append(
+            "## Instructions\n"
+            + poi_instruction
+            + (f"2. Check if the selected world66 places fit the traveller's interests ({preferences}). "
+               f"Before writing anything new, call search_world66 for more places like those — "
+               f"(e.g. '{preferences} {city_title}') — use world66 paths if found. "
+               f"Only write new places where world66 has nothing similar.\n"
+               if preferences else
+               f"2. Before writing new places, call search_world66 for more places similar to those already selected "
+               f"(e.g. same types of venues, same vibe). Use world66 paths if found.\n")
+            + f"3. Only if world66 has no coverage for a type already in this trip: write 1 new place. "
+            f"Remaining capacity: {remaining} place(s) total (already have {current_count}/10). Stop once reached.\n"
+            f"   Match the character of what's already there — if the trip is food-focused, add food; if cultural, add culture.\n"
+            f"   For each new place:\n"
+            f"   - 2-4 paragraphs of prose, under 280 words, per the style guide below\n"
+            f"   - One category: Landmark|Museum|Restaurant|Market|Park|Neighbourhood|Viewpoint|Bar|Gallery\n"
+            f"   - Exact latitude/longitude — call the geocode tool for each place.\n"
+            f"     NEVER guess or estimate coordinates. Wrong coords break the map.\n"
+            f"   - A direct image_url from Wikimedia Commons if one exists\n"
+            f"4. Write a short intro for the city stop (2-4 sentences). "
+            f"Write it in the same language the traveller used — if their preferences were in Dutch, write Dutch; French, write French; etc. "
+            f"Make it specific and personal to their trip: mention the dates, the group, what they plan to do there. "
+            f"POI descriptions (the `body` field) must always be in English.\n"
+            f"5. Call submit_pois with the intro and all new places. Once submitted, this city is done — do not call research_city again for {city_title}."
+        )
     if style_md:
         sections.append(f"## Writing style guide\n{style_md}")
     return "\n\n".join(sections)
@@ -470,6 +624,22 @@ def tool_remove_poi_from_plan(plan_slug: str, passphrase: str, poi_path: str) ->
         return f"'{poi_path}' was not found in the plan."
     except RuntimeError as e:
         return f"Failed to remove: {e}"
+
+
+def tool_update_poi(plan_slug: str, passphrase: str, city_slug: str, poi_path: str, updates: dict) -> str:
+    try:
+        result = _http_post(f"{TABBI_BASE_URL}/api/plan/update-poi", {
+            "plan_slug": plan_slug, "passphrase": passphrase,
+            "city_slug": city_slug, "poi_path": poi_path, "updates": updates,
+        })
+        if result.get("error"):
+            return f"Failed to update: {result['error']}"
+        return (
+            f"Updated '{result.get('title', poi_path)}' and saved as a local override at `{result.get('local_path')}`.\n"
+            f"The plan now uses the corrected version instead of the world66 original."
+        )
+    except RuntimeError as e:
+        return f"Failed to update: {e}"
 
 
 def tool_geocode(query: str) -> str:
@@ -610,6 +780,12 @@ def _handle(message: dict) -> dict | None:
                     plan_slug=args["plan_slug"], passphrase=args["passphrase"],
                     city_path=args.get("city_path", ""), city_slug=args.get("city_slug", ""),
                     intro=args.get("intro", ""),
+                )
+            elif name == "update_poi":
+                text = tool_update_poi(
+                    plan_slug=args["plan_slug"], passphrase=args["passphrase"],
+                    city_slug=args["city_slug"], poi_path=args["poi_path"],
+                    updates=args["updates"],
                 )
             elif name == "remove_poi_from_plan":
                 text = tool_remove_poi_from_plan(

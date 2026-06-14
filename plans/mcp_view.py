@@ -44,12 +44,14 @@ def _mcp_get(request):
     if not _wants_sse(request):
         return HttpResponse(status=406)
 
-    def heartbeat():
-        for _ in range(3600):  # up to 1 hour
-            yield ": ping\n\n"
-            time.sleep(15)
+    def hold_open():
+        # Keep the SSE connection alive without sending any events.
+        # We don't use server-push; this endpoint exists only for spec compliance.
+        for _ in range(720):  # up to 2 hours (10s intervals)
+            yield ""
+            time.sleep(10)
 
-    r = StreamingHttpResponse(heartbeat(), content_type="text/event-stream")
+    r = StreamingHttpResponse(hold_open(), content_type="text/event-stream")
     r["Cache-Control"] = "no-cache"
     r["X-Accel-Buffering"] = "no"
     session_id = request.META.get("HTTP_MCP_SESSION_ID", "")
