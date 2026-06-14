@@ -287,6 +287,13 @@ def _parse_stops(body, plan_slug):
                 city_name = city_part
                 hint = plan_slug + " " + " ".join(s.get("city_path") or "" for s in stops)
                 city_path = resolve_location_name(city_part, hint)
+            if city_path:
+                _loc_page = load_page(city_path)
+                if _loc_page:
+                    _loc_type = _loc_page.meta.get("loc_type", "")
+                    if _loc_type in ("country", "continent", "region"):
+                        current = None
+                        continue
             city_slug = _slugify(city_name)
             current = {
                 "city": city_name,
@@ -488,6 +495,8 @@ def api_suggest_destinations(request):
             path = resolve_location_name(phrase, title)
             if path and path not in seen_paths:
                 page = load_page(path)
+                if page and page.meta.get("loc_type", "") in ("country", "continent", "region"):
+                    continue  # skip non-city locations; Claude will suggest cities instead
                 name = page.title if page else phrase.title()
                 seen_paths.add(path)
                 seen_names.add(name.lower())
@@ -553,6 +562,16 @@ def plan_new(request):
                 body_lines = []
                 if budget_raw:
                     body_lines.append(f"budget: {budget_raw}\n")
+                def _is_city_path(path):
+                    """Return True only if the resolved path is a city (not a country/region/continent)."""
+                    if not path:
+                        return False
+                    p = load_page(path)
+                    if not p:
+                        return True  # unknown page, assume ok
+                    loc_type = p.meta.get("loc_type", "")
+                    return loc_type not in ("country", "continent", "region")
+
                 city_headings = []
                 if locations_raw:
                     for loc in re.split(r"[,;]+", locations_raw):
@@ -560,6 +579,8 @@ def plan_new(request):
                         if not loc:
                             continue
                         city_path = resolve_location_name(loc, title)
+                        if city_path and not _is_city_path(city_path):
+                            continue  # skip countries/regions
                         if city_path:
                             city_page = load_page(city_path)
                             city_headings.append(f"## {city_page.title if city_page else loc.title()}")
@@ -573,7 +594,8 @@ def plan_new(request):
                         matched = False
                         for length in range(min(4, len(title_words) - i), 0, -1):
                             phrase = " ".join(title_words[i:i+length])
-                            if resolve_location_name(phrase, title):
+                            path = resolve_location_name(phrase, title)
+                            if path and _is_city_path(path):
                                 city_headings.append(f"## {phrase}")
                                 i += length
                                 matched = True
@@ -963,6 +985,10 @@ def plan_stop(request, slug, city_slug):
     items_eat   = [i for i in stop["items"] if _item_group(i) == "eat"]
     items_drink = [i for i in stop["items"] if _item_group(i) == "drink"]
     ungrouped   = False
+
+    for item in stop["items"]:
+        p = item.get("page")
+        item["providers"] = p.tagged_pois() if p and p.meta.get("provider_category") else []
 
     inspo_count = (1 if city_image_url else 0) + sum(1 for i in stop["items"] if i.get("image_url"))
 

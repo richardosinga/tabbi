@@ -151,6 +151,23 @@
             {% else %}
               {% if item.page.meta.snippet %}<p class="plan-poi-snippet">{{ item.page.meta.snippet }}</p>{% endif %}
             {% endif %}
+            {% if item.providers %}
+            <div class="poi-providers">
+              {% for provider in item.providers %}
+              <div class="poi-provider-card">
+                <div class="poi-provider-info">
+                  <span class="poi-provider-name">{{ provider.title }}</span>
+                  {% if provider.meta.snippet %}<p class="poi-provider-snippet">{{ provider.meta.snippet }}</p>{% endif %}
+                </div>
+                <div class="poi-booking-bar">
+                  {% if provider.meta.price %}<span class="poi-booking-price">{{ provider.meta.price }}</span>{% endif %}
+                  {% if provider.meta.duration %}<span class="poi-booking-duration">{{ provider.meta.duration }}</span>{% endif %}
+                  {% if provider.meta.booking_url %}<a class="poi-book-btn" href="{{ provider.meta.booking_url }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Book →</a>{% endif %}
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %}
           {% elif item.external_url %}
             <a class="plan-external-link" href="{{ item.external_url }}" target="_blank" rel="noopener">
               <span class="plan-external-label">{{ item.display_label }}</span>
