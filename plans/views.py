@@ -938,7 +938,7 @@ def plan_stop(request, slug, city_slug):
                 keyword_match = any(k in poi_text for k in expanded_keywords) if expanded_keywords else False
                 liked_match = rel in liked_poi_paths
                 is_bookable = bool(page.meta.get("provider_category"))
-                score = (2 if note_match else 0) + (2 if keyword_match else 0) + (3 if liked_match else 0) + (1 if img else 0) + (4 if is_bookable else 0)
+                score = (2 if note_match else 0) + (2 if keyword_match else 0) + (3 if liked_match else 0) + (1 if img else 0)
                 if not page.meta.get("snippet") and page.body:
                     first = next((p.strip() for p in page.body.split("\n\n") if p.strip()), "")
                     if first:
@@ -948,7 +948,7 @@ def plan_stop(request, slug, city_slug):
                     "page": page,
                     "image_url": f"/content-image/{img}" if img else None,
                     "_score": score,
-                    "note_match": note_match or keyword_match or liked_match or is_bookable,
+                    "note_match": note_match or keyword_match or liked_match,
                     "liked_match": liked_match,
                     "category": _suggestion_category(page.tags),
                     "placeholder_emoji": ph_emoji,

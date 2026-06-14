@@ -84,7 +84,7 @@
                 <div class="plan-poi-full-image" style="background-image:url('{{ item.image_url }}')"></div>
                 {% endif %}
                 <p class="plan-poi-full-body">{{ item.page.body }}</p>
-                {% if not item.page.path|slice:":6" == "~pois/" %}
+                {% if not item.page.path|slice:":6" == "~pois/" and not item.page.meta.provider_category and not item.page.meta.provider %}
                 <a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Read more on world66</a>
                 {% endif %}
               </div>
@@ -146,7 +146,7 @@
               <div class="plan-poi-full" hidden>
                 {% if item.image_url %}<div class="plan-poi-full-image" style="background-image:url('{{ item.image_url }}')"></div>{% endif %}
                 <p class="plan-poi-full-body">{{ item.page.body }}</p>
-                {% if not item.page.path|slice:":6" == "~pois/" %}<a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Read more on world66</a>{% endif %}
+                {% if not item.page.path|slice:":6" == "~pois/" and not item.page.meta.provider_category and not item.page.meta.provider %}<a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Read more on world66</a>{% endif %}
               </div>
             {% else %}
               {% if item.page.meta.snippet %}<p class="plan-poi-snippet">{{ item.page.meta.snippet }}</p>{% endif %}
