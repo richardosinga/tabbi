@@ -5,6 +5,7 @@ tags:
   - things_to_do
   - activities
 provider_category: true
+score: 2
 snippet: "Learn to make ceviche, lomo saltado and pisco sour from Lima-based chefs."
 ---
 

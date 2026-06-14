@@ -5,6 +5,7 @@ tags:
   - things_to_do
   - activities
 provider_category: true
+score: 1
 snippet: "Learn to surf on Lima's city beaches — lessons run year-round at Playa Makaha."
 ---
 

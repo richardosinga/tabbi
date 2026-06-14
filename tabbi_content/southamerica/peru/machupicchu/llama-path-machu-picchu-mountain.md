@@ -6,6 +6,7 @@ tags:
 provider: true
 price: "from $75 per person"
 duration: "4–5 hours (incl. descent)"
+phone: "+51 956 122 696"
 booking_url: "https://www.llamapath.com/machu-picchu-mountain-tour/"
 snippet: "Guided ascent of Machu Picchu Mountain (3,082m) — higher and quieter than Huayna Picchu, with panoramic views across the cloud forest."
 ---

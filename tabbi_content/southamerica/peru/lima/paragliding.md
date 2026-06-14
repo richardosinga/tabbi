@@ -5,6 +5,7 @@ tags:
   - things_to_do
   - activities
 provider_category: true
+score: 2
 snippet: "Tandem paragliding flights off the Miraflores cliffs, with views over the Pacific and the Lima coastline."
 ---
 

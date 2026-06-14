@@ -2,7 +2,7 @@
 title: "SAS Travel Floating Islands & Taquile"
 type: poi
 tags:
-  - lake-titicaca-island-tours
+  - lake-titicaca-tours
 provider: true
 price: "from $30 per person"
 duration: "Full day"

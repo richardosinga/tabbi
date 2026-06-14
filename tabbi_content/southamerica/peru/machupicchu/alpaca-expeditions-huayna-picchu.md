@@ -6,6 +6,7 @@ tags:
 provider: true
 price: "from $80 per person"
 duration: "3–4 hours (incl. descent)"
+phone: "+51 984 441 260"
 booking_url: "https://www.alpacaexpeditions.com/tours/huayna-picchu-tour/"
 snippet: "Alpaca Expeditions handle the permit booking and guide the ascent of Huayna Picchu — the steep peak above the citadel with the most dramatic views."
 ---

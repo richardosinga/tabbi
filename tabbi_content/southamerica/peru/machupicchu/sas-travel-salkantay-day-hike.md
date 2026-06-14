@@ -6,6 +6,7 @@ tags:
 provider: true
 price: "from $60 per person"
 duration: "3 hours return"
+phone: "+51 984 673 124"
 booking_url: "https://www.sastravel.com/tour/sun-gate-inti-punku-hike/"
 snippet: "Guided hike from the citadel to the Sun Gate (Inti Punku) — no extra permit required, and the views back down to the citadel are unforgettable."
 ---

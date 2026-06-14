@@ -5,6 +5,7 @@ tags:
   - things_to_do
   - activities
 provider_category: true
+score: 3
 snippet: "Eat your way through Lima's markets, cevicherías and street-food stalls with a local guide."
 ---
 

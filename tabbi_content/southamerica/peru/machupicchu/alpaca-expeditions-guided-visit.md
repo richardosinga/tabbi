@@ -6,6 +6,7 @@ tags:
 provider: true
 price: "from $40 per person"
 duration: "2 hours"
+phone: "+51 984 441 260"
 booking_url: "https://www.alpacaexpeditions.com/tours/machu-picchu-guided-tour/"
 snippet: "The most affordable quality guide option at Machu Picchu — local guides born in the Aguas Calientes area with deep community knowledge."
 ---

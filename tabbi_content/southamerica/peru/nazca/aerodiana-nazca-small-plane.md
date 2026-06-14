@@ -6,8 +6,9 @@ tags:
 provider: true
 price: "from $90 per person"
 duration: "35 minutes"
+phone: "+51 989 046 289"
 booking_url: "https://www.aerodiana.com.pe/en/nazca-lines/"
-snippet: "A quality operator with newer aircraft and a reputation for thorough pre-flight safety briefings and attentive service."
+snippet: "Cessna Grand Caravan overflights — 12 seats, panoramic windows, all 19 classic geoglyphs."
 ---
 
-Aerodiana is one of the newer licensed operators at Maria Reiche Airport and has invested in more modern Cessna aircraft with updated avionics. Their safety record is clean and their pre-flight briefing is more thorough than most competitors, which is reassuring for first-time small-plane passengers. The 35-minute route covers the full standard set of geoglyphs plus the lesser-visited Whale figure. Slightly higher price reflects newer equipment. English-speaking guides available on request.
+Aerodiana flies Cessna Grand Caravan aircraft (12 passengers, panoramic windows) from Pisco International Airport over all 19 classic Nazca geoglyphs. Active TripAdvisor reviews through 2024–2025. WhatsApp: +51 989 046 289. Email: reservas@aerodiana.com.pe. Instagram: @aerodiana_peru.

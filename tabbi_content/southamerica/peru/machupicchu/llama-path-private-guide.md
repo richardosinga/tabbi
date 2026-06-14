@@ -6,6 +6,7 @@ tags:
 provider: true
 price: "from $45 per person"
 duration: "2.5 hours"
+phone: "+51 956 122 696"
 booking_url: "https://www.llamapath.com/machu-picchu-tours/"
 snippet: "A well-regarded Cuzco-based operator offering private licensed guides for small groups at the citadel, with pre-trip briefing the night before."
 ---

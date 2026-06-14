@@ -5,6 +5,7 @@ tags:
   - things_to_do
   - activities
 provider_category: true
+score: 3
 snippet: "Free and paid walking tours of the historic centre, Barranco and Miraflores."
 ---
 

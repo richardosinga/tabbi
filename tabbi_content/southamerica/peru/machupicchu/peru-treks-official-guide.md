@@ -6,7 +6,8 @@ tags:
 provider: true
 price: "from $55 per person"
 duration: "3 hours"
-booking_url: "https://www.perutreks.com/machu-picchu-tours/"
+phone: "+51 984 216 067"
+booking_url: "https://www.perutreks.net/machu-picchu-tours/"
 snippet: "Peru Treks' Machu Picchu guide service focuses on the astronomical and ceremonial aspects of the site, with archaeologist-trained guides."
 ---
 
