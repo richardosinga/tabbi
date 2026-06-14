@@ -3,7 +3,7 @@
 
 {% block body_style %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="{% static 'plans/css/tabbi.css' %}">
+<link rel="stylesheet" href="{% static 'plans/css/tabbi.css' %}?v={{ DEPLOY_VERSION }}">
 {% endblock %}
 
 {% block head_extra %}

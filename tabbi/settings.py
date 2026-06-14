@@ -1,4 +1,5 @@
 import os
+import subprocess
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -96,6 +97,13 @@ LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
+
+try:
+    DEPLOY_VERSION = subprocess.check_output(
+        ["git", "rev-parse", "--short", "HEAD"], cwd=BASE_DIR, stderr=subprocess.DEVNULL
+    ).decode().strip()
+except Exception:
+    DEPLOY_VERSION = "dev"
 
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
