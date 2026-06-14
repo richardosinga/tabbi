@@ -15,7 +15,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from django.conf import settings as _settings
-from world66_content.models import CONTENT_DIR, load_page, resolve_location_name
+from world66_content.models import CONTENT_DIR, TABBI_CONTENT_DIR, load_page, resolve_location_name
 
 def _slugify(text: str) -> str:
     """ASCII slug: transliterates unicode (ü→u, é→e) rather than stripping it."""
@@ -287,6 +287,13 @@ def _parse_stops(body, plan_slug):
                 city_name = city_part
                 hint = plan_slug + " " + " ".join(s.get("city_path") or "" for s in stops)
                 city_path = resolve_location_name(city_part, hint)
+            if city_path:
+                _loc_page = load_page(city_path)
+                if _loc_page:
+                    _loc_type = _loc_page.meta.get("loc_type", "")
+                    if _loc_type in ("country", "continent", "region"):
+                        current = None
+                        continue
             city_slug = _slugify(city_name)
             current = {
                 "city": city_name,
@@ -488,6 +495,8 @@ def api_suggest_destinations(request):
             path = resolve_location_name(phrase, title)
             if path and path not in seen_paths:
                 page = load_page(path)
+                if page and page.meta.get("loc_type", "") in ("country", "continent", "region"):
+                    continue  # skip non-city locations; Claude will suggest cities instead
                 name = page.title if page else phrase.title()
                 seen_paths.add(path)
                 seen_names.add(name.lower())
@@ -553,6 +562,16 @@ def plan_new(request):
                 body_lines = []
                 if budget_raw:
                     body_lines.append(f"budget: {budget_raw}\n")
+                def _is_city_path(path):
+                    """Return True only if the resolved path is a city (not a country/region/continent)."""
+                    if not path:
+                        return False
+                    p = load_page(path)
+                    if not p:
+                        return True  # unknown page, assume ok
+                    loc_type = p.meta.get("loc_type", "")
+                    return loc_type not in ("country", "continent", "region")
+
                 city_headings = []
                 if locations_raw:
                     for loc in re.split(r"[,;]+", locations_raw):
@@ -560,6 +579,8 @@ def plan_new(request):
                         if not loc:
                             continue
                         city_path = resolve_location_name(loc, title)
+                        if city_path and not _is_city_path(city_path):
+                            continue  # skip countries/regions
                         if city_path:
                             city_page = load_page(city_path)
                             city_headings.append(f"## {city_page.title if city_page else loc.title()}")
@@ -573,7 +594,8 @@ def plan_new(request):
                         matched = False
                         for length in range(min(4, len(title_words) - i), 0, -1):
                             phrase = " ".join(title_words[i:i+length])
-                            if resolve_location_name(phrase, title):
+                            resolved_path = resolve_location_name(phrase, title)
+                            if resolved_path and _is_city_path(resolved_path):
                                 city_headings.append(f"## {phrase}")
                                 i += length
                                 matched = True
@@ -890,38 +912,49 @@ def plan_stop(request, slug, city_slug):
                 return "food"
             return "todo"
 
-        city_dir = CONTENT_DIR / stop["city_path"]
-        for md_file in sorted(city_dir.rglob("*.md")):
-            rel = str(md_file.relative_to(CONTENT_DIR).with_suffix(""))
-            if rel in already_added or rel in already_added_paths:
+        scan_roots = [(CONTENT_DIR, CONTENT_DIR / stop["city_path"])]
+        if TABBI_CONTENT_DIR:
+            scan_roots.append((TABBI_CONTENT_DIR, TABBI_CONTENT_DIR / stop["city_path"]))
+        seen_suggestion_paths = set()
+        for root_dir, city_dir in scan_roots:
+            if not city_dir.is_dir():
                 continue
-            page = load_page(rel)
-            if not page or page.page_type != "poi":
-                continue
-            img = _image_path(page)
-            slug_norm = _normalize(page.path.split("/")[-1])
-            title_norm = _normalize(page.title)
-            tags_norm = [_normalize(t) for t in page.tags]
-            poi_text = slug_norm + " " + title_norm + " " + " ".join(tags_norm)
-            note_match = any(n in poi_text or poi_text in n for n in note_needles) if note_needles else False
-            keyword_match = any(k in poi_text for k in expanded_keywords) if expanded_keywords else False
-            liked_match = rel in liked_poi_paths
-            score = (2 if note_match else 0) + (2 if keyword_match else 0) + (3 if liked_match else 0) + (1 if img else 0)
-            if not page.meta.get("snippet") and page.body:
-                first = next((p.strip() for p in page.body.split("\n\n") if p.strip()), "")
-                if first:
-                    page.meta["snippet"] = first[:100] + ("…" if len(first) > 100 else "")
-            ph_emoji, ph_bg = _placeholder(page)
-            suggestions.append({
-                "page": page,
-                "image_url": f"/content-image/{img}" if img else None,
-                "_score": score,
-                "note_match": note_match or keyword_match or liked_match,
-                "liked_match": liked_match,
-                "category": _suggestion_category(page.tags),
-                "placeholder_emoji": ph_emoji,
-                "placeholder_bg": ph_bg,
-            })
+            for md_file in sorted(city_dir.rglob("*.md")):
+                rel = str(md_file.relative_to(root_dir).with_suffix(""))
+                if rel in already_added or rel in already_added_paths or rel in seen_suggestion_paths:
+                    continue
+                seen_suggestion_paths.add(rel)
+                page = load_page(rel)
+                if not page or page.page_type != "poi":
+                    continue
+                if page.meta.get("provider"):
+                    continue  # skip raw provider POIs; they surface via provider cards
+                img = _image_path(page)
+                slug_norm = _normalize(page.path.split("/")[-1])
+                title_norm = _normalize(page.title)
+                tags_norm = [_normalize(t) for t in page.tags]
+                poi_text = slug_norm + " " + title_norm + " " + " ".join(tags_norm)
+                note_match = any(n in poi_text or poi_text in n for n in note_needles) if note_needles else False
+                keyword_match = any(k in poi_text for k in expanded_keywords) if expanded_keywords else False
+                liked_match = rel in liked_poi_paths
+                is_bookable = bool(page.meta.get("provider_category"))
+                base_score = int(page.meta.get("score", 0))
+                score = base_score + (2 if note_match else 0) + (2 if keyword_match else 0) + (3 if liked_match else 0) + (1 if img else 0)
+                if not page.meta.get("snippet") and page.body:
+                    first = next((p.strip() for p in page.body.split("\n\n") if p.strip()), "")
+                    if first:
+                        page.meta["snippet"] = first[:100] + ("…" if len(first) > 100 else "")
+                ph_emoji, ph_bg = _placeholder(page)
+                suggestions.append({
+                    "page": page,
+                    "image_url": f"/content-image/{img}" if img else None,
+                    "_score": score,
+                    "note_match": note_match or keyword_match or liked_match,
+                    "liked_match": liked_match,
+                    "category": _suggestion_category(page.tags),
+                    "placeholder_emoji": ph_emoji,
+                    "placeholder_bg": ph_bg,
+                })
         suggestions.sort(key=lambda x: -x["_score"])
 
     _CATEGORIES = [
@@ -963,6 +996,10 @@ def plan_stop(request, slug, city_slug):
     items_eat   = [i for i in stop["items"] if _item_group(i) == "eat"]
     items_drink = [i for i in stop["items"] if _item_group(i) == "drink"]
     ungrouped   = False
+
+    for item in stop["items"]:
+        p = item.get("page")
+        item["providers"] = p.tagged_pois() if p and p.meta.get("provider_category") else []
 
     inspo_count = (1 if city_image_url else 0) + sum(1 for i in stop["items"] if i.get("image_url"))
 

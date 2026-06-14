@@ -84,7 +84,7 @@
                 <div class="plan-poi-full-image" style="background-image:url('{{ item.image_url }}')"></div>
                 {% endif %}
                 <p class="plan-poi-full-body">{{ item.page.body }}</p>
-                {% if not item.page.path|slice:":6" == "~pois/" %}
+                {% if not item.page.path|slice:":6" == "~pois/" and not item.page.meta.provider_category and not item.page.meta.provider %}
                 <a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Read more on world66</a>
                 {% endif %}
               </div>
@@ -146,10 +146,33 @@
               <div class="plan-poi-full" hidden>
                 {% if item.image_url %}<div class="plan-poi-full-image" style="background-image:url('{{ item.image_url }}')"></div>{% endif %}
                 <p class="plan-poi-full-body">{{ item.page.body }}</p>
-                {% if not item.page.path|slice:":6" == "~pois/" %}<a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Read more on world66</a>{% endif %}
+                {% if not item.page.path|slice:":6" == "~pois/" and not item.page.meta.provider_category and not item.page.meta.provider %}<a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Read more on world66</a>{% endif %}
               </div>
             {% else %}
               {% if item.page.meta.snippet %}<p class="plan-poi-snippet">{{ item.page.meta.snippet }}</p>{% endif %}
+            {% endif %}
+            {% if item.providers %}
+            <div class="poi-providers">
+              {% for provider in item.providers %}
+              <div class="poi-provider-card">
+                <div class="poi-provider-info">
+                  <span class="poi-provider-name">{{ provider.title }}</span>
+                  {% if provider.meta.snippet %}<p class="poi-provider-snippet">{{ provider.meta.snippet }}</p>{% endif %}
+                </div>
+                <div class="poi-booking-bar">
+                  {% if provider.meta.price %}<span class="poi-booking-price">{{ provider.meta.price }}</span>{% endif %}
+                  {% if provider.meta.duration %}<span class="poi-booking-duration">{{ provider.meta.duration }}</span>{% endif %}
+                  {% if provider.meta.booking_url %}<a class="poi-book-btn" href="{{ provider.meta.booking_url }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Website</a>{% endif %}
+                  {% if provider.meta.phone %}<button class="poi-concierge-btn" onclick="toggleConciergeForm(this)" type="button">Ask Concierge</button>{% endif %}
+                </div>
+                {% if provider.meta.phone %}
+                <div class="poi-concierge-wrap" hidden>
+                  {% include "concierge/_form.html" with provider=provider similar_pois=None %}
+                </div>
+                {% endif %}
+              </div>
+              {% endfor %}
+            </div>
             {% endif %}
           {% elif item.external_url %}
             <a class="plan-external-link" href="{{ item.external_url }}" target="_blank" rel="noopener">

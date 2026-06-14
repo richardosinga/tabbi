@@ -1717,6 +1717,37 @@ span.plan-poi-title--draft::after { content: none; }
 }
 .poi-concierge-wrap { margin-top: 12px; }
 
+/* ── Provider booking cards ───────────────────────────────────────────────── */
+
+.poi-providers { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.poi-provider-card {
+  border: 1.5px solid #E8E0D5;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #FAFAF8;
+}
+.poi-provider-info { margin-bottom: 6px; }
+.poi-provider-name { font-size: 0.82rem; font-weight: 700; color: #180A0A; }
+.poi-provider-snippet { font-size: 0.75rem; color: #666; margin: 3px 0 0; line-height: 1.4; }
+.poi-book-btn {
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 2px solid #180A0A;
+  background: #fff;
+  color: #180A0A;
+  text-decoration: none;
+  box-shadow: 2px 2px 0 #180A0A;
+  transition: all 0.12s;
+  display: inline-block;
+}
+.poi-book-btn:hover {
+  background: #e7a328;
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 #180A0A;
+}
+
 /* ── Concierge form ───────────────────────────────────────────────────────── */
 
 .concierge-form {

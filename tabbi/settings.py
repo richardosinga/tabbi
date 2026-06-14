@@ -40,10 +40,13 @@ SESSION_COOKIE_AGE = 60 * 60 * 24 * 365
 
 ROOT_URLCONF = "tabbi.urls"
 
-# World66 content — set WORLD66_DIR in .env to a cloned copy of the world66 repo
-WORLD66_DIR = Path(os.environ.get("WORLD66_DIR", str(BASE_DIR / "world66")))
+# World66 content — set WORLD66_DIR in env if world66 repo lives separately; defaults to BASE_DIR
+WORLD66_DIR = Path(os.environ.get("WORLD66_DIR", str(BASE_DIR)))
 WORLD66_CONTENT_DIR = WORLD66_DIR / "content"
 WORLD66_SITE_URL = os.environ.get("WORLD66_SITE_URL", "https://world66.ai")
+
+# Tabbi bookable experience content — overlays world66 content
+TABBI_CONTENT_DIR = BASE_DIR / "tabbi_content"
 
 TEMPLATES = [
     {
