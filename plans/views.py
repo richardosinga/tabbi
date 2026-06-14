@@ -200,6 +200,8 @@ def _stop_markers(stop):
         page = item["page"]
         if not page:
             continue
+        if page.meta.get("provider_category"):
+            continue  # no dot for activity categories; provider selection drives the map
         lat = page.meta.get("latitude")
         lng = page.meta.get("longitude")
         if lat and lng:
@@ -738,10 +740,8 @@ def plan_stop(request, slug, city_slug):
         raise Http404
     markers = _stop_markers(stop)
     city_page = load_page(stop["city_path"]) if stop.get("city_path") else None
-    if not markers:
-        coords = _city_coords(stop)
-        if coords:
-            markers = [{"lat": coords[0], "lng": coords[1], "title": stop["city"], "url": stop.get("destination_url") or ""}]
+    city_coords = _city_coords(stop)
+    city_center = {"lat": city_coords[0], "lng": city_coords[1]} if city_coords else None
     intro_path = PLANS_DIR / "intros" / slug / f"{city_slug}.md"
     city_intro = intro_path.read_text(encoding="utf-8").strip() if intro_path.exists() else None
     city_pending = _pending_marker(slug, city_slug).exists()
@@ -975,6 +975,7 @@ def plan_stop(request, slug, city_slug):
     import frontmatter as _fmb
     _plan_meta = _fmb.load(str(PLANS_DIR / f"{plan['slug']}.md")).metadata
     stop_budget = (_plan_meta.get("budgets") or {}).get(stop["city_slug"]) or {}
+    pinned_providers = {item["text"] for item in stop["items"]}
 
     EAT_SIGNALS = {"restaurant", "eating_out", "food", "cafe", "café"}
     DRINK_SIGNALS = {"bar", "bars_and_cafes", "pub", "nightlife", "drink"}
@@ -997,9 +998,30 @@ def plan_stop(request, slug, city_slug):
     items_drink = [i for i in stop["items"] if _item_group(i) == "drink"]
     ungrouped   = False
 
+    geocache = _load_geocache()
+    geocache_dirty = False
     for item in stop["items"]:
         p = item.get("page")
-        item["providers"] = p.tagged_pois() if p and p.meta.get("provider_category") else []
+        providers = p.tagged_pois() if p and p.meta.get("provider_category") else []
+        for prov in providers:
+            lat = prov.meta.get("latitude")
+            lng = prov.meta.get("longitude")
+            if lat and lng:
+                prov.meta["map_lat"] = float(lat)
+                prov.meta["map_lng"] = float(lng)
+            elif prov.path not in geocache:
+                result = _geocode_nominatim(f"{prov.title}, {stop['city']}")
+                geocache[prov.path] = list(result) if result else None
+                geocache_dirty = True
+                if result:
+                    prov.meta["map_lat"] = result[0]
+                    prov.meta["map_lng"] = result[1]
+            elif geocache[prov.path]:
+                prov.meta["map_lat"] = geocache[prov.path][0]
+                prov.meta["map_lng"] = geocache[prov.path][1]
+        item["providers"] = providers
+    if geocache_dirty:
+        _save_geocache(geocache)
 
     inspo_count = (1 if city_image_url else 0) + sum(1 for i in stop["items"] if i.get("image_url"))
 
@@ -1007,18 +1029,39 @@ def plan_stop(request, slug, city_slug):
         "plan": plan,
         "stop": stop,
         "markers": mark_safe(json.dumps(markers)),
+        "city_center": mark_safe(json.dumps(city_center)),
         "city_snippet": city_snippet,
         "city_intro": city_intro,
         "city_pending": city_pending,
         "city_image_url": city_image_url,
         "suggestion_groups": suggestion_groups,
         "budget_json": json.dumps(stop_budget),
+        "pinned_providers": pinned_providers,
         "items_do": items_do,
         "items_eat": items_eat,
         "items_drink": items_drink,
         "ungrouped": ungrouped,
         "inspo_count": inspo_count,
     })
+
+
+@_require_plan_auth
+def plan_pin_provider(request, slug, city_slug):
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=405)
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "invalid JSON"}, status=400)
+    provider_path = data.get("provider_path", "").strip()
+    if not provider_path:
+        return JsonResponse({"error": "provider_path required"}, status=400)
+    pinned = bool(data.get("pinned", True))
+    if pinned:
+        _plan_file_add(slug, city_slug, provider_path)
+    else:
+        _plan_file_remove(slug, provider_path)
+    return JsonResponse({"ok": True})
 
 
 def _plan_save_budget(slug, city_slug, budget_data):

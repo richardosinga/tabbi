@@ -590,6 +590,8 @@ body:has(.tabbi-nav) select {
   line-height: 1;
 }
 
+.plan-stop-marker--provider { background: #fff !important; color: #e7a328 !important; font-size: 16px !important; }
+
 /* Leaflet zoom control on dark map */
 #plan-stop-map .leaflet-control-zoom a,
 #plan-overview-map .leaflet-control-zoom a {
@@ -1727,7 +1729,16 @@ span.plan-poi-title--draft::after { content: none; }
   background: #FAFAF8;
 }
 .poi-provider-info { margin-bottom: 6px; }
+.poi-provider-name-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
 .poi-provider-name { font-size: 0.82rem; font-weight: 700; color: #180A0A; }
+.poi-provider-star {
+  background: none; border: none; cursor: pointer; padding: 0; flex-shrink: 0;
+  color: #ccc; font-size: 1rem; line-height: 1; transition: color 0.15s;
+}
+.poi-provider-star:hover { color: #e7a328; }
+.poi-provider-card--pinned .poi-provider-star { color: #e7a328; }
+.poi-provider-card--active { border-color: #e7a328; background: #FFF8EC; }
+.poi-provider-card--pinned { border-color: #e7a328; }
 .poi-provider-snippet { font-size: 0.75rem; color: #666; margin: 3px 0 0; line-height: 1.4; }
 .poi-book-btn {
   font-size: 0.75rem;

@@ -70,7 +70,7 @@
           {% if item.page %}
             {% if item.page.meta.external_url or item.page.meta.source_url %}
             <a class="plan-poi-title plan-poi-title--draft" href="{{ item.page.meta.external_url|default:item.page.meta.source_url }}" target="_blank" rel="noopener">{{ item.page.title }}</a>
-            {% elif item.page.path|slice:":6" == "~pois/" %}
+            {% elif item.page.path|slice:":6" == "~pois/" or item.page.meta.tabbi_only %}
             <span class="plan-poi-title plan-poi-title--draft">{{ item.page.title }}</span>
             {% else %}
             <a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.page.title }}</a>
@@ -84,7 +84,7 @@
                 <div class="plan-poi-full-image" style="background-image:url('{{ item.image_url }}')"></div>
                 {% endif %}
                 <p class="plan-poi-full-body">{{ item.page.body }}</p>
-                {% if not item.page.path|slice:":6" == "~pois/" and not item.page.meta.provider_category and not item.page.meta.provider %}
+                {% if not item.page.path|slice:":6" == "~pois/" and not item.page.meta.provider_category and not item.page.meta.provider and not item.page.meta.tabbi_only %}
                 <a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Read more on world66</a>
                 {% endif %}
               </div>
@@ -136,7 +136,7 @@
           {% if item.page %}
             {% if item.page.meta.external_url or item.page.meta.source_url %}
             <a class="plan-poi-title plan-poi-title--draft" href="{{ item.page.meta.external_url|default:item.page.meta.source_url }}" target="_blank" rel="noopener">{{ item.page.title }}</a>
-            {% elif item.page.path|slice:":6" == "~pois/" %}
+            {% elif item.page.path|slice:":6" == "~pois/" or item.page.meta.tabbi_only %}
             <span class="plan-poi-title plan-poi-title--draft">{{ item.page.title }}</span>
             {% else %}
             <a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.page.title }}</a>
@@ -146,17 +146,22 @@
               <div class="plan-poi-full" hidden>
                 {% if item.image_url %}<div class="plan-poi-full-image" style="background-image:url('{{ item.image_url }}')"></div>{% endif %}
                 <p class="plan-poi-full-body">{{ item.page.body }}</p>
-                {% if not item.page.path|slice:":6" == "~pois/" and not item.page.meta.provider_category and not item.page.meta.provider %}<a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Read more on world66</a>{% endif %}
+                {% if not item.page.path|slice:":6" == "~pois/" and not item.page.meta.provider_category and not item.page.meta.provider and not item.page.meta.tabbi_only %}<a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Read more on world66</a>{% endif %}
               </div>
             {% else %}
               {% if item.page.meta.snippet %}<p class="plan-poi-snippet">{{ item.page.meta.snippet }}</p>{% endif %}
             {% endif %}
             {% if item.providers %}
-            <div class="poi-providers">
+            <div class="poi-providers" onclick="event.stopPropagation()"
+                 data-pin-url="/plans/{{ plan.slug }}/{{ stop.city_slug }}/pin-provider/"
+                 data-csrf="{{ csrf_token }}">
               {% for provider in item.providers %}
-              <div class="poi-provider-card">
+              <div class="poi-provider-card" data-provider-key="{{ provider.path }}" {% if provider.meta.map_lat %}data-lat="{{ provider.meta.map_lat }}" data-lng="{{ provider.meta.map_lng }}"{% endif %}{% if provider.path in pinned_providers %} data-pinned="true"{% endif %} onclick="selectProviderMarker(event, this)">
                 <div class="poi-provider-info">
-                  <span class="poi-provider-name">{{ provider.title }}</span>
+                  <div class="poi-provider-name-row">
+                    <span class="poi-provider-name">{{ provider.title }}</span>
+                    <button class="poi-provider-star" onclick="toggleProviderStar(event, this)" type="button" title="Save provider">☆</button>
+                  </div>
                   {% if provider.meta.snippet %}<p class="poi-provider-snippet">{{ provider.meta.snippet }}</p>{% endif %}
                 </div>
                 <div class="poi-booking-bar">
@@ -330,6 +335,7 @@
 <script>
 (function() {
   const markers = {{ markers }};
+  const cityCenter = {{ city_center }};
   const map = L.map('plan-stop-map', {scrollWheelZoom: false, zoomControl: true});
 
   const tileDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {maxZoom: 19, attribution: '&copy; <a href="https://carto.com/">CARTO</a>'});
@@ -365,9 +371,92 @@
     map.fitBounds(L.latLngBounds(markers.map(m => [m.lat, m.lng])).pad(0.25));
   } else if (markers.length === 1) {
     map.setView([markers[0].lat, markers[0].lng], 11);
+  } else if (cityCenter) {
+    map.setView([cityCenter.lat, cityCenter.lng], 11);
   } else {
     map.setView([20, 0], 2);
   }
+
+  function _providerIcon() {
+    return L.divIcon({
+      className: 'plan-stop-marker plan-stop-marker--provider',
+      html: '<span>★</span>',
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+    });
+  }
+
+  var _pinnedMarkers = {};
+
+  function _addPinnedMarker(card) {
+    var key = card.dataset.providerKey;
+    var lat = parseFloat(card.dataset.lat);
+    var lng = parseFloat(card.dataset.lng);
+    if (!key || isNaN(lat) || isNaN(lng)) return;
+    if (_pinnedMarkers[key]) map.removeLayer(_pinnedMarkers[key]);
+    _pinnedMarkers[key] = L.marker([lat, lng], {icon: _providerIcon()})
+      .bindTooltip(card.querySelector('.poi-provider-name').textContent.trim(), {direction: 'top', permanent: false})
+      .addTo(map);
+  }
+
+  // Restore pinned state from server-rendered data-pinned attributes
+  document.querySelectorAll('.poi-provider-card[data-pinned="true"]').forEach(function(card) {
+    card.classList.add('poi-provider-card--pinned');
+    var star = card.querySelector('.poi-provider-star');
+    if (star) star.textContent = '★';
+    _addPinnedMarker(card);
+  });
+
+  window.toggleProviderStar = function(event, btn) {
+    event.stopPropagation();
+    var card = btn.closest('.poi-provider-card');
+    var key = card.dataset.providerKey;
+    if (!key) return;
+    var isPinned = card.classList.contains('poi-provider-card--pinned');
+    if (isPinned) {
+      card.classList.remove('poi-provider-card--pinned');
+      btn.textContent = '☆';
+      if (_pinnedMarkers[key]) { map.removeLayer(_pinnedMarkers[key]); delete _pinnedMarkers[key]; }
+    } else {
+      card.classList.add('poi-provider-card--pinned');
+      btn.textContent = '★';
+      _addPinnedMarker(card);
+    }
+    var wrap = card.closest('.poi-providers');
+    fetch(wrap.dataset.pinUrl, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': wrap.dataset.csrf},
+      body: JSON.stringify({provider_path: key, pinned: !isPinned}),
+    });
+  };
+
+  var _tempMarker = null;
+  var _activeCard = null;
+  window.selectProviderMarker = function(event, card) {
+    event.stopPropagation();
+    if (event.target.closest('form, a, button')) return;
+    var lat = parseFloat(card.dataset.lat);
+    var lng = parseFloat(card.dataset.lng);
+    if (isNaN(lat) || isNaN(lng)) return;
+    var isPinned = card.classList.contains('poi-provider-card--pinned');
+    // Remove previous temp marker and active highlight
+    if (_tempMarker) { map.removeLayer(_tempMarker); _tempMarker = null; }
+    if (_activeCard && _activeCard !== card) _activeCard.classList.remove('poi-provider-card--active');
+    // Toggle off for non-pinned cards
+    if (_activeCard === card && !isPinned) {
+      _activeCard = null;
+      card.classList.remove('poi-provider-card--active');
+      return;
+    }
+    _activeCard = card;
+    card.classList.add('poi-provider-card--active');
+    if (!isPinned) {
+      _tempMarker = L.marker([lat, lng], {icon: _providerIcon()})
+        .bindTooltip(card.querySelector('.poi-provider-name').textContent.trim(), {direction: 'top', permanent: false})
+        .addTo(map);
+    }
+    map.setView([lat, lng], Math.max(map.getZoom(), 13));
+  };
 })();
 </script>
 <script>
