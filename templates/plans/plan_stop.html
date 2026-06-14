@@ -163,7 +163,13 @@
                   {% if provider.meta.price %}<span class="poi-booking-price">{{ provider.meta.price }}</span>{% endif %}
                   {% if provider.meta.duration %}<span class="poi-booking-duration">{{ provider.meta.duration }}</span>{% endif %}
                   {% if provider.meta.booking_url %}<a class="poi-book-btn" href="{{ provider.meta.booking_url }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Book →</a>{% endif %}
+                  {% if provider.meta.phone %}<button class="poi-concierge-btn" onclick="toggleConciergeForm(this)" type="button">Ask Concierge</button>{% endif %}
                 </div>
+                {% if provider.meta.phone %}
+                <div class="poi-concierge-wrap" hidden>
+                  {% include "concierge/_form.html" with provider=provider similar_pois=None %}
+                </div>
+                {% endif %}
               </div>
               {% endfor %}
             </div>
