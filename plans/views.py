@@ -15,7 +15,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from django.conf import settings as _settings
-from world66_content.models import CONTENT_DIR, load_page, resolve_location_name
+from world66_content.models import CONTENT_DIR, TABBI_CONTENT_DIR, load_page, resolve_location_name
 
 def _slugify(text: str) -> str:
     """ASCII slug: transliterates unicode (ü→u, é→e) rather than stripping it."""
@@ -912,38 +912,48 @@ def plan_stop(request, slug, city_slug):
                 return "food"
             return "todo"
 
-        city_dir = CONTENT_DIR / stop["city_path"]
-        for md_file in sorted(city_dir.rglob("*.md")):
-            rel = str(md_file.relative_to(CONTENT_DIR).with_suffix(""))
-            if rel in already_added or rel in already_added_paths:
+        scan_roots = [(CONTENT_DIR, CONTENT_DIR / stop["city_path"])]
+        if TABBI_CONTENT_DIR:
+            scan_roots.append((TABBI_CONTENT_DIR, TABBI_CONTENT_DIR / stop["city_path"]))
+        seen_suggestion_paths = set()
+        for root_dir, city_dir in scan_roots:
+            if not city_dir.is_dir():
                 continue
-            page = load_page(rel)
-            if not page or page.page_type != "poi":
-                continue
-            img = _image_path(page)
-            slug_norm = _normalize(page.path.split("/")[-1])
-            title_norm = _normalize(page.title)
-            tags_norm = [_normalize(t) for t in page.tags]
-            poi_text = slug_norm + " " + title_norm + " " + " ".join(tags_norm)
-            note_match = any(n in poi_text or poi_text in n for n in note_needles) if note_needles else False
-            keyword_match = any(k in poi_text for k in expanded_keywords) if expanded_keywords else False
-            liked_match = rel in liked_poi_paths
-            score = (2 if note_match else 0) + (2 if keyword_match else 0) + (3 if liked_match else 0) + (1 if img else 0)
-            if not page.meta.get("snippet") and page.body:
-                first = next((p.strip() for p in page.body.split("\n\n") if p.strip()), "")
-                if first:
-                    page.meta["snippet"] = first[:100] + ("…" if len(first) > 100 else "")
-            ph_emoji, ph_bg = _placeholder(page)
-            suggestions.append({
-                "page": page,
-                "image_url": f"/content-image/{img}" if img else None,
-                "_score": score,
-                "note_match": note_match or keyword_match or liked_match,
-                "liked_match": liked_match,
-                "category": _suggestion_category(page.tags),
-                "placeholder_emoji": ph_emoji,
-                "placeholder_bg": ph_bg,
-            })
+            for md_file in sorted(city_dir.rglob("*.md")):
+                rel = str(md_file.relative_to(root_dir).with_suffix(""))
+                if rel in already_added or rel in already_added_paths or rel in seen_suggestion_paths:
+                    continue
+                seen_suggestion_paths.add(rel)
+                page = load_page(rel)
+                if not page or page.page_type != "poi":
+                    continue
+                if page.meta.get("provider"):
+                    continue  # skip raw provider POIs; they surface via provider cards
+                img = _image_path(page)
+                slug_norm = _normalize(page.path.split("/")[-1])
+                title_norm = _normalize(page.title)
+                tags_norm = [_normalize(t) for t in page.tags]
+                poi_text = slug_norm + " " + title_norm + " " + " ".join(tags_norm)
+                note_match = any(n in poi_text or poi_text in n for n in note_needles) if note_needles else False
+                keyword_match = any(k in poi_text for k in expanded_keywords) if expanded_keywords else False
+                liked_match = rel in liked_poi_paths
+                is_bookable = bool(page.meta.get("provider_category"))
+                score = (2 if note_match else 0) + (2 if keyword_match else 0) + (3 if liked_match else 0) + (1 if img else 0) + (4 if is_bookable else 0)
+                if not page.meta.get("snippet") and page.body:
+                    first = next((p.strip() for p in page.body.split("\n\n") if p.strip()), "")
+                    if first:
+                        page.meta["snippet"] = first[:100] + ("…" if len(first) > 100 else "")
+                ph_emoji, ph_bg = _placeholder(page)
+                suggestions.append({
+                    "page": page,
+                    "image_url": f"/content-image/{img}" if img else None,
+                    "_score": score,
+                    "note_match": note_match or keyword_match or liked_match or is_bookable,
+                    "liked_match": liked_match,
+                    "category": _suggestion_category(page.tags),
+                    "placeholder_emoji": ph_emoji,
+                    "placeholder_bg": ph_bg,
+                })
         suggestions.sort(key=lambda x: -x["_score"])
 
     _CATEGORIES = [
