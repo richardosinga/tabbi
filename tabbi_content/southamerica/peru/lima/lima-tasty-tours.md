@@ -6,6 +6,8 @@ tags:
 provider: true
 price: "from $59 per person"
 duration: "3 hours"
+latitude: -12.1401
+longitude: -77.0224
 phone: "+51 942 342 088"
 booking_url: "https://www.limatastytours.com/"
 snippet: "Barranco-based food and art tours with fixed daily departures, $59–$115."
