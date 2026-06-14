@@ -1,34 +1,6 @@
 {% extends "plans/base.html" %}
 {% block title %}{{ passport.title }} — Tab.bi{% endblock %}
 
-{% block topnav %}
-<style>
-.tabbi-nav {
-  position: relative !important;
-  background: transparent !important;
-  border-bottom: 1.5px solid rgba(255,255,255,.15) !important;
-  overflow: hidden !important;
-}
-.tabbi-nav::before {
-  content: '';
-  position: absolute; inset: -30px; z-index: 0;
-  {% if cover_image_url %}background: url('{{ cover_image_url }}') center/cover no-repeat;
-  {% else %}background: #180A0A;{% endif %}
-  filter: blur(18px) brightness(.42) saturate(.7);
-}
-.tabbi-nav > * { position: relative; z-index: 1; }
-.tabbi-nav-logo-text { color: #fff !important; }
-.tabbi-nav-logo-dot  { color: #e7a328 !important; }
-.tabbi-nav-passport-link { color: rgba(255,255,255,.8) !important; }
-.tabbi-nav-actions .tabbi-btn {
-  border-color: rgba(255,255,255,.3) !important;
-  background: transparent !important;
-  color: rgba(255,255,255,.85) !important;
-}
-.tabbi-nav-actions .tabbi-btn:hover { background: rgba(255,255,255,.12) !important; color: #fff !important; }
-</style>
-{{ block.super }}
-{% endblock %}
 
 {% block wide_content %}
 <style>
@@ -106,12 +78,11 @@
 .profile-text { font-size: .9rem; color: rgba(255,255,255,.65); line-height: 1.65; max-width: 460px; }
 
 /* Theme bars */
-.profile-bars { min-width: 200px; flex: 0 0 240px; }
-@media (max-width: 600px) { .profile-bars { flex: 1; } }
+.profile-bars { flex: 0 0 320px; min-width: 200px; }
 .theme-bar-row {
   display: grid;
-  grid-template-columns: 22px 9rem 1fr 2.2rem;
-  align-items: center; gap: 8px; margin-bottom: 12px;
+  grid-template-columns: 22px 8rem 1fr 2.4rem;
+  align-items: center; gap: 10px; margin-bottom: 14px;
 }
 .theme-bar-emoji { font-size: .95rem; }
 .theme-bar-label { font-size: .8rem; color: rgba(255,255,255,.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -284,8 +255,31 @@
       </div>
     </div>
 
-    {% if profile.cities %}
-    <!-- Cities -->
+    {% if been_cities or bucket_cities %}
+    <div style="display:flex; gap:24px; flex-wrap:wrap;">
+      {% if been_cities %}
+      <div style="flex:1; min-width:200px;">
+        <div class="section-label">Cities you've been to</div>
+        <div class="cities-row">
+          {% for city in been_cities %}
+          <div class="city-chip" style="border-color:#27ae60;">✓ {{ city }}</div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+      {% if bucket_cities %}
+      <div style="flex:1; min-width:200px;">
+        <div class="section-label">On your bucket list</div>
+        <div class="cities-row">
+          {% for city in bucket_cities %}
+          <div class="city-chip" style="border-color:#e7a328;">★ {{ city }}</div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    {% elif profile.cities %}
+    <!-- Fallback: liked-POI city breakdown (old passports without city_modes) -->
     <div>
       <div class="section-label">Cities in your passport</div>
       <div class="cities-row">
@@ -346,15 +340,176 @@
     </div>
 
     {% else %}
-    <div class="empty-state">
+
+    <!-- Empty state: preview of what the passport will show -->
+    <style>
+    .pp-empty-banner {
+      background: #fff; border: 2.5px solid #180A0A; border-radius: 12px;
+      box-shadow: 4px 4px 0 #180A0A; padding: 32px; text-align: center;
+    }
+    .pp-empty-banner p { color: #535050; margin-bottom: 20px; font-size: .95rem; }
+    .pp-preview-label {
+      display: inline-block; font-size: .67rem; font-weight: 700; letter-spacing: .16em;
+      text-transform: uppercase; color: #e7a328;
+      border: 1.5px solid #e7a32855; border-radius: 20px; padding: 3px 12px; margin-bottom: 32px;
+    }
+    .preview-section { opacity: .45; pointer-events: none; user-select: none; margin-bottom: 40px; }
+    .skel { display: inline-block; background: currentColor; border-radius: 4px; opacity: .2; }
+    </style>
+
+    <div class="pp-empty-banner">
       {% if step < 1 %}
-      <p>Swipe through places to build your travel profile.</p>
+      <p>Swipe places you love to build your travel profile.</p>
       <a href="/passport/{{ passport.slug }}/swipe" class="cta-btn">Start swiping &rarr;</a>
       {% else %}
-      <p>You didn't like any places. Try again?</p>
+      <p>You didn't like any places. Try swiping again.</p>
       <a href="/passport/{{ passport.slug }}/swipe?redo=1" class="cta-btn">Swipe again &rarr;</a>
       {% endif %}
     </div>
+
+    <div style="text-align:center;margin:40px 0 8px;">
+      <span class="pp-preview-label">Your passport will look like this</span>
+    </div>
+
+    <!-- Travel profile preview -->
+    <div class="preview-section">
+      <div class="section-label">Your travel profile</div>
+      <div class="profile-card">
+        <div class="profile-card-inner">
+          <div class="profile-main">
+            <span class="profile-accuracy">— % accurate</span>
+            <span class="profile-type-emoji">🧭</span>
+            <div class="profile-type-label">Your traveller type</div>
+            <div class="profile-text">A description of how you like to travel — adventurous or laid-back, food-first or culture-first — based on the places you swipe.</div>
+          </div>
+          <div class="profile-bars">
+            <div class="theme-bar-row">
+              <span class="theme-bar-emoji">🍽️</span>
+              <span class="theme-bar-label">Food &amp; drink</span>
+              <div class="theme-bar-track"><div class="theme-bar-fill" style="width:72%"></div></div>
+              <span class="theme-bar-pct">72%</span>
+            </div>
+            <div class="theme-bar-row">
+              <span class="theme-bar-emoji">🏛️</span>
+              <span class="theme-bar-label">Culture</span>
+              <div class="theme-bar-track"><div class="theme-bar-fill" style="width:55%"></div></div>
+              <span class="theme-bar-pct">55%</span>
+            </div>
+            <div class="theme-bar-row">
+              <span class="theme-bar-emoji">🌿</span>
+              <span class="theme-bar-label">Nature</span>
+              <div class="theme-bar-track"><div class="theme-bar-fill" style="width:38%"></div></div>
+              <span class="theme-bar-pct">38%</span>
+            </div>
+            <div class="theme-bar-row">
+              <span class="theme-bar-emoji">🎉</span>
+              <span class="theme-bar-label">Nightlife</span>
+              <div class="theme-bar-track"><div class="theme-bar-fill" style="width:24%"></div></div>
+              <span class="theme-bar-pct">24%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats preview -->
+    <div class="preview-section">
+      <div class="section-label">Stats</div>
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-box-num">—</div>
+          <div class="stat-box-label">Places liked</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-box-num">—</div>
+          <div class="stat-box-label">Cities explored</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-box-num">—</div>
+          <div class="stat-box-label">Profile accuracy</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-box-num">🧭</div>
+          <div class="stat-box-label">Top theme</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cities preview -->
+    <div class="preview-section" style="display:flex;gap:24px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:200px;">
+        <div class="section-label">Cities you've been to</div>
+        <div class="cities-row">
+          <div class="city-chip" style="border-color:#27ae60;">✓ Paris</div>
+          <div class="city-chip" style="border-color:#27ae60;">✓ Barcelona</div>
+          <div class="city-chip" style="border-color:#27ae60;">✓ Tokyo</div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:200px;">
+        <div class="section-label">On your bucket list</div>
+        <div class="cities-row">
+          <div class="city-chip" style="border-color:#e7a328;">★ Kyoto</div>
+          <div class="city-chip" style="border-color:#e7a328;">★ Lisbon</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Predictions preview -->
+    <div class="preview-section">
+      <div class="section-label">You'll probably love</div>
+      <div class="predictions-wrap">
+        <div class="prediction-tag">Rooftop bars</div>
+        <div class="prediction-tag">Street food markets</div>
+        <div class="prediction-tag">Hidden courtyards</div>
+        <div class="prediction-tag">Independent bookshops</div>
+        <div class="prediction-tag">Local fish restaurants</div>
+      </div>
+    </div>
+
+    <!-- Recommendations preview -->
+    <div class="preview-section">
+      <div class="section-label">Based on your profile, you'll love</div>
+      <div class="poi-grid similar-grid">
+        <div class="poi-card poi-card--similar">
+          <div class="poi-card-body">
+            <div class="poi-card-city">Barcelona</div>
+            <div class="poi-card-title">Bar Marsella</div>
+            <div class="poi-card-snippet">One of the oldest bars in Barcelona, serving absinthe since 1820. Dusty bottles and peeling walls make it feel frozen in time.</div>
+          </div>
+        </div>
+        <div class="poi-card poi-card--similar">
+          <div class="poi-card-body">
+            <div class="poi-card-city">Tokyo</div>
+            <div class="poi-card-title">Tsukiji Outer Market</div>
+            <div class="poi-card-snippet">The outer market that never stopped — fresh sushi for breakfast, tamagoyaki on a stick, and the best knife shopping in the world.</div>
+          </div>
+        </div>
+        <div class="poi-card poi-card--similar">
+          <div class="poi-card-body">
+            <div class="poi-card-city">Lisbon</div>
+            <div class="poi-card-title">Taberna da Rua das Flores</div>
+            <div class="poi-card-snippet">No printed menu, just what's good that day. Small, packed, and completely worth fighting for a table.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Liked places skeleton -->
+    <div class="preview-section">
+      <div class="section-label">Places you liked</div>
+      <div class="poi-grid">
+        {% for i in "12345678"|make_list %}
+        <div class="poi-card">
+          <div class="poi-card-body" style="min-height:90px;">
+            <div class="poi-card-city"><span class="skel" style="width:60px;height:.65em;">&nbsp;</span></div>
+            <div class="poi-card-title" style="margin-bottom:8px;"><span class="skel" style="width:85%;height:.9em;">&nbsp;</span></div>
+            <div><span class="skel" style="width:100%;height:.7em;display:block;margin-bottom:4px;">&nbsp;</span><span class="skel" style="width:70%;height:.7em;">&nbsp;</span></div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
     {% endif %}
 
   </div>

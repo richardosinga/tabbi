@@ -416,8 +416,9 @@ body { overflow-x: hidden; }
 <!-- Hidden form for Save & exit -->
 <form method="post" id="exitForm" style="display:none;">
   {% csrf_token %}
-  <input type="hidden" name="liked"    id="exitLikedField"   value="[]">
-  <input type="hidden" name="skipped"  id="exitSkippedField" value="[]">
+  <input type="hidden" name="liked"       id="exitLikedField"      value="[]">
+  <input type="hidden" name="skipped"    id="exitSkippedField"    value="[]">
+  <input type="hidden" name="city_modes" id="exitCityModesField"  value="{}">
 </form>
 
 <script>
@@ -637,8 +638,9 @@ body { overflow-x: hidden; }
   /* ---- Autosave ---- */
   function autoSave() {
     var fd = new FormData();
-    fd.append('liked',   JSON.stringify(liked));
-    fd.append('skipped', JSON.stringify(skipped));
+    fd.append('liked',       JSON.stringify(liked));
+    fd.append('skipped',     JSON.stringify(skipped));
+    fd.append('city_modes',  JSON.stringify(selectedPaths));
     fd.append('csrfmiddlewaretoken', CSRF);
     fetch('/passport/' + PASSPORT_SLUG + '/swipe/save', {method:'POST', body:fd})
       .then(function() { fetchRecommendations(); })
@@ -647,8 +649,9 @@ body { overflow-x: hidden; }
 
   window.addEventListener('beforeunload', function() {
     var fd = new FormData();
-    fd.append('liked',   JSON.stringify(liked));
-    fd.append('skipped', JSON.stringify(skipped));
+    fd.append('liked',       JSON.stringify(liked));
+    fd.append('skipped',     JSON.stringify(skipped));
+    fd.append('city_modes',  JSON.stringify(selectedPaths));
     fd.append('csrfmiddlewaretoken', CSRF);
     navigator.sendBeacon('/passport/' + PASSPORT_SLUG + '/swipe/save', fd);
   });
@@ -656,6 +659,7 @@ body { overflow-x: hidden; }
   document.getElementById('saveExitBtn').addEventListener('click', function() {
     exitField.value = JSON.stringify(liked);
     document.getElementById('exitSkippedField').value = JSON.stringify(skipped);
+    document.getElementById('exitCityModesField').value = JSON.stringify(selectedPaths);
     document.getElementById('exitForm').submit();
   });
 
@@ -818,18 +822,16 @@ body { overflow-x: hidden; }
     document.getElementById('pickerBtn').disabled = n === 0;
   }
 
-  function toggleCity(path) {
+  function toggleCity(path, cardEl) {
     var cur = selectedPaths[path];
     if (!cur)              selectedPaths[path] = 'been';
     else if (cur==='been') selectedPaths[path] = 'bucketlist';
     else                   delete selectedPaths[path];
-    document.querySelectorAll('.city-card').forEach(function(c) {
-      var state = selectedPaths[c.dataset.path] || '';
-      c.classList.toggle('been',       state==='been');
-      c.classList.toggle('bucketlist', state==='bucketlist');
-      var badge = c.querySelector('.city-card-badge');
-      if (badge) badge.textContent = state==='been' ? '✓ Been' : state==='bucketlist' ? '★ Wish list' : '';
-    });
+    var state = selectedPaths[path] || '';
+    cardEl.classList.toggle('been',       state==='been');
+    cardEl.classList.toggle('bucketlist', state==='bucketlist');
+    var badge = cardEl.querySelector('.city-card-badge');
+    if (badge) badge.textContent = state==='been' ? '✓ Been' : state==='bucketlist' ? '★ Wish list' : '';
     updatePickerCount();
   }
 
@@ -853,7 +855,7 @@ body { overflow-x: hidden; }
       '</div>';
     }).join('');
     grid.querySelectorAll('.city-card').forEach(function(card) {
-      card.addEventListener('click', function() { toggleCity(card.dataset.path); });
+      card.addEventListener('click', function() { toggleCity(card.dataset.path, card); });
     });
     document.getElementById('pickerBtn').addEventListener('click', startFromPicker);
   }

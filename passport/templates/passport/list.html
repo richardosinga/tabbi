@@ -1,81 +1,485 @@
 {% extends "plans/base.html" %}
-{% block title %}My Travel Passports — Tab.bi{% endblock %}
+{% load static %}
+{% block title %}Travel Passports — Tab.bi{% endblock %}
 {% block content %}
 <style>
-.pp-hero {
-  background: #180A0A; color: #fff;
-  padding: 64px 32px; text-align: center;
-  margin: -40px -32px 0;
-}
-.pp-hero h1 { font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 700; margin-bottom: 12px; }
-.pp-hero p { color: rgba(255,255,255,.7); font-size: 1.1rem; }
-.pp-wrap { max-width: 800px; margin: 48px auto; padding: 0 24px; }
+/* ---- List (when passports exist) ---- */
+.pp-list-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+.pp-list-header h1 { font-size: 1.5rem; font-weight: 800; color: #180A0A; margin: 0; }
 .pp-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 24px; margin-bottom: 40px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px; margin-bottom: 40px;
 }
 .pp-card-link {
-  background: #fff;
-  border: 2.5px solid #180A0A; border-radius: 12px;
-  box-shadow: 4px 4px 0 #180A0A;
-  padding: 28px; text-decoration: none; color: #180A0A;
-  display: flex; flex-direction: column; gap: 8px;
+  background: #fff; border: 2.5px solid #180A0A; border-radius: 12px;
+  box-shadow: 4px 4px 0 #180A0A; padding: 24px; text-decoration: none; color: #180A0A;
+  display: flex; flex-direction: column; gap: 6px;
   transition: box-shadow .15s, transform .15s;
 }
 .pp-card-link:hover { box-shadow: 6px 6px 0 #180A0A; transform: translateY(-2px); text-decoration: none; }
-.pp-card-link h2 { font-size: 1.3rem; font-weight: 700; }
-.pp-card-link .meta { font-size: .85rem; color: #535050; }
-.step-badge {
-  display: inline-block; font-size: .75rem; font-weight: 600;
-  padding: 3px 10px; border-radius: 20px; background: #f5f5f5; color: #535050;
+.pp-card-link h2 { font-size: 1.15rem; font-weight: 700; margin: 0; }
+.pp-card-meta { font-size: .82rem; color: #A6A6A6; }
+
+/* ---- Empty state hero ---- */
+.pp-empty-hero { text-align: center; padding: 24px 0 0; }
+
+/* ---- Preview sections (mirrors detail.html layout) ---- */
+.pp-preview { margin-top: 48px; }
+.pp-preview-intro {
+  text-align: center; margin-bottom: 32px;
 }
-.step-badge.done { background: #d4edda; color: #155724; }
-.pp-new-btn {
-  display: inline-block;
-  background: #e7a328; color: #180A0A;
-  border: 2.5px solid #180A0A; border-radius: 8px;
-  box-shadow: 3px 3px 0 #180A0A;
-  padding: 14px 32px; font-weight: 700; font-size: 1rem; text-decoration: none;
+.pp-preview-intro-label {
+  display: inline-block; font-size: .68rem; font-weight: 700; letter-spacing: .16em;
+  text-transform: uppercase; color: #e7a328;
+  border: 1.5px solid #e7a32855; border-radius: 20px; padding: 3px 12px; margin-bottom: 10px;
 }
-.pp-new-btn:hover { background: #c8891a; color: #180A0A; text-decoration: none; }
-.pp-empty { text-align: center; padding: 48px 0; }
-.pp-empty p { color: #535050; margin-bottom: 24px; font-size: 1.05rem; }
+.pp-preview-intro p { font-size: .88rem; color: #A6A6A6; margin: 0; }
+
+.preview-section { margin-bottom: 40px; opacity: .55; pointer-events: none; user-select: none; }
+.section-label { font-size: .67rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: #6b6560; margin-bottom: 16px; }
+
+/* Profile card preview */
+.profile-card {
+  background: #180A0A; color: #fff; border-radius: 16px; overflow: hidden; position: relative;
+}
+.profile-card-inner {
+  padding: 36px 36px 32px; display: flex; gap: 36px; flex-wrap: wrap; align-items: flex-start;
+}
+.profile-main { flex: 1; min-width: 200px; }
+.profile-accuracy {
+  display: inline-block; font-size: .7rem; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: #e7a328;
+  border: 1.5px solid rgba(231,163,40,.3); border-radius: 20px; padding: 3px 10px; margin-bottom: 18px;
+}
+.profile-type-emoji { font-size: 2.8rem; display: block; margin-bottom: 8px; line-height: 1; }
+.profile-type-label {
+  font-family: 'Fraunces', serif; font-size: 2rem; font-weight: 300; color: #fff; margin-bottom: 14px;
+}
+.profile-text { font-size: .9rem; color: rgba(255,255,255,.55); line-height: 1.65; }
+.profile-bars { flex: 0 0 280px; min-width: 200px; }
+.theme-bar-row {
+  display: grid; grid-template-columns: 22px 8rem 1fr 2.4rem;
+  align-items: center; gap: 10px; margin-bottom: 14px;
+}
+.theme-bar-emoji { font-size: .95rem; }
+.theme-bar-label { font-size: .8rem; color: rgba(255,255,255,.55); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.theme-bar-track { height: 5px; background: rgba(255,255,255,.12); border-radius: 3px; }
+.theme-bar-fill  { height: 100%; background: #e7a328; border-radius: 3px; }
+.theme-bar-pct { font-size: .72rem; color: rgba(255,255,255,.35); text-align: right; }
+
+/* Stats */
+.stats-row { display: flex; gap: 16px; flex-wrap: wrap; }
+.stat-box {
+  border: 2px solid #180A0A; border-radius: 12px;
+  box-shadow: 3px 3px 0 #180A0A; padding: 20px 24px; flex: 1; min-width: 120px;
+}
+.stat-box:nth-child(1) { background: #fdf3e0; }
+.stat-box:nth-child(2) { background: #e8f4ec; }
+.stat-box:nth-child(3) { background: #e8eef9; }
+.stat-box:nth-child(4) { background: #f6eaf9; }
+.stat-box-num {
+  font-family: 'Fraunces', serif; font-size: 2.4rem; font-weight: 300; line-height: 1;
+}
+.stat-box:nth-child(1) .stat-box-num { color: #b8720a; }
+.stat-box:nth-child(2) .stat-box-num { color: #277a47; }
+.stat-box:nth-child(3) .stat-box-num { color: #2c5fa3; }
+.stat-box:nth-child(4) .stat-box-num { color: #7a3a9c; }
+.stat-box-label { font-size: .75rem; color: #6b6560; margin-top: 4px; }
+
+/* Cities */
+.cities-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.city-chip {
+  display: flex; align-items: center; gap: 6px;
+  background: #fff; border: 2px solid #180A0A; border-radius: 20px;
+  box-shadow: 2px 2px 0 #180A0A; padding: 5px 14px; font-size: .82rem;
+}
+
+/* Predictions */
+.predictions-wrap { display: flex; flex-wrap: wrap; gap: 10px; }
+.prediction-tag {
+  background: #fff; color: #180A0A; border: 2px solid #180A0A; border-radius: 20px;
+  box-shadow: 2px 2px 0 #180A0A; padding: 6px 16px; font-size: .82rem; font-weight: 500;
+}
+
+/* POI grid */
+.poi-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px;
+}
+.similar-grid { grid-template-columns: repeat(3, 1fr); }
+.poi-card {
+  background: #fff; border: 2.5px solid #180A0A; border-radius: 12px;
+  overflow: hidden; box-shadow: 3px 3px 0 #180A0A;
+  display: flex; flex-direction: column;
+}
+.poi-card--similar { border-color: #e7a328; box-shadow: 3px 3px 0 #e7a328; background: #fffdf5; }
+.poi-card-body { padding: 14px 16px 16px; flex: 1; }
+.poi-card-city  { font-size: .65rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #e05c3a; margin-bottom: 4px; }
+.poi-card-title { font-size: .95rem; font-weight: 600; color: #180A0A; line-height: 1.3; margin-bottom: 6px; }
+.poi-card-snippet { font-size: .78rem; color: #535050; line-height: 1.45; }
+
+/* Skeleton bars for placeholder text */
+.skel { display: inline-block; background: currentColor; border-radius: 4px; opacity: .2; }
 </style>
 
-<div class="pp-hero">
-  <h1>Travel Passports</h1>
-  <p>Your personal travel identity — experiences, photos, and what you love.</p>
-</div>
+<div class="tabbi-page plan-page plan-list-page">
 
-<div class="pp-wrap">
-  {% if passports %}
-    <div class="pp-grid">
-      {% for p in passports %}
-        <a href="/passport/{{ p.slug }}" class="pp-card-link">
-          <h2>{{ p.title }}</h2>
-          <span class="meta">{{ p.created_at|slice:":10" }}</span>
-          {% if p.step >= 4 %}
-            <span class="step-badge done">Complete</span>
-          {% elif p.step == 3 %}
-            <span class="step-badge">Step 4: Scenarios</span>
-          {% elif p.step == 2 %}
-            <span class="step-badge">Step 3: Places</span>
-          {% elif p.step == 1 %}
-            <span class="step-badge">Step 2: Photos</span>
-          {% else %}
-            <span class="step-badge">Step 1: Experiences</span>
-          {% endif %}
-        </a>
-      {% endfor %}
-    </div>
-  {% else %}
-    <div class="pp-empty">
-      <p>You don't have any travel passports yet. Create one to capture your travel identity.</p>
-    </div>
-  {% endif %}
+{% if passports %}
 
-  <div style="text-align:center">
-    <a href="/passport/new" class="pp-new-btn">+ Create a new passport</a>
+  <div class="pp-list-header">
+    <h1>My Passports</h1>
+    <a href="/passport/new" class="tabbi-btn tabbi-btn--sm">+ New passport</a>
   </div>
+
+  <div class="pp-grid">
+    {% for p in passports %}
+    <a href="/passport/{{ p.slug }}" class="pp-card-link">
+      <h2>{{ p.title|default:"Unnamed passport" }}</h2>
+      <span class="pp-card-meta">{{ p.created_at|slice:":10" }}</span>
+    </a>
+    {% endfor %}
+  </div>
+
+  <p style="text-align:center"><a href="/passport/" class="tabbi-nav-passport-link">Add existing passport →</a></p>
+
+{% else %}
+
+  <!-- Hero / CTA -->
+  <div class="pp-empty-hero">
+
+    <div class="tabbi-empty-stage">
+      <div class="tabbi-cityscape">
+        <div class="tabbi-city-track">
+          <svg class="tabbi-buildings" viewBox="0 0 900 160" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMax meet">
+            <circle cx="35" cy="20" r="2.5"/><circle cx="200" cy="14" r="2"/><circle cx="430" cy="18" r="3"/><circle cx="610" cy="12" r="2"/><circle cx="780" cy="20" r="2.5"/>
+            <path d="M100,16 l2,6 2,-6 -6,2 6,2Z M100,16 l-2,6 -2,-6 6,2 -6,2Z"/><path d="M510,10 l1.5,5 1.5,-5 -5,1.5 5,1.5Z M510,10 l-1.5,5 -1.5,-5 5,1.5 -5,1.5Z"/><path d="M840,14 l2,6 2,-6 -6,2 6,2Z M840,14 l-2,6 -2,-6 6,2 -6,2Z"/>
+            <path d="M870,10 Q882,6 892,12 Q882,22 870,10Z"/>
+            <rect x="0" y="124" width="900" height="36" rx="4"/>
+            <rect x="8" y="94" width="66" height="30" rx="9"/><rect x="4" y="74" width="20" height="22" rx="8"/><rect x="58" y="74" width="20" height="22" rx="8"/>
+            <rect x="5" y="68" width="5" height="8" rx="2.5"/><rect x="12" y="68" width="5" height="8" rx="2.5"/><rect x="19" y="68" width="5" height="8" rx="2.5"/>
+            <rect x="59" y="68" width="5" height="8" rx="2.5"/><rect x="66" y="68" width="5" height="8" rx="2.5"/><rect x="73" y="68" width="5" height="8" rx="2.5"/>
+            <rect x="26" y="52" width="30" height="44" rx="9"/><rect x="26" y="46" width="7" height="8" rx="3"/><rect x="35" y="46" width="7" height="8" rx="3"/><rect x="44" y="46" width="7" height="8" rx="3"/>
+            <line x1="41" y1="46" x2="41" y2="28" stroke-linecap="round"/><path d="M41,28 L41,40 L54,35Z"/>
+            <path d="M41,72 Q35,66 35,61 Q35,55 41,58 Q47,55 47,61 Q47,66 41,72Z"/>
+            <path d="M30,124 L30,110 Q41,100 52,110 L52,124"/><circle cx="21" cy="84" r="4"/><circle cx="61" cy="84" r="4"/>
+            <rect x="105" y="106" width="10" height="18" rx="3"/><rect x="101" y="92" width="18" height="16" rx="5"/><path d="M88,92 Q109,80 130,92" stroke-linecap="round"/>
+            <rect x="103" y="78" width="14" height="16" rx="4"/><path d="M92,78 Q109,67 126,78" stroke-linecap="round"/>
+            <rect x="105" y="64" width="10" height="16" rx="4"/><path d="M96,64 Q109,53 122,64" stroke-linecap="round"/>
+            <circle cx="110" cy="52" r="4"/><line x1="110" y1="48" x2="110" y2="40" stroke-linecap="round"/><circle cx="110" cy="39" r="2.5"/>
+            <rect x="140" y="108" width="58" height="16" rx="6"/>
+            <line x1="148" y1="108" x2="148" y2="92" stroke-linecap="round"/><line x1="158" y1="108" x2="158" y2="92" stroke-linecap="round"/><line x1="168" y1="108" x2="168" y2="92" stroke-linecap="round"/><line x1="178" y1="108" x2="178" y2="92" stroke-linecap="round"/><line x1="188" y1="108" x2="188" y2="92" stroke-linecap="round"/>
+            <rect x="152" y="84" width="34" height="10" rx="5"/><path d="M144,84 Q144,48 169,44 Q194,48 194,84" stroke-linecap="round"/>
+            <line x1="169" y1="44" x2="169" y2="30" stroke-linecap="round"/><line x1="162" y1="36" x2="176" y2="36" stroke-linecap="round"/>
+            <circle cx="155" cy="66" r="2"/><circle cx="183" cy="60" r="1.5"/><circle cx="169" cy="55" r="2"/>
+            <rect x="208" y="50" width="36" height="74" rx="6"/><rect x="212" y="40" width="28" height="12" rx="5"/><rect x="218" y="30" width="16" height="12" rx="4"/>
+            <line x1="226" y1="30" x2="226" y2="16" stroke-linecap="round"/><circle cx="226" cy="15" r="3.5"/>
+            <circle cx="218" cy="63" r="4"/><circle cx="234" cy="63" r="4"/><path d="M216,74 Q226,82 236,74" stroke-linecap="round"/>
+            <rect x="212" y="86" width="6" height="6" rx="2"/><rect x="222" y="86" width="6" height="6" rx="2"/><rect x="232" y="86" width="6" height="6" rx="2"/>
+            <rect x="212" y="98" width="6" height="6" rx="2"/><rect x="222" y="98" width="6" height="6" rx="2"/><rect x="232" y="98" width="6" height="6" rx="2"/>
+            <path d="M258,124 Q262,112 270,106" stroke-linecap="round"/><path d="M302,124 Q298,112 290,106" stroke-linecap="round"/>
+            <path d="M270,106 Q280,100 290,106" stroke-linecap="round"/><path d="M270,106 L274,76 L286,76 L290,106" stroke-linejoin="round"/>
+            <rect x="272" y="72" width="16" height="5" rx="2.5"/><path d="M274,76 L277,46 L283,46 L286,76" stroke-linejoin="round"/>
+            <rect x="276" y="42" width="8" height="5" rx="2.5"/><line x1="280" y1="42" x2="280" y2="24" stroke-linecap="round"/><circle cx="280" cy="22" r="3.5"/>
+            <rect x="318" y="56" width="34" height="68" rx="6"/><rect x="312" y="82" width="8" height="42" rx="4"/><rect x="348" y="82" width="8" height="42" rx="4"/>
+            <circle cx="335" cy="62" r="12"/><line x1="335" y1="62" x2="335" y2="54" stroke-linecap="round"/><line x1="335" y1="62" x2="342" y2="62" stroke-linecap="round"/>
+            <rect x="316" y="72" width="38" height="5" rx="2.5"/><path d="M327,92 L327,108 Q335,114 343,108 L343,92 Q335,86 327,92Z"/>
+            <rect x="324" y="40" width="22" height="18" rx="4"/><path d="M324,40 L346,40 L335,22Z"/>
+            <path d="M367,124 L373,86 L393,86 L399,124Z" stroke-linejoin="round"/><ellipse cx="383" cy="86" rx="12" ry="6"/><circle cx="383" cy="86" r="5"/>
+            <path d="M383,86 Q378,74 374,64 Q380,68 385,76Z"/><path d="M383,86 Q395,81 405,77 Q401,83 393,87Z"/>
+            <path d="M383,86 Q388,98 392,108 Q386,104 381,96Z"/><path d="M383,86 Q371,91 361,95 Q365,89 373,85Z"/>
+            <path d="M378,124 L378,112 Q383,106 388,112 L388,124"/><circle cx="383" cy="100" r="3.5"/>
+            <rect x="414" y="96" width="28" height="28" rx="7"/><path d="M410,96 L442,96 L428,76Z" stroke-linejoin="round"/>
+            <rect x="430" y="68" width="7" height="10" rx="2"/><path d="M433,68 Q437,62 433,56 Q430,52 434,48" stroke-linecap="round"/>
+            <circle cx="421" cy="107" r="4.5"/><path d="M424,124 L424,112 Q428,106 432,112 L432,124"/>
+            <rect x="448" y="88" width="26" height="36" rx="7"/><path d="M444,88 L474,88 L461,66Z" stroke-linejoin="round"/>
+            <path d="M461,100 Q456,95 456,91 Q456,87 461,90 Q466,87 466,91 Q466,95 461,100Z"/><path d="M456,124 L456,112 Q461,106 466,112 L466,124"/>
+            <rect x="480" y="100" width="26" height="24" rx="7"/><path d="M476,100 L506,100 L493,82Z" stroke-linejoin="round"/>
+            <circle cx="493" cy="110" r="4.5"/><circle cx="488" cy="107" r="2"/><circle cx="498" cy="107" r="2"/><circle cx="488" cy="113" r="2"/><circle cx="498" cy="113" r="2"/>
+            <rect x="516" y="102" width="68" height="22" rx="8"/><path d="M536,124 L536,112 Q550,102 564,112 L564,124"/>
+            <path d="M530,102 Q518,98 518,82 Q518,58 550,52 Q582,58 582,82 Q582,98 570,102" stroke-linecap="round"/>
+            <ellipse cx="550" cy="52" rx="8" ry="5"/><rect x="517" y="70" width="12" height="34" rx="6"/><ellipse cx="523" cy="70" rx="6" ry="4"/>
+            <path d="M519,62 Q523,57 527,62 Q523,68 519,62Z"/><rect x="571" y="70" width="12" height="34" rx="6"/><ellipse cx="577" cy="70" rx="6" ry="4"/>
+            <path d="M573,62 Q577,57 581,62 Q577,68 573,62Z"/><circle cx="538" cy="72" r="2"/><circle cx="562" cy="68" r="2"/><circle cx="550" cy="66" r="1.5"/>
+            <path d="M596,124 L596,100 Q596,82 629,78 Q662,82 662,100 L662,124" stroke-linecap="round"/>
+            <path d="M599,100 Q599,86 629,82 Q659,86 659,100" stroke-linecap="round"/>
+            <path d="M601,124 L601,110 Q607,104 613,110 L613,124"/><path d="M616,124 L616,110 Q622,104 628,110 L628,124"/>
+            <path d="M631,124 L631,110 Q637,104 643,110 L643,124"/><path d="M646,124 L646,110 Q652,104 658,110 L658,124"/>
+            <circle cx="608" cy="92" r="4"/><circle cx="622" cy="90" r="4"/><circle cx="636" cy="90" r="4"/><circle cx="650" cy="92" r="4"/>
+            <path d="M674,124 L674,110 Q674,92 686,82 Q698,92 698,110 L698,124"/>
+            <path d="M686,124 L686,104 Q686,82 700,70 Q714,82 714,104 L714,124"/>
+            <path d="M700,124 L700,108 Q700,86 716,74 Q732,86 732,108 L732,124"/>
+            <path d="M718,124 L718,112 Q718,96 730,88 Q742,96 742,112 L742,124"/>
+            <path d="M676,130 Q700,126 730,128 Q742,127 746,128" stroke-linecap="round"/>
+            <path d="M758,124 L762,64 L780,64 L784,124Z" stroke-linejoin="round"/><rect x="758" y="56" width="26" height="10" rx="4"/><ellipse cx="771" cy="56" rx="10" ry="5"/>
+            <line x1="759" y1="84" x2="783" y2="84"/><line x1="760" y1="104" x2="782" y2="104"/>
+            <path d="M771,56 Q795,40 810,44" stroke-linecap="round" stroke-dasharray="3 3"/>
+            <path d="M765,124 L765,112 Q771,106 777,112 L777,124"/>
+            <circle cx="806" cy="108" r="12"/><circle cx="806" cy="104" r="8"/><rect x="803" y="116" width="6" height="8" rx="3"/>
+            <circle cx="832" cy="104" r="16"/><circle cx="832" cy="99" r="11"/><rect x="829" y="116" width="6" height="8" rx="3"/>
+            <circle cx="862" cy="100" r="20"/><circle cx="862" cy="94" r="14"/><rect x="859" y="116" width="6" height="8" rx="3"/>
+            <path d="M820,86 Q817,83 817,80 Q817,77 820,79 Q823,77 823,80 Q823,83 820,86Z"/>
+            <path d="M844,80 Q841,77 841,74 Q841,71 844,73 Q847,71 847,74 Q847,77 844,80Z"/>
+          </svg>
+          <svg class="tabbi-buildings" viewBox="0 0 900 160" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMinYMax meet">
+            <circle cx="35" cy="20" r="2.5"/><circle cx="200" cy="14" r="2"/><circle cx="430" cy="18" r="3"/><circle cx="610" cy="12" r="2"/><circle cx="780" cy="20" r="2.5"/>
+            <path d="M100,16 l2,6 2,-6 -6,2 6,2Z M100,16 l-2,6 -2,-6 6,2 -6,2Z"/><path d="M510,10 l1.5,5 1.5,-5 -5,1.5 5,1.5Z M510,10 l-1.5,5 -1.5,-5 5,1.5 -5,1.5Z"/><path d="M840,14 l2,6 2,-6 -6,2 6,2Z M840,14 l-2,6 -2,-6 6,2 -6,2Z"/>
+            <path d="M870,10 Q882,6 892,12 Q882,22 870,10Z"/>
+            <rect x="0" y="124" width="900" height="36" rx="4"/>
+            <rect x="8" y="94" width="66" height="30" rx="9"/><rect x="4" y="74" width="20" height="22" rx="8"/><rect x="58" y="74" width="20" height="22" rx="8"/>
+            <rect x="5" y="68" width="5" height="8" rx="2.5"/><rect x="12" y="68" width="5" height="8" rx="2.5"/><rect x="19" y="68" width="5" height="8" rx="2.5"/>
+            <rect x="59" y="68" width="5" height="8" rx="2.5"/><rect x="66" y="68" width="5" height="8" rx="2.5"/><rect x="73" y="68" width="5" height="8" rx="2.5"/>
+            <rect x="26" y="52" width="30" height="44" rx="9"/><rect x="26" y="46" width="7" height="8" rx="3"/><rect x="35" y="46" width="7" height="8" rx="3"/><rect x="44" y="46" width="7" height="8" rx="3"/>
+            <line x1="41" y1="46" x2="41" y2="28" stroke-linecap="round"/><path d="M41,28 L41,40 L54,35Z"/>
+            <path d="M41,72 Q35,66 35,61 Q35,55 41,58 Q47,55 47,61 Q47,66 41,72Z"/>
+            <path d="M30,124 L30,110 Q41,100 52,110 L52,124"/><circle cx="21" cy="84" r="4"/><circle cx="61" cy="84" r="4"/>
+            <rect x="105" y="106" width="10" height="18" rx="3"/><rect x="101" y="92" width="18" height="16" rx="5"/><path d="M88,92 Q109,80 130,92" stroke-linecap="round"/>
+            <rect x="103" y="78" width="14" height="16" rx="4"/><path d="M92,78 Q109,67 126,78" stroke-linecap="round"/>
+            <rect x="105" y="64" width="10" height="16" rx="4"/><path d="M96,64 Q109,53 122,64" stroke-linecap="round"/>
+            <circle cx="110" cy="52" r="4"/><line x1="110" y1="48" x2="110" y2="40" stroke-linecap="round"/><circle cx="110" cy="39" r="2.5"/>
+            <rect x="140" y="108" width="58" height="16" rx="6"/>
+            <line x1="148" y1="108" x2="148" y2="92" stroke-linecap="round"/><line x1="158" y1="108" x2="158" y2="92" stroke-linecap="round"/><line x1="168" y1="108" x2="168" y2="92" stroke-linecap="round"/><line x1="178" y1="108" x2="178" y2="92" stroke-linecap="round"/><line x1="188" y1="108" x2="188" y2="92" stroke-linecap="round"/>
+            <rect x="152" y="84" width="34" height="10" rx="5"/><path d="M144,84 Q144,48 169,44 Q194,48 194,84" stroke-linecap="round"/>
+            <line x1="169" y1="44" x2="169" y2="30" stroke-linecap="round"/><line x1="162" y1="36" x2="176" y2="36" stroke-linecap="round"/>
+            <circle cx="155" cy="66" r="2"/><circle cx="183" cy="60" r="1.5"/><circle cx="169" cy="55" r="2"/>
+            <rect x="208" y="50" width="36" height="74" rx="6"/><rect x="212" y="40" width="28" height="12" rx="5"/><rect x="218" y="30" width="16" height="12" rx="4"/>
+            <line x1="226" y1="30" x2="226" y2="16" stroke-linecap="round"/><circle cx="226" cy="15" r="3.5"/>
+            <circle cx="218" cy="63" r="4"/><circle cx="234" cy="63" r="4"/><path d="M216,74 Q226,82 236,74" stroke-linecap="round"/>
+            <rect x="212" y="86" width="6" height="6" rx="2"/><rect x="222" y="86" width="6" height="6" rx="2"/><rect x="232" y="86" width="6" height="6" rx="2"/>
+            <rect x="212" y="98" width="6" height="6" rx="2"/><rect x="222" y="98" width="6" height="6" rx="2"/><rect x="232" y="98" width="6" height="6" rx="2"/>
+            <path d="M258,124 Q262,112 270,106" stroke-linecap="round"/><path d="M302,124 Q298,112 290,106" stroke-linecap="round"/>
+            <path d="M270,106 Q280,100 290,106" stroke-linecap="round"/><path d="M270,106 L274,76 L286,76 L290,106" stroke-linejoin="round"/>
+            <rect x="272" y="72" width="16" height="5" rx="2.5"/><path d="M274,76 L277,46 L283,46 L286,76" stroke-linejoin="round"/>
+            <rect x="276" y="42" width="8" height="5" rx="2.5"/><line x1="280" y1="42" x2="280" y2="24" stroke-linecap="round"/><circle cx="280" cy="22" r="3.5"/>
+            <rect x="318" y="56" width="34" height="68" rx="6"/><rect x="312" y="82" width="8" height="42" rx="4"/><rect x="348" y="82" width="8" height="42" rx="4"/>
+            <circle cx="335" cy="62" r="12"/><line x1="335" y1="62" x2="335" y2="54" stroke-linecap="round"/><line x1="335" y1="62" x2="342" y2="62" stroke-linecap="round"/>
+            <rect x="316" y="72" width="38" height="5" rx="2.5"/><path d="M327,92 L327,108 Q335,114 343,108 L343,92 Q335,86 327,92Z"/>
+            <rect x="324" y="40" width="22" height="18" rx="4"/><path d="M324,40 L346,40 L335,22Z"/>
+            <path d="M367,124 L373,86 L393,86 L399,124Z" stroke-linejoin="round"/><ellipse cx="383" cy="86" rx="12" ry="6"/><circle cx="383" cy="86" r="5"/>
+            <path d="M383,86 Q378,74 374,64 Q380,68 385,76Z"/><path d="M383,86 Q395,81 405,77 Q401,83 393,87Z"/>
+            <path d="M383,86 Q388,98 392,108 Q386,104 381,96Z"/><path d="M383,86 Q371,91 361,95 Q365,89 373,85Z"/>
+            <path d="M378,124 L378,112 Q383,106 388,112 L388,124"/><circle cx="383" cy="100" r="3.5"/>
+            <rect x="414" y="96" width="28" height="28" rx="7"/><path d="M410,96 L442,96 L428,76Z" stroke-linejoin="round"/>
+            <rect x="430" y="68" width="7" height="10" rx="2"/><path d="M433,68 Q437,62 433,56 Q430,52 434,48" stroke-linecap="round"/>
+            <circle cx="421" cy="107" r="4.5"/><path d="M424,124 L424,112 Q428,106 432,112 L432,124"/>
+            <rect x="448" y="88" width="26" height="36" rx="7"/><path d="M444,88 L474,88 L461,66Z" stroke-linejoin="round"/>
+            <path d="M461,100 Q456,95 456,91 Q456,87 461,90 Q466,87 466,91 Q466,95 461,100Z"/><path d="M456,124 L456,112 Q461,106 466,112 L466,124"/>
+            <rect x="480" y="100" width="26" height="24" rx="7"/><path d="M476,100 L506,100 L493,82Z" stroke-linejoin="round"/>
+            <circle cx="493" cy="110" r="4.5"/><circle cx="488" cy="107" r="2"/><circle cx="498" cy="107" r="2"/><circle cx="488" cy="113" r="2"/><circle cx="498" cy="113" r="2"/>
+            <rect x="516" y="102" width="68" height="22" rx="8"/><path d="M536,124 L536,112 Q550,102 564,112 L564,124"/>
+            <path d="M530,102 Q518,98 518,82 Q518,58 550,52 Q582,58 582,82 Q582,98 570,102" stroke-linecap="round"/>
+            <ellipse cx="550" cy="52" rx="8" ry="5"/><rect x="517" y="70" width="12" height="34" rx="6"/><ellipse cx="523" cy="70" rx="6" ry="4"/>
+            <path d="M519,62 Q523,57 527,62 Q523,68 519,62Z"/><rect x="571" y="70" width="12" height="34" rx="6"/><ellipse cx="577" cy="70" rx="6" ry="4"/>
+            <path d="M573,62 Q577,57 581,62 Q577,68 573,62Z"/><circle cx="538" cy="72" r="2"/><circle cx="562" cy="68" r="2"/><circle cx="550" cy="66" r="1.5"/>
+            <path d="M596,124 L596,100 Q596,82 629,78 Q662,82 662,100 L662,124" stroke-linecap="round"/>
+            <path d="M599,100 Q599,86 629,82 Q659,86 659,100" stroke-linecap="round"/>
+            <path d="M601,124 L601,110 Q607,104 613,110 L613,124"/><path d="M616,124 L616,110 Q622,104 628,110 L628,124"/>
+            <path d="M631,124 L631,110 Q637,104 643,110 L643,124"/><path d="M646,124 L646,110 Q652,104 658,110 L658,124"/>
+            <circle cx="608" cy="92" r="4"/><circle cx="622" cy="90" r="4"/><circle cx="636" cy="90" r="4"/><circle cx="650" cy="92" r="4"/>
+            <path d="M674,124 L674,110 Q674,92 686,82 Q698,92 698,110 L698,124"/>
+            <path d="M686,124 L686,104 Q686,82 700,70 Q714,82 714,104 L714,124"/>
+            <path d="M700,124 L700,108 Q700,86 716,74 Q732,86 732,108 L732,124"/>
+            <path d="M718,124 L718,112 Q718,96 730,88 Q742,96 742,112 L742,124"/>
+            <path d="M676,130 Q700,126 730,128 Q742,127 746,128" stroke-linecap="round"/>
+            <path d="M758,124 L762,64 L780,64 L784,124Z" stroke-linejoin="round"/><rect x="758" y="56" width="26" height="10" rx="4"/><ellipse cx="771" cy="56" rx="10" ry="5"/>
+            <line x1="759" y1="84" x2="783" y2="84"/><line x1="760" y1="104" x2="782" y2="104"/>
+            <path d="M771,56 Q795,40 810,44" stroke-linecap="round" stroke-dasharray="3 3"/>
+            <path d="M765,124 L765,112 Q771,106 777,112 L777,124"/>
+            <circle cx="806" cy="108" r="12"/><circle cx="806" cy="104" r="8"/><rect x="803" y="116" width="6" height="8" rx="3"/>
+            <circle cx="832" cy="104" r="16"/><circle cx="832" cy="99" r="11"/><rect x="829" y="116" width="6" height="8" rx="3"/>
+            <circle cx="862" cy="100" r="20"/><circle cx="862" cy="94" r="14"/><rect x="859" y="116" width="6" height="8" rx="3"/>
+            <path d="M820,86 Q817,83 817,80 Q817,77 820,79 Q823,77 823,80 Q823,83 820,86Z"/>
+            <path d="M844,80 Q841,77 841,74 Q841,71 844,73 Q847,71 847,74 Q847,77 844,80Z"/>
+          </svg>
+        </div>
+      </div>
+      <div class="tabbi-ghost">
+        <img class="tabbi-ghost-svg" src="{% static 'plans/tabbi-ghost-only.svg' %}" alt="Tabbi">
+      </div>
+    </div>
+
+    <h2 class="tabbi-empty-headline">Your travel identity, passport-style.</h2>
+    <p class="tabbi-empty-sub">Swipe places, discover your taste, get suggestions made for you.<br>No account needed — just a passphrase you'll remember.</p>
+    <a href="/passport/new" class="tabbi-btn">+ Create your passport</a>
+    <p class="tabbi-empty-join">Already have one?
+      <button class="tabbi-empty-join-btn" type="button" id="ppJoinToggle">Open with passphrase →</button>
+    </p>
+    <div id="ppJoinForm" style="display:none;margin-top:12px;max-width:360px;margin-left:auto;margin-right:auto;">
+      <form onsubmit="ppJoinSubmit(event)" style="display:flex;gap:8px;align-items:center;">
+        <input id="ppJoinSlug" type="text" placeholder="Your passport slug or URL" autocomplete="off"
+          style="flex:1;padding:9px 14px;border:2px solid #180A0A;border-radius:8px;font-family:inherit;font-size:.85rem;">
+        <button type="submit" class="tabbi-btn tabbi-btn--sm">Open →</button>
+      </form>
+      <p style="font-size:.75rem;color:#A6A6A6;margin:6px 0 0;">Paste your passport URL or the slug from when you created it.</p>
+    </div>
+    <script>
+    document.getElementById('ppJoinToggle').addEventListener('click', function() {
+      var f = document.getElementById('ppJoinForm');
+      f.style.display = f.style.display === 'none' ? 'block' : 'none';
+      if (f.style.display !== 'none') document.getElementById('ppJoinSlug').focus();
+    });
+    function ppJoinSubmit(e) {
+      e.preventDefault();
+      var val = document.getElementById('ppJoinSlug').value.trim();
+      var slug = val.replace(/.*\/passport\/([^/]+)\/?.*/, '$1').replace(/\//g, '');
+      if (slug) window.location.href = '/passport/' + slug + '/login/?next=/passport/' + slug + '/';
+    }
+    </script>
+
+  </div><!-- /pp-empty-hero -->
+
+  <!-- Preview of what your passport will look like -->
+  <div class="pp-preview" style="max-width:900px;margin-left:auto;margin-right:auto;">
+
+    <div class="pp-preview-intro">
+      <div class="pp-preview-intro-label">Your passport will look like this</div>
+      <p>These sections fill in automatically as you swipe places you love.</p>
+    </div>
+
+    <!-- Travel profile -->
+    <div class="preview-section">
+      <div class="section-label">Your travel profile</div>
+      <div class="profile-card">
+        <div class="profile-card-inner">
+          <div class="profile-main">
+            <span class="profile-accuracy">— % accurate</span>
+            <span class="profile-type-emoji">🧭</span>
+            <div class="profile-type-label">Your traveller type</div>
+            <div class="profile-text">A description of how you like to travel — adventurous or laid-back, food-first or culture-first — based on the places you swipe.</div>
+          </div>
+          <div class="profile-bars">
+            <div class="theme-bar-row">
+              <span class="theme-bar-emoji">🍽️</span>
+              <span class="theme-bar-label">Food &amp; drink</span>
+              <div class="theme-bar-track"><div class="theme-bar-fill" style="width:72%"></div></div>
+              <span class="theme-bar-pct">72%</span>
+            </div>
+            <div class="theme-bar-row">
+              <span class="theme-bar-emoji">🏛️</span>
+              <span class="theme-bar-label">Culture</span>
+              <div class="theme-bar-track"><div class="theme-bar-fill" style="width:55%"></div></div>
+              <span class="theme-bar-pct">55%</span>
+            </div>
+            <div class="theme-bar-row">
+              <span class="theme-bar-emoji">🌿</span>
+              <span class="theme-bar-label">Nature</span>
+              <div class="theme-bar-track"><div class="theme-bar-fill" style="width:38%"></div></div>
+              <span class="theme-bar-pct">38%</span>
+            </div>
+            <div class="theme-bar-row">
+              <span class="theme-bar-emoji">🎉</span>
+              <span class="theme-bar-label">Nightlife</span>
+              <div class="theme-bar-track"><div class="theme-bar-fill" style="width:24%"></div></div>
+              <span class="theme-bar-pct">24%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="preview-section">
+      <div class="section-label">Stats</div>
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-box-num">—</div>
+          <div class="stat-box-label">Places liked</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-box-num">—</div>
+          <div class="stat-box-label">Cities explored</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-box-num">—</div>
+          <div class="stat-box-label">Profile accuracy</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-box-num">🧭</div>
+          <div class="stat-box-label">Top theme</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cities -->
+    <div class="preview-section" style="display:flex;gap:24px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:200px;">
+        <div class="section-label">Cities you've been to</div>
+        <div class="cities-row">
+          <div class="city-chip" style="border-color:#27ae60;">✓ Paris</div>
+          <div class="city-chip" style="border-color:#27ae60;">✓ Barcelona</div>
+          <div class="city-chip" style="border-color:#27ae60;">✓ Tokyo</div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:200px;">
+        <div class="section-label">On your bucket list</div>
+        <div class="cities-row">
+          <div class="city-chip" style="border-color:#e7a328;">★ Kyoto</div>
+          <div class="city-chip" style="border-color:#e7a328;">★ Lisbon</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Predictions -->
+    <div class="preview-section">
+      <div class="section-label">You'll probably love</div>
+      <div class="predictions-wrap">
+        <div class="prediction-tag">Rooftop bars</div>
+        <div class="prediction-tag">Street food markets</div>
+        <div class="prediction-tag">Hidden courtyards</div>
+        <div class="prediction-tag">Independent bookshops</div>
+        <div class="prediction-tag">Local fish restaurants</div>
+      </div>
+    </div>
+
+    <!-- Embedding recommendations -->
+    <div class="preview-section">
+      <div class="section-label">Based on your profile, you'll love</div>
+      <div class="poi-grid similar-grid">
+        <div class="poi-card poi-card--similar">
+          <div class="poi-card-body">
+            <div class="poi-card-city">Barcelona</div>
+            <div class="poi-card-title">Bar Marsella</div>
+            <div class="poi-card-snippet">One of the oldest bars in Barcelona, serving absinthe since 1820. Dusty bottles and peeling walls make it feel frozen in time.</div>
+          </div>
+        </div>
+        <div class="poi-card poi-card--similar">
+          <div class="poi-card-body">
+            <div class="poi-card-city">Tokyo</div>
+            <div class="poi-card-title">Tsukiji Outer Market</div>
+            <div class="poi-card-snippet">The outer market that never stopped — fresh sushi for breakfast, tamagoyaki on a stick, and the best knife shopping in the world.</div>
+          </div>
+        </div>
+        <div class="poi-card poi-card--similar">
+          <div class="poi-card-body">
+            <div class="poi-card-city">Lisbon</div>
+            <div class="poi-card-title">Taberna da Rua das Flores</div>
+            <div class="poi-card-snippet">No printed menu, just what's good that day. Small, packed, and completely worth fighting for a table.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Liked places -->
+    <div class="preview-section">
+      <div class="section-label">Places you liked</div>
+      <div class="poi-grid">
+        {% for item in "12345678"|make_list %}
+        <div class="poi-card">
+          <div class="poi-card-body" style="min-height:90px;">
+            <div class="poi-card-city"><span class="skel" style="width:60px;height:.65em;">&nbsp;</span></div>
+            <div class="poi-card-title" style="margin-bottom:8px;"><span class="skel" style="width:85%;height:.9em;">&nbsp;</span></div>
+            <div><span class="skel" style="width:100%;height:.7em;display:block;margin-bottom:4px;">&nbsp;</span><span class="skel" style="width:70%;height:.7em;">&nbsp;</span></div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div style="text-align:center;padding:16px 0 32px;">
+      <a href="/passport/new" class="tabbi-btn">+ Create your passport</a>
+    </div>
+
+  </div><!-- /pp-preview -->
+
+{% endif %}
+
 </div>
 {% endblock %}

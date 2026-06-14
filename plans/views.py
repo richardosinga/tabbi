@@ -593,7 +593,7 @@ def plan_new(request):
                     meta["passport"] = passport_slugs[0]
                 post = fm.Post(body, **meta)
                 with open(path, "w", encoding="utf-8") as fh:
-                    fm.dump(post, fh)
+                    fh.write(fm.dumps(post))
                 _save_password(slug, passphrase)
                 _mark_plan_authenticated(request, slug)
                 request.session["new_plan_passphrase"] = passphrase
@@ -667,11 +667,43 @@ def plan_detail(request, slug):
     total_budget["currency"] = currency
     total_budget["total"] = sum(total_budget[k] for k in ("hotel", "food", "activities", "travel"))
 
+    from passport.views import _load_passport as _lp
+    linked_passport = None
+    if plan.get("passport_slug"):
+        pp = _lp(plan["passport_slug"])
+        if pp:
+            linked_passport = {"slug": pp["slug"], "title": pp.get("title") or pp["slug"]}
+
+    session_passport_slugs = request.session.get("authenticated_passports", [])
+    session_passports = []
+    for ps in session_passport_slugs:
+        pp = _lp(ps)
+        if pp:
+            session_passports.append({"slug": pp["slug"], "title": pp.get("title") or pp["slug"]})
+
     return render(request, "plans/plan_detail.html", {
         "plan": plan,
         "stop_markers": mark_safe(json.dumps(stop_markers)),
         "total_budget": total_budget,
+        "linked_passport": linked_passport,
+        "session_passports": session_passports,
     })
+
+
+@_require_plan_auth
+@require_POST
+def plan_set_passport(request, slug):
+    import frontmatter as _fmb
+    path = PLANS_DIR / f"{slug}.md"
+    post = _fmb.load(str(path))
+    new_passport = request.POST.get("passport_slug", "").strip()
+    if new_passport:
+        post.metadata["passport"] = new_passport
+    else:
+        post.metadata.pop("passport", None)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(_fmb.dumps(post))
+    return HttpResponseRedirect(f"/plans/{slug}/")
 
 
 @_require_plan_auth
@@ -960,7 +992,7 @@ def _plan_save_budget(slug, city_slug, budget_data):
     budgets[city_slug] = {k: v for k, v in budget_data.items() if v is not None}
     post.metadata["budgets"] = budgets
     with open(path, "w", encoding="utf-8") as fh:
-        fm.dump(post, fh)
+        fh.write(fm.dumps(post))
 
 
 def _parse_poi_price(poi_path):
@@ -996,7 +1028,7 @@ def _budget_add_poi_price(slug, city_slug, poi_path):
     budgets[city_slug] = stop_budget
     post.metadata["budgets"] = budgets
     with open(path, "w", encoding="utf-8") as fh:
-        fm.dump(post, fh)
+        fh.write(fm.dumps(post))
 
 
 def _budget_remove_poi_price(slug, city_slug, poi_path):
@@ -1024,7 +1056,7 @@ def _budget_remove_poi_price(slug, city_slug, poi_path):
     budgets[city_slug] = stop_budget
     post.metadata["budgets"] = budgets
     with open(path, "w", encoding="utf-8") as fh:
-        fm.dump(post, fh)
+        fh.write(fm.dumps(post))
 
 
 @_require_plan_auth
@@ -1087,7 +1119,7 @@ def api_plan_add_stop(request, slug):
     lines.append(f"## {city_title}")
     post.content = "\n".join(lines)
     with open(path, "w", encoding="utf-8") as fh:
-        fm.dump(post, fh)
+        fh.write(fm.dumps(post))
 
     stop_url = f"/plans/{slug}/{city_slug}/"
     image_url = None
@@ -1116,7 +1148,7 @@ def plan_edit(request, slug):
         post = fm.load(path)
         post.content = body
         with open(path, "w", encoding="utf-8") as fh:
-            fm.dump(post, fh)
+            fh.write(fm.dumps(post))
         return HttpResponseRedirect(f"/plans/{slug}/")
     post = fm.load(path)
     return render(request, "plans/plan_edit.html", {
@@ -1160,14 +1192,14 @@ def _plan_file_add(slug, city_slug, poi_path):
         lines.append(f"- {poi_path}")
         post.content = "\n".join(lines)
         with open(path, "w", encoding="utf-8") as fh:
-            fm.dump(post, fh)
+            fh.write(fm.dumps(post))
         return True
     if any(l.strip().lstrip("-* ") == poi_path for l in lines):
         return False
     lines.insert(insert_at, f"- {poi_path}")
     post.content = "\n".join(lines)
     with open(path, "w", encoding="utf-8") as fh:
-        fm.dump(post, fh)
+        fh.write(fm.dumps(post))
     return True
 
 
@@ -1181,7 +1213,7 @@ def _plan_file_remove(slug, poi_path):
         return False
     post.content = "\n".join(new_lines)
     with open(path, "w", encoding="utf-8") as fh:
-        fm.dump(post, fh)
+        fh.write(fm.dumps(post))
     return True
 
 
@@ -1248,7 +1280,7 @@ def plan_note_edit(request, slug, city_slug):
         ]
         post.content = "\n".join(new_lines)
         with open(path, "w", encoding="utf-8") as fh:
-            fm.dump(post, fh)
+            fh.write(fm.dumps(post))
     return HttpResponseRedirect(request.POST.get("next", f"/plans/{slug}/{city_slug}/"))
 
 

@@ -442,12 +442,13 @@ def passport_protect(request, slug):
         _mark_authenticated(request, slug)
         return redirect(f"/passport/{slug}/swipe")
 
-    phrase = generate_passphrase(4)
+    phrase = generate_passphrase(3)
     request.session[session_key] = phrase
     passport = _load_passport(slug)
     return render(request, "passport/protect.html", {
         "passport": passport,
         "phrase": phrase,
+        "phrase_words": phrase.split("-"),
     })
 
 
@@ -489,8 +490,13 @@ def passport_swipe(request, slug):
             skipped = json.loads(request.POST.get("skipped", "[]"))
         except (ValueError, TypeError):
             skipped = []
+        try:
+            city_modes = json.loads(request.POST.get("city_modes", "{}"))
+        except (ValueError, TypeError):
+            city_modes = {}
         passport["liked_pois"] = liked
         passport["skipped_pois"] = skipped
+        passport["city_modes"] = city_modes
         passport["step"] = max(passport.get("step", 0), 1)
         _save_passport(passport)
         return redirect(f"/passport/{slug}")
@@ -528,8 +534,13 @@ def passport_swipe_autosave(request, slug):
         skipped = json.loads(request.POST.get("skipped", "[]"))
     except (ValueError, TypeError):
         skipped = []
+    try:
+        city_modes = json.loads(request.POST.get("city_modes", "{}"))
+    except (ValueError, TypeError):
+        city_modes = {}
     passport["liked_pois"] = liked
     passport["skipped_pois"] = skipped
+    passport["city_modes"] = city_modes
     if liked:
         passport["step"] = max(passport.get("step", 0), 1)
     _save_passport(passport)
@@ -671,6 +682,16 @@ def passport_detail(request, slug):
     profile = _compute_traveler_profile(liked_pois, skipped_pois)
     similar_pois = _embedding_recommendations(liked_pois, k=3) if liked_pois else []
 
+    city_modes = passport.get("city_modes", {})
+    been_cities = sorted(
+        p.split("/")[-1].replace("_", " ").title()
+        for p, m in city_modes.items() if m == "been"
+    )
+    bucket_cities = sorted(
+        p.split("/")[-1].replace("_", " ").title()
+        for p, m in city_modes.items() if m == "bucketlist"
+    )
+
     return render(request, "passport/detail.html", {
         "passport": passport,
         "liked_pois": liked_pois,
@@ -679,5 +700,7 @@ def passport_detail(request, slug):
         "step": passport.get("step", 0),
         "profile": profile,
         "similar_pois": similar_pois,
+        "been_cities": been_cities,
+        "bucket_cities": bucket_cities,
         "w66_url": settings.WORLD66_SITE_URL.rstrip("/"),
     })

@@ -12,26 +12,111 @@
 {% endblock %}
 
 {% block topnav %}
+<style>
+.tabbi-nav-menu-btn {
+  display: flex; align-items: center; gap: 7px;
+  background: none; border: 2px solid #e0dbd4; border-radius: 8px;
+  padding: 6px 12px; cursor: pointer; font-family: 'Lexend Exa', sans-serif;
+  font-size: .82rem; font-weight: 600; color: #180A0A; line-height: 1;
+  transition: border-color .15s, background .15s;
+}
+.tabbi-nav-menu-btn:hover { border-color: #180A0A; background: #faf9f7; }
+.tabbi-nav-menu-btn[aria-expanded="true"] { border-color: #180A0A; background: #faf9f7; }
+.tabbi-nav-menu-icon { display: flex; flex-direction: column; gap: 4px; }
+.tabbi-nav-menu-icon span { display: block; width: 16px; height: 2px; background: #180A0A; border-radius: 2px; transition: transform .2s, opacity .2s; }
+.tabbi-nav-menu-btn[aria-expanded="true"] .tabbi-nav-menu-icon span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+.tabbi-nav-menu-btn[aria-expanded="true"] .tabbi-nav-menu-icon span:nth-child(2) { opacity: 0; }
+.tabbi-nav-menu-btn[aria-expanded="true"] .tabbi-nav-menu-icon span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+
+.tabbi-nav-dropdown-wrap { position: relative; }
+.tabbi-nav-dropdown {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  background: #fff; border: 2.5px solid #180A0A; border-radius: 14px;
+  box-shadow: 5px 5px 0 #180A0A; min-width: 220px; z-index: 999;
+  padding: 8px 0; display: none;
+}
+.tabbi-nav-dropdown.open { display: block; }
+.tabbi-nav-dd-section {
+  font-size: .6rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: #C8C8C8; padding: 10px 18px 4px;
+}
+.tabbi-nav-dd-item {
+  display: block; padding: 9px 18px; font-size: .85rem; font-weight: 600;
+  color: #180A0A; text-decoration: none; transition: background .1s;
+}
+.tabbi-nav-dd-item:hover { background: #faf9f7; text-decoration: none; color: #180A0A; }
+.tabbi-nav-dd-item.muted { font-weight: 400; color: #535050; }
+.tabbi-nav-dd-item.muted:hover { color: #180A0A; }
+.tabbi-nav-dd-divider { height: 1px; background: #f0ede8; margin: 6px 0; }
+.tabbi-nav-dd-signout { display: block; padding: 9px 18px; font-size: .82rem; color: #A6A6A6; text-decoration: none; }
+.tabbi-nav-dd-signout:hover { color: #180A0A; }
+</style>
 <nav class="tabbi-nav">
-  <a href="/plans/" class="tabbi-nav-logo">
+  <a href="/" class="tabbi-nav-logo">
     <img src="{% static 'plans/tabbi-logo.svg' %}" alt="Tab.bi" class="tabbi-nav-logo-img">
     <span class="tabbi-nav-logo-text">Tab<span class="tabbi-nav-logo-dot">.</span>bi</span>
   </a>
   <div class="tabbi-nav-actions">
-    {% if request.session.authenticated_passports %}
-      {% with request.session.authenticated_passports|first as pp_slug %}
-      <a href="/passport/{{ pp_slug }}/" class="tabbi-btn tabbi-btn--ghost">My passport</a>
-      {% endwith %}
-    {% else %}
-      <a href="/passport/new/" class="tabbi-nav-passport-link">Passport</a>
-    {% endif %}
-    {% if request.session.authenticated_plans %}
-      <a href="/auth/logout/" class="tabbi-btn tabbi-btn--ghost">Sign out</a>
-    {% else %}
-      <a href="/plans/new/" class="tabbi-btn">+ New trip</a>
-    {% endif %}
+    {% with pp_slug=request.session.authenticated_passports|first %}
+    <div class="tabbi-nav-dropdown-wrap">
+      <button class="tabbi-nav-menu-btn" id="tabbiMenuBtn" type="button" aria-expanded="false" aria-controls="tabbiMenuDropdown">
+        <span class="tabbi-nav-menu-icon">
+          <span></span><span></span><span></span>
+        </span>
+        Menu
+      </button>
+      <div class="tabbi-nav-dropdown" id="tabbiMenuDropdown" role="menu">
+
+        <div class="tabbi-nav-dd-section">Trips</div>
+        {% if request.session.authenticated_plans %}
+          <a href="/plans/" class="tabbi-nav-dd-item">My trips</a>
+        {% endif %}
+        <a href="/plans/new/" class="tabbi-nav-dd-item">+ New trip</a>
+        <a href="/plans/" class="tabbi-nav-dd-item muted">Add existing trip</a>
+
+        <div class="tabbi-nav-dd-divider"></div>
+        <div class="tabbi-nav-dd-section">Passports</div>
+        {% if pp_slug %}
+          <a href="/passport/{{ pp_slug }}/" class="tabbi-nav-dd-item">My passport</a>
+        {% endif %}
+        <a href="/passport/new" class="tabbi-nav-dd-item">+ New passport</a>
+        <a href="/passport/" class="tabbi-nav-dd-item muted">Add existing passport</a>
+
+        <div class="tabbi-nav-dd-divider"></div>
+        <a href="/how-it-works/" class="tabbi-nav-dd-item muted">How it works</a>
+        <a href="/privacy/" class="tabbi-nav-dd-item muted">Privacy</a>
+
+        {% if pp_slug or request.session.authenticated_plans %}
+        <div class="tabbi-nav-dd-divider"></div>
+        <a href="/auth/logout/" class="tabbi-nav-dd-signout">Sign out</a>
+        {% endif %}
+
+      </div>
+    </div>
+    {% endwith %}
   </div>
 </nav>
+<script>
+(function(){
+  var btn = document.getElementById('tabbiMenuBtn');
+  var dd = document.getElementById('tabbiMenuDropdown');
+  if (!btn || !dd) return;
+  btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    var open = dd.classList.toggle('open');
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  document.addEventListener('click', function(e) {
+    if (!dd.contains(e.target) && e.target !== btn) {
+      dd.classList.remove('open');
+      btn.setAttribute('aria-expanded', 'false');
+    }
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') { dd.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }
+  });
+})();
+</script>
 {% endblock topnav %}
 
 {% block footer %}
