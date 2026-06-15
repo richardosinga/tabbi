@@ -25,6 +25,20 @@ def _add_cors(response):
     return response
 
 
+def _wants_sse(request):
+    return "text/event-stream" in request.META.get("HTTP_ACCEPT", "")
+
+
+def _sse_response(responses):
+    def stream():
+        for resp in responses:
+            yield f"event: message\ndata: {json.dumps(resp)}\n\n"
+
+    r = StreamingHttpResponse(stream(), content_type="text/event-stream")
+    r["Cache-Control"] = "no-cache"
+    r["X-Accel-Buffering"] = "no"
+    return r
+
 
 @csrf_exempt
 def mcp_endpoint(request):

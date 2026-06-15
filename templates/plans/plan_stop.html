@@ -293,6 +293,7 @@
           <span class="plan-suggestions-chip plan-suggestions-chip--{{ group.key }}">{{ group.icon }} {{ group.label }}</span>
         </div>
         <div class="plan-suggestions-strip-wrap" data-cat="{{ group.key }}">
+          <button type="button" class="plan-suggestions-arrow plan-suggestions-arrow--prev" aria-label="Scroll left" hidden>‹</button>
           <div class="plan-suggestions-strip">
             {% for s in group.items %}
             <div class="plan-suggestion-tile plan-suggestion-tile--{{ group.key }}{% if s.note_match %} plan-suggestion-tile--match{% endif %}" data-title="{{ s.page.title|lower }}">
@@ -319,6 +320,7 @@
             </div>
             {% endfor %}
           </div>
+          <button type="button" class="plan-suggestions-arrow plan-suggestions-arrow--next" aria-label="Scroll right" hidden>›</button>
         </div>
         {% endfor %}
       </div>
@@ -533,7 +535,47 @@ function toggleConciergeForm(btn) {
     } else {
       noResults.setAttribute('hidden', '');
     }
+
+    // Visibility of tiles/strips changed — recompute scroll-arrow state.
+    if (window.refreshSuggestionArrows) window.refreshSuggestionArrows();
   });
+})();
+
+// Scroll-arrow fallback for the horizontal suggestion strips. The scrollbars
+// are hidden, so mouse users (no horizontal wheel) get no affordance; these
+// buttons appear only when a strip actually overflows.
+(function() {
+  var updaters = [];
+
+  function setup(wrap) {
+    var strip = wrap.querySelector('.plan-suggestions-strip');
+    var prev = wrap.querySelector('.plan-suggestions-arrow--prev');
+    var next = wrap.querySelector('.plan-suggestions-arrow--next');
+    if (!strip || !prev || !next) return;
+
+    function update() {
+      var max = strip.scrollWidth - strip.clientWidth;
+      var hidden = wrap.style.display === 'none' || max <= 1;
+      prev.hidden = hidden || strip.scrollLeft <= 1;
+      next.hidden = hidden || strip.scrollLeft >= max - 1;
+    }
+    prev.addEventListener('click', function() {
+      strip.scrollBy({ left: -strip.clientWidth * 0.8, behavior: 'smooth' });
+    });
+    next.addEventListener('click', function() {
+      strip.scrollBy({ left: strip.clientWidth * 0.8, behavior: 'smooth' });
+    });
+    strip.addEventListener('scroll', update);
+    update();
+    updaters.push(update);
+  }
+
+  document.querySelectorAll('.plan-suggestions-strip-wrap').forEach(setup);
+
+  function refreshAll() { updaters.forEach(function(u) { u(); }); }
+  window.refreshSuggestionArrows = refreshAll;
+  window.addEventListener('resize', refreshAll);
+  window.addEventListener('load', refreshAll);
 })();
 
 document.querySelectorAll('.plan-suggestion-add, .plan-custom-spot-form').forEach(function(form) {
