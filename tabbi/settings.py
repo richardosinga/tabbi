@@ -46,6 +46,9 @@ WORLD66_DIR = Path(os.environ.get("WORLD66_DIR", str(BASE_DIR)))
 WORLD66_CONTENT_DIR = WORLD66_DIR / "content"
 WORLD66_SITE_URL = os.environ.get("WORLD66_SITE_URL", "https://world66.ai")
 
+# CARTO basemaps now require a key; without one the maps fall back to OSM / Esri tiles
+CARTO_BASEMAP_KEY = os.environ.get("CARTO_BASEMAP_KEY", "")
+
 # Tabbi bookable experience content — overlays world66 content
 TABBI_CONTENT_DIR = BASE_DIR / "tabbi_content"
 
