@@ -1684,8 +1684,20 @@ def _check_plan_auth(body: dict, plan_slug: str) -> bool:
     return bool(hashed and _check_password(passphrase, hashed))
 
 
-def _resolve_stop(destination: str, start_date: str, end_date: str, notes: str, hint: str = "") -> dict:
+def _format_dates(start_date: str, end_date: str = "") -> str:
+    """'2027-07-19', '2027-07-22' → '19–22 July 2027'; non-ISO input is kept as written."""
     from datetime import date as _date
+    try:
+        s = _date.fromisoformat(start_date)
+        e = _date.fromisoformat(end_date) if end_date else s
+        if s.month == e.month and s.year == e.year:
+            return f"{s.day}–{e.day} {s.strftime('%B %Y')}" if s != e else s.strftime("%-d %B %Y")
+        return f"{s.strftime('%-d %B')} – {e.strftime('%-d %B %Y')}"
+    except ValueError:
+        return f"{start_date} – {end_date}" if end_date else start_date
+
+
+def _resolve_stop(destination: str, start_date: str, end_date: str, notes: str, hint: str = "") -> dict:
     dest = destination.strip()
     if "/" in dest:
         city_path = dest
@@ -1697,16 +1709,7 @@ def _resolve_stop(destination: str, start_date: str, end_date: str, notes: str, 
         city_page = load_page(city_path) if city_path else None
         city_title = city_page.title if city_page else dest
 
-    try:
-        s = _date.fromisoformat(start_date)
-        e = _date.fromisoformat(end_date) if end_date else s
-        if s.month == e.month and s.year == e.year:
-            date_str = f"{s.day}–{e.day} {s.strftime('%B %Y')}" if s != e else s.strftime("%-d %B %Y")
-        else:
-            date_str = f"{s.strftime('%-d %B')} – {e.strftime('%-d %B %Y')}"
-    except ValueError:
-        date_str = f"{start_date} – {end_date}" if end_date else start_date
-
+    date_str = _format_dates(start_date, end_date)
     city_slug = _slugify(city_title)
     return {
         "city_title": city_title,
@@ -1950,6 +1953,121 @@ def api_plan_add_daytrip(request):
         return JsonResponse({"error": error}, status=400)
     base_url = request.build_absolute_uri("/").rstrip("/")
     return JsonResponse({**daytrip, "url": base_url + daytrip["url"]})
+
+
+def _section_bounds(lines, city_slug):
+    """(start, end) line range of a stop's section (incl. its day trips) or a day trip's section."""
+    start = level = None
+    for i, line in enumerate(lines):
+        h = re.match(r"^(#{2,3})\s+(.+)$", line)
+        if not h:
+            continue
+        if start is None:
+            if _heading_slug(h.group(2)) == city_slug:
+                start, level = i, len(h.group(1))
+        elif len(h.group(1)) <= level:
+            return start, i
+    return (start, len(lines)) if start is not None else None
+
+
+def _stop_api_request(request):
+    """Parse an MCP stop request: (body, plan, stop, None) or (None, None, None, error response)."""
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return None, None, None, JsonResponse({"error": "invalid JSON"}, status=400)
+    plan_slug = (body.get("plan_slug") or "").strip()
+    city_slug = (body.get("city_slug") or "").strip()
+    if not plan_slug or not city_slug:
+        return None, None, None, JsonResponse({"error": "plan_slug and city_slug are required"}, status=400)
+    if not _check_plan_auth(body, plan_slug):
+        return None, None, None, JsonResponse({"error": "unauthorized"}, status=403)
+    plan = _parse_plan(PLANS_DIR / f"{plan_slug}.md")
+    if not plan:
+        return None, None, None, JsonResponse({"error": "plan not found"}, status=404)
+    stop = _find_stop(plan, city_slug)
+    if not stop:
+        return None, None, None, JsonResponse({"error": f"no stop or day trip {city_slug!r} in this plan"}, status=404)
+    return body, plan, stop, None
+
+
+@csrf_exempt
+@require_POST
+def api_plan_update_stop(request):
+    """Change a stop's or day trip's dates and/or notes — for MCP/Claude use.
+
+    Dates: start_date/end_date (YYYY-MM-DD) or "dates" as free text; "" clears them.
+    Notes: replaces the stop's note lines (bullets that aren't places); "" removes them.
+    Fields left out are kept.
+    """
+    import frontmatter as fm
+    body, plan, stop, error = _stop_api_request(request)
+    if error:
+        return error
+    path = PLANS_DIR / f"{plan['slug']}.md"
+    post = fm.load(path)
+    lines = post.content.splitlines()
+    start, end = _section_bounds(lines, stop["city_slug"])
+
+    if "dates" in body or "start_date" in body or "end_date" in body:
+        if "dates" in body:
+            dates = (body.get("dates") or "").strip()
+        else:
+            dates = _format_dates((body.get("start_date") or "").strip(), (body.get("end_date") or "").strip())
+        heading = lines[start]
+        if "|" in heading:
+            title_part = heading.split("|", 1)[0].rstrip()
+        elif stop["dates"] and stop["dates"] in heading:
+            title_part = heading[:heading.index(stop["dates"])].rstrip()
+        else:
+            title_part = heading.rstrip()
+        lines[start] = title_part + (f" | {dates}" if dates else "")
+
+    if "notes" in body:
+        note_texts = {i["text"] for i in stop["items"] if not i["page"] and not i["external_url"]}
+        # Only this stop's own bullets — not those of its day trips
+        own_end = next((i for i in range(start + 1, end) if re.match(r"^#{2,3}\s+", lines[i])), end)
+        section = [l for l in lines[start + 1:own_end]
+                   if not (re.match(r"^[-*]\s+", l) and l.strip()[1:].strip() in note_texts)]
+        notes = [n.strip() for n in str(body.get("notes") or "").splitlines() if n.strip()]
+        lines[start + 1:own_end] = [f"- {n}" for n in notes] + section
+
+    post.content = "\n".join(lines)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(fm.dumps(post))
+    updated = _find_stop(_parse_plan(path), stop["city_slug"])
+    return JsonResponse({
+        "city_title": updated["city"],
+        "city_slug": updated["city_slug"],
+        "dates": updated["dates"],
+        "notes": [i["text"] for i in updated["items"] if not i["page"] and not i["external_url"]],
+    })
+
+
+@csrf_exempt
+@require_POST
+def api_plan_remove_stop(request):
+    """Remove a stop (with its day trips) or a single day trip from a plan — for MCP/Claude use."""
+    import frontmatter as fm
+    body, plan, stop, error = _stop_api_request(request)
+    if error:
+        return error
+    path = PLANS_DIR / f"{plan['slug']}.md"
+    post = fm.load(path)
+    lines = post.content.splitlines()
+    start, end = _section_bounds(lines, stop["city_slug"])
+    del lines[start:end]
+    # Tidy up: no runs of blank lines where the section was
+    while start < len(lines) and start > 0 and not lines[start].strip() and not lines[start - 1].strip():
+        del lines[start]
+    post.content = "\n".join(lines).strip("\n") + "\n"
+    removed = [s["city_slug"] for s in [stop] + stop["daytrips"]]
+    budgets = dict(post.metadata.get("budgets") or {})
+    if any(slug in budgets for slug in removed):
+        post.metadata["budgets"] = {k: v for k, v in budgets.items() if k not in removed}
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(fm.dumps(post))
+    return JsonResponse({"removed": removed})
 
 
 @csrf_exempt

@@ -323,6 +323,42 @@ TOOLS = [
         },
     },
     {
+        "name": "update_stop",
+        "description": (
+            "Change the dates and/or notes of a stop or day trip in an existing plan. "
+            "Only the fields you pass are changed. 'notes' replaces the stop's existing notes "
+            "(not its places); pass an empty string to remove them."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "plan_slug":  {"type": "string"},
+                "passphrase": {"type": "string"},
+                "city_slug":  {"type": "string", "description": "city_slug of the stop or day trip"},
+                "start_date": {"type": "string", "description": "YYYY-MM-DD"},
+                "end_date":   {"type": "string", "description": "YYYY-MM-DD (omit for a single day, e.g. a day trip)"},
+                "notes":      {"type": "string", "description": "New notes; one note per line"},
+            },
+            "required": ["plan_slug", "passphrase", "city_slug"],
+        },
+    },
+    {
+        "name": "remove_stop",
+        "description": (
+            "Remove a stop or a day trip from an existing plan, with all places in it. "
+            "Removing a stop also removes its day trips. Ask the user before removing."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "plan_slug":  {"type": "string"},
+                "passphrase": {"type": "string"},
+                "city_slug":  {"type": "string", "description": "city_slug of the stop or day trip"},
+            },
+            "required": ["plan_slug", "passphrase", "city_slug"],
+        },
+    },
+    {
         "name": "add_day_trip",
         "description": (
             "Add a day trip to a stop in an existing plan: a place the travellers visit from that stop "
@@ -487,7 +523,8 @@ def tool_open_plan(passphrase: str) -> str:
     lines += [
         "",
         "Call research_city for each stop or day trip you want to fill in. "
-        "Use add_stop to add a stop and add_day_trip to add a day trip to a stop. "
+        "Use add_stop / add_day_trip to add stops and day trips, update_stop to change dates or notes, "
+        "remove_stop to remove one. "
         "Do NOT re-add places already listed above.",
     ]
     return "\n".join(lines)
@@ -671,6 +708,31 @@ def tool_add_stop(plan_slug: str, passphrase: str, destination: str, start_date:
                      f"city_slug={city['city_slug']!r}")
     lines.append("Call research_city for each of these to add places.")
     return "\n".join(lines)
+
+
+def tool_update_stop(plan_slug: str, passphrase: str, city_slug: str, start_date=None, end_date=None, notes=None) -> str:
+    payload = {"plan_slug": plan_slug, "passphrase": passphrase, "city_slug": city_slug}
+    if start_date is not None or end_date is not None:
+        payload["start_date"] = start_date or ""
+        payload["end_date"] = end_date or ""
+    if notes is not None:
+        payload["notes"] = notes
+    try:
+        result = _http_post(f"{TABBI_BASE_URL}/api/plan/update-stop", payload)
+    except RuntimeError as e:
+        return f"Failed to update stop: {e}"
+    notes_txt = "; ".join(result.get("notes") or []) or "none"
+    return f"Updated **{result['city_title']}**: dates {result['dates'] or 'none'}, notes: {notes_txt}"
+
+
+def tool_remove_stop(plan_slug: str, passphrase: str, city_slug: str) -> str:
+    try:
+        result = _http_post(f"{TABBI_BASE_URL}/api/plan/remove-stop", {
+            "plan_slug": plan_slug, "passphrase": passphrase, "city_slug": city_slug,
+        })
+    except RuntimeError as e:
+        return f"Failed to remove stop: {e}"
+    return f"Removed from the plan: {', '.join(result['removed'])}"
 
 
 def tool_add_day_trip(plan_slug: str, passphrase: str, city_slug: str, destination: str, dates: str = "") -> str:
@@ -869,6 +931,15 @@ def _handle(message: dict) -> dict | None:
                     destination=args["destination"], start_date=args.get("start_date", ""),
                     end_date=args.get("end_date", ""), notes=args.get("notes", ""),
                     day_trips=args.get("day_trips"), after=args.get("after", ""),
+                )
+            elif name == "update_stop":
+                text = tool_update_stop(
+                    plan_slug=args["plan_slug"], passphrase=args["passphrase"], city_slug=args["city_slug"],
+                    start_date=args.get("start_date"), end_date=args.get("end_date"), notes=args.get("notes"),
+                )
+            elif name == "remove_stop":
+                text = tool_remove_stop(
+                    plan_slug=args["plan_slug"], passphrase=args["passphrase"], city_slug=args["city_slug"],
                 )
             elif name == "add_day_trip":
                 text = tool_add_day_trip(
