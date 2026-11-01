@@ -40,8 +40,7 @@
       {% endif %}
 
       {% comment %}Image inspiration strip{% endcomment %}
-      {% if inspo_count > 1 %}
-      <div class="plan-inspo-strip">
+      <div class="plan-inspo-strip" id="plan-inspo-strip"{% if inspo_count < 2 %} hidden{% endif %}>
         {% if city_image_url %}
         <div class="plan-inspo-tile">
           <div class="plan-inspo-img" style="background-image:url('{{ city_image_url }}')"></div>
@@ -54,10 +53,14 @@
             <div class="plan-inspo-img" style="background-image:url('{{ item.image_url }}')"></div>
             {% if item.page %}<span class="plan-inspo-label">{{ item.page.title }}</span>{% endif %}
           </div>
+          {% elif item.page and photos_pending %}
+          <div class="plan-inspo-tile" data-photo-for="{{ item.text }}" onclick="scrollToCard({{ forloop.counter0 }})" hidden>
+            <div class="plan-inspo-img"></div>
+            <span class="plan-inspo-label">{{ item.page.title }}</span>
+          </div>
           {% endif %}
         {% endfor %}
       </div>
-      {% endif %}
 
       {% if city_pending %}
       <div class="plan-pending" id="plan-pending">
@@ -822,4 +825,24 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
   input.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); addDaytrip(); } });
 })();
 </script>
+{% if photos_pending %}
+<script>
+// Fetch inspiration photos for POIs without a world66 image (cached server-side after the first look-up)
+(function () {
+  var strip = document.getElementById('plan-inspo-strip');
+  fetch('/plans/{{ plan.slug }}/{{ stop.city_slug }}/poi-images/')
+    .then(function(r) { return r.ok ? r.json() : {}; })
+    .then(function(photos) {
+      strip.querySelectorAll('[data-photo-for]').forEach(function(tile) {
+        var url = photos[tile.dataset.photoFor];
+        if (!url) { tile.remove(); return; }
+        tile.querySelector('.plan-inspo-img').style.backgroundImage = "url('" + url + "')";
+        tile.hidden = false;
+      });
+      if (strip.querySelectorAll('.plan-inspo-tile:not([hidden])').length > 1) strip.hidden = false;
+    })
+    .catch(function() {});
+})();
+</script>
+{% endif %}
 {% endblock %}
