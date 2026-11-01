@@ -373,6 +373,14 @@ def _parse_stops(body, plan_slug):
     return stops
 
 
+def _read_plan_items(plan_slug):
+    """Return {city_slug: [item text, ...]} for what's already in the plan."""
+    plan = _parse_plan(PLANS_DIR / f"{plan_slug}.md")
+    if not plan:
+        return {}
+    return {s["city_slug"]: [item["text"] for item in s["items"]] for s in plan["stops"]}
+
+
 def authenticated_plan_stops(request):
     """Return list of {slug, title, stops, poi_paths} for authenticated plans.
 
