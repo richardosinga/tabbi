@@ -1623,6 +1623,48 @@ def _resolve_stop(destination: str, start_date: str, end_date: str, notes: str, 
     }
 
 
+def _resolve_daytrips(raw_daytrips, stop, used_slugs):
+    """Resolve a stop's day trips: ["Pérouges", ...] or [{"destination": ..., "notes": ...}].
+
+    Skips (and registers in used_slugs) slugs already in the plan.
+    """
+    dts = []
+    for dt in raw_daytrips or []:
+        if isinstance(dt, str):
+            dt = {"destination": dt}
+        dest = (dt.get("destination") or "").strip()
+        if not dest:
+            continue
+        dt_path = resolve_location_name(dest, stop["city_path"]) or ""
+        dt_page = load_page(dt_path) if dt_path else None
+        dt_title = dt_page.title if dt_page else dest
+        dt_slug = _slugify(dt_title)
+        if dt_slug in used_slugs:
+            continue
+        used_slugs[dt_slug] = 1
+        dts.append({"city_title": dt_title, "city_path": dt_path, "city_slug": dt_slug,
+                    "notes": (dt.get("notes") or "").strip(), "day_trip_from": stop["city_slug"]})
+    return dts
+
+
+def _stop_lines(stop, daytrips):
+    """Plan-file lines for a resolved stop and its day trips."""
+    lines = [f"## {stop['city_title']}" + (f" | {stop['date_str']}" if stop["date_str"] else "")]
+    if stop["notes"]:
+        lines.append(f"- {stop['notes']}")
+    for dt in daytrips:
+        lines.append(f"### Day trip: {dt['city_title']}")
+        if dt["notes"]:
+            lines.append(f"- {dt['notes']}")
+    return lines
+
+
+def _api_cities(stop, daytrips):
+    return ([{"city_title": stop["city_title"], "city_path": stop["city_path"],
+              "city_slug": stop["city_slug"], "day_trip_from": ""}]
+            + [{k: dt[k] for k in ("city_title", "city_path", "city_slug", "day_trip_from")} for dt in daytrips])
+
+
 @csrf_exempt
 @require_POST
 def api_plan_open(request):
@@ -1711,37 +1753,12 @@ def api_plan_create(request):
             used_slugs[b] += 1
             r["city_slug"] = f"{b}-{used_slugs[b]}"
 
-    # Optional day trips per stop: ["Pérouges", ...] or [{"destination": ..., "notes": ...}]
-    daytrips_by_stop = []
-    for raw, r in zip(raw_stops, resolved):
-        dts = []
-        for dt in raw.get("day_trips") or []:
-            if isinstance(dt, str):
-                dt = {"destination": dt}
-            dest = (dt.get("destination") or "").strip()
-            if not dest:
-                continue
-            dt_path = resolve_location_name(dest, r["city_path"]) or ""
-            dt_page = load_page(dt_path) if dt_path else None
-            dt_title = dt_page.title if dt_page else dest
-            dt_slug = _slugify(dt_title)
-            if dt_slug in used_slugs:
-                continue
-            used_slugs[dt_slug] = 1
-            dts.append({"city_title": dt_title, "city_path": dt_path, "city_slug": dt_slug,
-                        "notes": (dt.get("notes") or "").strip(), "day_trip_from": r["city_slug"]})
-        daytrips_by_stop.append(dts)
+    daytrips_by_stop = [_resolve_daytrips(raw.get("day_trips"), r, used_slugs)
+                        for raw, r in zip(raw_stops, resolved)]
 
     content_lines = []
     for r, dts in zip(resolved, daytrips_by_stop):
-        content_lines.append(f"## {r['city_title']} | {r['date_str']}")
-        if r["notes"]:
-            content_lines.append(f"- {r['notes']}")
-        for dt in dts:
-            content_lines.append(f"### Day trip: {dt['city_title']}")
-            if dt["notes"]:
-                content_lines.append(f"- {dt['notes']}")
-        content_lines.append("")
+        content_lines += _stop_lines(r, dts) + [""]
 
     post = fm.Post("\n".join(content_lines), title=trip_title, passphrase=passphrase)
     (PLANS_DIR / f"{slug}.md").write_text(fm.dumps(post))
@@ -1751,12 +1768,70 @@ def api_plan_create(request):
         "url":        f"{base_url}/plans/{slug}/",
         "slug":       slug,
         "passphrase": passphrase,
-        "cities":     [c for r, dts in zip(resolved, daytrips_by_stop) for c in
-                       [{"city_title": r["city_title"],
-                         "city_path":  r["city_path"],
-                         "city_slug":  r["city_slug"],
-                         "day_trip_from": ""}]
-                       + [{k: dt[k] for k in ("city_title", "city_path", "city_slug", "day_trip_from")} for dt in dts]],
+        "cities":     [c for r, dts in zip(resolved, daytrips_by_stop) for c in _api_cities(r, dts)],
+    })
+
+
+@csrf_exempt
+@require_POST
+def api_plan_add_stop_mcp(request):
+    """Add a stop (with dates, notes and day trips) to an existing plan — for MCP/Claude use.
+
+    "after": city_slug of the stop to insert after; "start" to make it the first stop; empty appends.
+    """
+    import frontmatter as fm
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "invalid JSON"}, status=400)
+    plan_slug = (body.get("plan_slug") or "").strip()
+    destination = (body.get("destination") or "").strip()
+    if not plan_slug or not destination:
+        return JsonResponse({"error": "plan_slug and destination are required"}, status=400)
+    if not _check_plan_auth(body, plan_slug):
+        return JsonResponse({"error": "unauthorized"}, status=403)
+    path = PLANS_DIR / f"{plan_slug}.md"
+    plan = _parse_plan(path)
+    if not plan:
+        return JsonResponse({"error": "plan not found"}, status=404)
+
+    hint = plan_slug + " " + " ".join(s.get("city_path") or "" for s in plan["stops"])
+    stop = _resolve_stop(destination, (body.get("start_date") or "").strip(),
+                         (body.get("end_date") or "").strip(), (body.get("notes") or "").strip(), hint)
+    used_slugs = {s["city_slug"]: 1 for s in _all_stops(plan)}
+    if stop["city_slug"] in used_slugs:
+        return JsonResponse({"error": f"{stop['city_title']} is already in this trip"}, status=400)
+    used_slugs[stop["city_slug"]] = 1
+    daytrips = _resolve_daytrips(body.get("day_trips"), stop, used_slugs)
+
+    after = (body.get("after") or "").strip()
+    if after and after != "start" and not any(s["city_slug"] == after for s in plan["stops"]):
+        return JsonResponse({"error": f"no stop {after!r} to insert after"}, status=400)
+
+    post = fm.load(path)
+    lines = post.content.splitlines()
+    stop_heading_rows = [i for i, l in enumerate(lines) if re.match(r"^##\s+", l)]
+    if after == "start":
+        insert_at = stop_heading_rows[0] if stop_heading_rows else len(lines)
+    elif after:
+        start = next(i for i in stop_heading_rows if _heading_slug(lines[i][2:].strip()) == after)
+        insert_at = next((i for i in stop_heading_rows if i > start), len(lines))
+    else:
+        insert_at = len(lines)
+    # Keep a blank line between sections
+    while insert_at > 0 and not lines[insert_at - 1].strip():
+        insert_at -= 1
+    trailing_blank = insert_at < len(lines) and lines[insert_at].strip()
+    block = ([""] if insert_at > 0 else []) + _stop_lines(stop, daytrips) + ([""] if trailing_blank else [])
+    lines[insert_at:insert_at] = block
+    post.content = "\n".join(lines)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(fm.dumps(post))
+
+    base_url = request.build_absolute_uri("/").rstrip("/")
+    return JsonResponse({
+        "url": f"{base_url}/plans/{plan_slug}/{stop['city_slug']}/",
+        "cities": _api_cities(stop, daytrips),
     })
 
 

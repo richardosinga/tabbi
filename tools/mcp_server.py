@@ -298,6 +298,31 @@ TOOLS = [
         },
     },
     {
+        "name": "add_stop",
+        "description": (
+            "Add a stop (a place the travellers sleep) to an existing plan, with dates, notes and optional day trips. "
+            "Use 'after' to put it in the right place in the route. Returns the new city_slug(s) — "
+            "then call research_city for the stop and each day trip."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "plan_slug":   {"type": "string"},
+                "passphrase":  {"type": "string"},
+                "destination": {"type": "string", "description": "City name — never a country"},
+                "start_date":  {"type": "string", "description": "YYYY-MM-DD"},
+                "end_date":    {"type": "string", "description": "YYYY-MM-DD"},
+                "notes":       {"type": "string"},
+                "day_trips":   {"type": "array", "items": {"type": "string"},
+                                "description": "Places visited from this stop and returned from the same day"},
+                "after":       {"type": "string",
+                                "description": "city_slug of the stop this one comes after, or 'start' for the first stop. "
+                                               "Omit to add it at the end."},
+            },
+            "required": ["plan_slug", "passphrase", "destination"],
+        },
+    },
+    {
         "name": "add_day_trip",
         "description": (
             "Add a day trip to a stop in an existing plan: a place the travellers visit from that stop "
@@ -462,7 +487,7 @@ def tool_open_plan(passphrase: str) -> str:
     lines += [
         "",
         "Call research_city for each stop or day trip you want to fill in. "
-        "Use add_day_trip to add a day trip to a stop. "
+        "Use add_stop to add a stop and add_day_trip to add a day trip to a stop. "
         "Do NOT re-add places already listed above.",
     ]
     return "\n".join(lines)
@@ -627,6 +652,25 @@ def tool_add_pois_to_plan(plan_slug: str, passphrase: str, city_slug: str, poi_p
         return f"Added {result.get('added', 0)} existing place(s) to the plan."
     except RuntimeError as e:
         return f"Failed to add POIs: {e}"
+
+
+def tool_add_stop(plan_slug: str, passphrase: str, destination: str, start_date: str = "", end_date: str = "",
+                  notes: str = "", day_trips=None, after: str = "") -> str:
+    try:
+        result = _http_post(f"{TABBI_BASE_URL}/api/plan/add-stop", {
+            "plan_slug": plan_slug, "passphrase": passphrase, "destination": destination,
+            "start_date": start_date, "end_date": end_date, "notes": notes,
+            "day_trips": day_trips or [], "after": after,
+        })
+    except RuntimeError as e:
+        return f"Failed to add stop: {e}"
+    lines = [f"Added stop: {result['url']}"]
+    for city in result.get("cities", []):
+        day_trip = f" (day trip from {city['day_trip_from']})" if city.get("day_trip_from") else ""
+        lines.append(f"- **{city['city_title']}**{day_trip}: city_path={city['city_path']!r}, "
+                     f"city_slug={city['city_slug']!r}")
+    lines.append("Call research_city for each of these to add places.")
+    return "\n".join(lines)
 
 
 def tool_add_day_trip(plan_slug: str, passphrase: str, city_slug: str, destination: str, dates: str = "") -> str:
@@ -818,6 +862,13 @@ def _handle(message: dict) -> dict | None:
                 text = tool_add_pois_to_plan(
                     plan_slug=args["plan_slug"], passphrase=args["passphrase"],
                     city_slug=args["city_slug"], poi_paths=args["poi_paths"],
+                )
+            elif name == "add_stop":
+                text = tool_add_stop(
+                    plan_slug=args["plan_slug"], passphrase=args["passphrase"],
+                    destination=args["destination"], start_date=args.get("start_date", ""),
+                    end_date=args.get("end_date", ""), notes=args.get("notes", ""),
+                    day_trips=args.get("day_trips"), after=args.get("after", ""),
                 )
             elif name == "add_day_trip":
                 text = tool_add_day_trip(
