@@ -2264,3 +2264,28 @@ span.plan-poi-title--draft::after { content: none; }
   .plan-lightbox-nav { display: none; } /* swipe on phones */
   .plan-lightbox-img { max-height: 70vh; }
 }
+
+/* ── Stop page: full-width photo gallery ──────────────────────────────────── */
+
+.plan-inspo-strip--hero { gap: 12px; margin-bottom: 24px; padding-bottom: 6px; }
+.plan-inspo-strip--hero .plan-inspo-tile { width: 280px; position: relative; }
+.plan-inspo-strip--hero .plan-inspo-img { width: 280px; height: 190px; border-radius: 14px; }
+.plan-inspo-strip--hero .plan-inspo-label {
+  position: absolute; left: 10px; right: 10px; bottom: 10px; max-width: none;
+  color: #fff; font-size: 0.8rem; text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+  white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.plan-inspo-strip--hero .plan-inspo-img::after {
+  content: ""; display: block; height: 100%; border-radius: 11px;
+  background: linear-gradient(to top, rgba(0,0,0,0.55), rgba(0,0,0,0) 45%);
+}
+.plan-inspo-badge {
+  display: inline-block; margin-right: 6px; padding: 1px 7px; border-radius: 999px;
+  background: #16A34A; color: #fff; font-size: 0.62rem; text-transform: uppercase; letter-spacing: .04em;
+  text-shadow: none; vertical-align: 1px;
+}
+.plan-inspo-tile--daytrip .plan-inspo-img { border-color: #16A34A; box-shadow: 3px 3px 0 #14532D; }
+@media (max-width: 600px) {
+  .plan-inspo-strip--hero .plan-inspo-tile { width: 200px; }
+  .plan-inspo-strip--hero .plan-inspo-img { width: 200px; height: 140px; }
+}

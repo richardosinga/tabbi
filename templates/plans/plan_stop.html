@@ -21,6 +21,20 @@
     <a href="/plans/{{ plan.slug }}/edit/" class="plan-edit-link">Edit</a>
   </div>
 
+  {% comment %}Full-width photo gallery: this stop's photos, then its day trips'{% endcomment %}
+  <div class="plan-inspo-strip plan-inspo-strip--hero" id="plan-inspo-strip"{% if not gallery %} hidden{% endif %}>
+    {% for g in gallery %}
+    <div class="plan-inspo-tile{% if g.daytrip %} plan-inspo-tile--daytrip{% endif %}"
+         {% if g.card is not None and g.card != "" %}data-card="{{ g.card }}"{% endif %}
+         {% if g.href %}data-href="{{ g.href }}"{% endif %}
+         data-title="{{ g.label }}{% if g.daytrip %} · day trip{% if g.label != g.daytrip %} {{ g.daytrip }}{% endif %}{% endif %}"
+         {% if g.photo_for %}data-photo-for="{{ g.photo_for }}" hidden{% endif %}>
+      <div class="plan-inspo-img"{% if g.url %} style="background-image:url('{{ g.url }}')"{% endif %}></div>
+      <span class="plan-inspo-label">{% if g.daytrip %}<span class="plan-inspo-badge">Day trip{% if g.label != g.daytrip %} · {{ g.daytrip }}{% endif %}</span>{% endif %}{{ g.label }}</span>
+    </div>
+    {% endfor %}
+  </div>
+
   <div class="plan-stop-layout">
 
     <div class="plan-map-wrap">
@@ -38,29 +52,6 @@
         </div>
       </div>
       {% endif %}
-
-      {% comment %}Image inspiration strip{% endcomment %}
-      <div class="plan-inspo-strip" id="plan-inspo-strip"{% if inspo_count < 2 %} hidden{% endif %}>
-        {% if city_image_url %}
-        <div class="plan-inspo-tile">
-          <div class="plan-inspo-img" style="background-image:url('{{ city_image_url }}')"></div>
-          <span class="plan-inspo-label">{{ stop.city }}</span>
-        </div>
-        {% endif %}
-        {% for item in stop.items %}
-          {% if item.image_url %}
-          <div class="plan-inspo-tile" data-card="{{ forloop.counter0 }}">
-            <div class="plan-inspo-img" style="background-image:url('{{ item.image_url }}')"></div>
-            {% if item.page %}<span class="plan-inspo-label">{{ item.page.title }}</span>{% endif %}
-          </div>
-          {% elif item.page and photos_pending %}
-          <div class="plan-inspo-tile" data-photo-for="{{ item.text }}" data-card="{{ forloop.counter0 }}" hidden>
-            <div class="plan-inspo-img"></div>
-            <span class="plan-inspo-label">{{ item.page.title }}</span>
-          </div>
-          {% endif %}
-        {% endfor %}
-      </div>
 
       <div class="plan-lightbox" id="plan-lightbox" hidden>
         <button type="button" class="plan-lightbox-close" aria-label="Close">×</button>
@@ -842,7 +833,7 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
         tile.querySelector('.plan-inspo-img').style.backgroundImage = "url('" + url + "')";
         tile.hidden = false;
       });
-      if (strip.querySelectorAll('.plan-inspo-tile:not([hidden])').length > 1) strip.hidden = false;
+      if (strip.querySelector('.plan-inspo-tile:not([hidden])')) strip.hidden = false;
     })
     .catch(function() {});
 })();
@@ -874,9 +865,10 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
     img.onerror = large !== small ? function() { img.onerror = null; img.src = small; } : null;
     img.src = large;
     var label = tile.querySelector('.plan-inspo-label');
-    title.textContent = label ? label.textContent : '';
+    title.textContent = tile.dataset.title || (label ? label.textContent : '');
     count.textContent = tiles.length > 1 ? (index + 1) + ' / ' + tiles.length : '';
-    gotoBtn.hidden = !tile.dataset.card;
+    gotoBtn.hidden = !tile.dataset.card && !tile.dataset.href;
+    gotoBtn.textContent = tile.dataset.href ? 'Open day trip ›' : 'Show in plan ›';
     box.classList.toggle('plan-lightbox--single', tiles.length < 2);
   }
   function open(tile) {
@@ -901,9 +893,10 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
   box.querySelector('.plan-lightbox-close').addEventListener('click', close);
   box.addEventListener('click', function(e) { if (e.target === box) close(); });
   gotoBtn.addEventListener('click', function() {
-    var card = tiles[index].dataset.card;
+    var tile = tiles[index];
+    if (tile.dataset.href) { window.location = tile.dataset.href; return; }
     close();
-    scrollToCard(card);
+    scrollToCard(tile.dataset.card);
   });
   document.addEventListener('keydown', function(e) {
     if (box.hidden) return;

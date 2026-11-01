@@ -1169,10 +1169,36 @@ def plan_stop(request, slug, city_slug):
     if geocache_dirty:
         _save_geocache(geocache)
 
-    inspo_count = (1 if city_image_url else 0) + sum(1 for i in stop["items"] if i.get("image_url"))
+    # Full-width photo gallery: the stop's own photos, then each day trip's (place photo, then its POIs).
+    # POIs without a photo yet get a hidden tile the page fills in via plan_poi_images.
     photo_cache = poi_images.load_cache()
-    photos_pending = any(i["page"] and not i["image_url"] and i["page"].path not in photo_cache
-                         for i in stop["items"])
+    gallery = []
+
+    def _add_photos(items, card_offset=None, daytrip=None):
+        for idx, item in enumerate(items):
+            page = item["page"]
+            pending = bool(page and not item["image_url"] and page.path not in photo_cache)
+            if not item["image_url"] and not pending:
+                continue
+            gallery.append({
+                "url": item["image_url"], "photo_for": item["text"] if pending else None,
+                "label": page.title if page else "",
+                "card": idx if card_offset is not None else None,
+                "href": daytrip["url"] if daytrip else None,
+                "daytrip": daytrip["city"] if daytrip else None,
+            })
+
+    if city_image_url:
+        gallery.append({"url": city_image_url, "label": stop["city"]})
+    _add_photos(stop["items"], card_offset=0)
+    for dt in stop["daytrips"]:
+        if dt.get("image_url"):
+            gallery.append({"url": dt["image_url"], "label": dt["city"], "href": dt["url"], "daytrip": dt["city"]})
+        _add_photos(dt["items"], daytrip=dt)
+    # A day trip's place photo often is its first POI's photo — don't show it twice
+    seen = set()
+    gallery = [g for g in gallery if not g["url"] or not (g["url"] in seen or seen.add(g["url"]))]
+    photos_pending = any(g.get("photo_for") for g in gallery)
 
     return render(request, "plans/plan_stop.html", {
         "plan": plan,
@@ -1192,7 +1218,7 @@ def plan_stop(request, slug, city_slug):
         "items_eat": items_eat,
         "items_drink": items_drink,
         "ungrouped": ungrouped,
-        "inspo_count": inspo_count,
+        "gallery": gallery,
         "photos_pending": photos_pending,
     })
 
@@ -1498,14 +1524,17 @@ def _plan_file_add_daytrip(slug, parent_slug, destination, dates="", city_path=N
 
 @_require_plan_auth
 def plan_poi_images(request, slug, city_slug):
-    """Inspiration photos for this stop's POIs that have no world66 image: {item text: url}."""
+    """Inspiration photos for POIs (of this stop and its day trips) without a world66 image: {item text: url}."""
     plan = _parse_plan(PLANS_DIR / f"{slug}.md")
     stop = _find_stop(plan, city_slug) if plan else None
     if not stop:
         raise Http404
-    missing = [i for i in stop["items"] if i["page"] and not i["image_url"]]
-    photos = poi_images.fetch_missing([i["page"] for i in missing], stop["city"])
-    return JsonResponse({i["text"]: photos[i["page"].path] for i in missing if photos.get(i["page"].path)})
+    photos = {}
+    for s in [stop] + stop["daytrips"]:
+        missing = [i for i in s["items"] if i["page"] and not i["image_url"]]
+        found = poi_images.fetch_missing([i["page"] for i in missing], s["city"])
+        photos.update({i["text"]: found[i["page"].path] for i in missing if found.get(i["page"].path)})
+    return JsonResponse(photos)
 
 
 @_require_plan_auth
