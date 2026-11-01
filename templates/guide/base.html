@@ -25,6 +25,25 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// Dark/light base layers. CARTO needs a key; without one fall back to Esri (dark) / OSM (light).
+window.tabbiTileLayers = function() {
+  var key = '{{ CARTO_BASEMAP_KEY|escapejs }}';
+  if (key) {
+    var carto = function(style) {
+      return L.tileLayer('https://{s}.basemaps.cartocdn.com/' + style + '/{z}/{x}/{y}{r}.png?key=' + encodeURIComponent(key),
+        {subdomains: 'abcd', maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, &copy; <a href="https://carto.com/attributions">CARTO</a>'});
+    };
+    return {dark: carto('dark_all'), light: carto('light_all')};
+  }
+  return {
+    dark: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+      {maxNativeZoom: 16, maxZoom: 19, attribution: 'Tiles &copy; <a href="https://www.esri.com/">Esri</a>, HERE, Garmin, &copy; OpenStreetMap contributors'}),
+    light: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      {maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'}),
+  };
+};
+</script>
 {% block extra_js %}{% endblock %}
 
 </body>

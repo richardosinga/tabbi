@@ -170,8 +170,9 @@
   const stops = {{ stop_markers }};
   const map = L.map('plan-overview-map', {scrollWheelZoom: false, zoomControl: true});
 
-  const tileDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {maxZoom: 19, attribution: '&copy; <a href="https://carto.com/">CARTO</a>'});
-  const tileLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {maxZoom: 19, attribution: '&copy; <a href="https://carto.com/">CARTO</a>'});
+  const tiles = tabbiTileLayers();
+  const tileDark = tiles.dark;
+  const tileLight = tiles.light;
   var mapDark = localStorage.getItem('tabbi_map_dark') !== 'false';
   (mapDark ? tileDark : tileLight).addTo(map);
   var toggleBtn = document.getElementById('plan-map-toggle');
