@@ -182,7 +182,8 @@ TOOLS = [
         "description": (
             "Create a Tabbi trip plan. Supports single or multi-city trips. "
             "Returns a shareable plan URL and a passphrase. "
-            "After creating the plan, call research_city for each stop.\n\n"
+            "Places visited from a stop and returned from the same day go in that stop's day_trips. "
+            "After creating the plan, call research_city for each stop and day trip.\n\n"
             "IMPORTANT: Before calling this tool, ask the user these questions if not already answered:\n"
             "1. Who is travelling? (solo, couple, family with kids, group of friends, etc.)\n"
             "2. What are their main interests? (food, art, history, nature, nightlife, shopping, etc.)\n"
@@ -211,6 +212,12 @@ TOOLS = [
                             "start_date":  {"type": "string", "description": "YYYY-MM-DD"},
                             "end_date":    {"type": "string", "description": "YYYY-MM-DD"},
                             "notes":       {"type": "string"},
+                            "day_trips":   {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Places to visit as day trips from this stop (e.g. ['Pérouges', 'Vienne'] from Lyon). "
+                                               "Only for places you return from the same day — overnight places are stops.",
+                            },
                         },
                         "required": ["destination", "start_date", "end_date"],
                     },
@@ -288,6 +295,25 @@ TOOLS = [
                 "poi_paths":  {"type": "array", "items": {"type": "string"}},
             },
             "required": ["plan_slug", "passphrase", "city_slug", "poi_paths"],
+        },
+    },
+    {
+        "name": "add_day_trip",
+        "description": (
+            "Add a day trip to a stop in an existing plan: a place the travellers visit from that stop "
+            "and return from the same day (e.g. Pérouges from Lyon). Returns the day trip's city_slug — "
+            "then call research_city with it to add places, just like a stop."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "plan_slug":   {"type": "string"},
+                "passphrase":  {"type": "string"},
+                "city_slug":   {"type": "string", "description": "city_slug of the stop the day trip leaves from"},
+                "destination": {"type": "string", "description": "Day-trip destination name"},
+                "dates":       {"type": "string", "description": "Optional day, e.g. '5 August'"},
+            },
+            "required": ["plan_slug", "passphrase", "city_slug", "destination"],
         },
     },
     {
@@ -424,8 +450,9 @@ def tool_open_plan(passphrase: str) -> str:
         existing = plan_items.get(city_slug, [])
         poi_count = _count_existing_pois(city.get("city_path", ""))
         guide_note = f"{poi_count} place(s) in the world66 guide" if poi_count else "no world66 content"
+        day_trip = f" (day trip from {city['day_trip_from']})" if city.get("day_trip_from") else ""
         lines.append(
-            f"\n- **{city['city_title']}**: city_path={city['city_path']!r}, "
+            f"\n- **{city['city_title']}**{day_trip}: city_path={city['city_path']!r}, "
             f"city_slug={city_slug!r} — {guide_note}"
         )
         if existing:
@@ -434,7 +461,8 @@ def tool_open_plan(passphrase: str) -> str:
             lines.append("  Nothing added yet.")
     lines += [
         "",
-        "Call research_city for each stop you want to fill in. "
+        "Call research_city for each stop or day trip you want to fill in. "
+        "Use add_day_trip to add a day trip to a stop. "
         "Do NOT re-add places already listed above.",
     ]
     return "\n".join(lines)
@@ -461,8 +489,9 @@ def tool_plan_trip(stops=None, title="", destination="", start_date="", end_date
     for city in result.get("cities", []):
         poi_count = _count_existing_pois(city.get("city_path", ""))
         coverage = f"{poi_count} place(s) already in the guide" if poi_count else "ready to research"
+        day_trip = f" (day trip from {city['day_trip_from']})" if city.get("day_trip_from") else ""
         lines.append(
-            f"- **{city['city_title']}**: city_path={city['city_path']!r}, "
+            f"- **{city['city_title']}**{day_trip}: city_path={city['city_path']!r}, "
             f"city_slug={city['city_slug']!r} — {coverage}"
         )
     if preferences:
@@ -600,6 +629,21 @@ def tool_add_pois_to_plan(plan_slug: str, passphrase: str, city_slug: str, poi_p
         return f"Failed to add POIs: {e}"
 
 
+def tool_add_day_trip(plan_slug: str, passphrase: str, city_slug: str, destination: str, dates: str = "") -> str:
+    try:
+        result = _http_post(f"{TABBI_BASE_URL}/api/plan/add-day-trip", {
+            "plan_slug": plan_slug, "passphrase": passphrase,
+            "city_slug": city_slug, "destination": destination, "dates": dates,
+        })
+    except RuntimeError as e:
+        return f"Failed to add day trip: {e}"
+    return (
+        f"Added day trip **{result['city']}** (from {city_slug}): {result['url']}\n"
+        f"city_path={result['city_path']!r}, city_slug={result['city_slug']!r} — "
+        "call research_city with these to add places."
+    )
+
+
 def tool_submit_pois(city_title: str, pois: list, plan_slug: str, passphrase: str,
                      city_path: str = "", city_slug: str = "", intro: str = "") -> str:
     try:
@@ -681,8 +725,9 @@ def _read_plan_items(plan_slug: str) -> dict[str, list[str]]:
     current_city = None
     for line in plan_file.read_text(encoding="utf-8", errors="ignore").splitlines():
         line = line.rstrip()
-        if line.startswith("## "):
-            heading = line[3:].strip()
+        if line.startswith("## ") or line.startswith("### "):
+            heading = line.lstrip("#").strip()
+            heading = _re.sub(r"^(?:day\s*trip|dagtrip|excursion)\s*[:\-–]\s*", "", heading, flags=_re.IGNORECASE)
             city_part = heading.split("|")[0].strip()
             if "/" in city_part:
                 current_city = _slugify(city_part.split("/")[-1].replace("_", " "))
@@ -773,6 +818,12 @@ def _handle(message: dict) -> dict | None:
                 text = tool_add_pois_to_plan(
                     plan_slug=args["plan_slug"], passphrase=args["passphrase"],
                     city_slug=args["city_slug"], poi_paths=args["poi_paths"],
+                )
+            elif name == "add_day_trip":
+                text = tool_add_day_trip(
+                    plan_slug=args["plan_slug"], passphrase=args["passphrase"],
+                    city_slug=args["city_slug"], destination=args["destination"],
+                    dates=args.get("dates", ""),
                 )
             elif name == "submit_pois":
                 text = tool_submit_pois(

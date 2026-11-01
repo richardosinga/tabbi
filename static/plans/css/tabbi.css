@@ -2172,3 +2172,47 @@ span.plan-poi-title--draft::after { content: none; }
 .tabbi-pitch-plugin { text-align: center; font-size: 0.82rem; color: #888; margin-bottom: 28px; }
 .tabbi-pitch-plugin .tabbi-pitch-link { font-size: 0.82rem; }
 .tabbi-pitch-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; padding-bottom: 16px; }
+
+/* ── Day trips ────────────────────────────────────────────────────────────── */
+
+.plan-daytrip-from { font-size: 0.88rem; color: #A6A6A6; margin-top: 2px; }
+.plan-daytrip-from a { color: #e7a328; text-decoration: none; }
+
+.plan-daytrips { margin-top: 20px; }
+.plan-daytrip-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.plan-daytrip-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px; border: 2.5px solid #180A0A; border-radius: 14px;
+  box-shadow: 3px 3px 0 #180A0A; transition: transform 0.12s, box-shadow 0.12s;
+  background: #fff; color: #180A0A; text-decoration: none;
+}
+.plan-daytrip-card:hover { transform: translate(-1px, -2px); box-shadow: 4px 5px 0 #180A0A; }
+.plan-daytrip-img {
+  flex: 0 0 52px; height: 52px; border-radius: 8px;
+  background: #FFF3C4 center / cover no-repeat;
+  display: flex; align-items: center; justify-content: center; font-size: 22px;
+}
+.plan-daytrip-info { flex: 1; min-width: 0; }
+.plan-daytrip-name { font-weight: 700; font-size: 0.95rem; }
+.plan-daytrip-count { font-size: 0.78rem; color: #888; margin-top: 2px; }
+.plan-daytrip-arrow { color: #e7a328; font-size: 1.3rem; padding-right: 4px; }
+.plan-daytrip-add { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+.plan-daytrip-add input { flex: 1; min-width: 0; }
+
+.plan-dest-tile-daytrips { font-size: 0.72rem; color: rgba(255,255,255,0.75); margin-top: 2px; }
+.plan-dest-tile-daytrips a { color: #e7a328; text-decoration: none; }
+
+/* Stop page: day-trip location as a labelled pill */
+.plan-daytrip-marker { background: none !important; border: none !important; }
+.plan-daytrip-marker span {
+  display: inline-block; transform: translate(-50%, -50%);
+  white-space: nowrap; padding: 3px 9px; border-radius: 999px;
+  background: #fff; color: #180A0A; border: 2px solid #e7a328;
+  font-family: 'Lexend Exa', sans-serif; font-weight: 700; font-size: 11px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5); cursor: pointer;
+}
+/* Overview map: day trip as a small dot next to its numbered stop */
+.plan-daytrip-dot {
+  background: #fff !important; border: 2.5px solid #e7a328 !important;
+  border-radius: 50% !important; box-shadow: 0 1px 4px rgba(0,0,0,0.6) !important;
+}

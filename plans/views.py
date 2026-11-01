@@ -154,10 +154,15 @@ def _save_geocache(cache):
     _GEOCACHE_FILE.write_text(json.dumps(cache, indent=2))
 
 
-def _geocode_nominatim(query):
+def _geocode_nominatim(query, near=None):
+    """near — optional (lat, lng); restricts the search to a box of ~150 km around it."""
     import urllib.request
     import urllib.parse
-    params = urllib.parse.urlencode({"q": query, "format": "json", "limit": 1})
+    q = {"q": query, "format": "json", "limit": 1}
+    if near:
+        lat, lng = near
+        q.update({"viewbox": f"{lng - 1.5},{lat + 1.5},{lng + 1.5},{lat - 1.5}", "bounded": 1})
+    params = urllib.parse.urlencode(q)
     url = f"https://nominatim.openstreetmap.org/search?{params}"
     req = urllib.request.Request(url, headers={"User-Agent": "World66/1.0"})
     try:
@@ -174,6 +179,11 @@ def _city_coords(stop):
     city_path = stop.get("city_path")
     city_name = stop.get("city", "")
     cache_key = f"city:{city_path or city_name}"
+    near = None
+    if stop.get("is_daytrip") and not city_path:
+        # Day trips are near their stop — "Vienne" from Lyon, not Vienna
+        cache_key += f"@{stop['parent_city']}"
+        near = _city_coords({"city": stop["parent_city"], "city_path": stop.get("parent_city_path")})
 
     if city_path:
         city_page = load_page(city_path)
@@ -184,7 +194,7 @@ def _city_coords(stop):
     if cache_key in geocache:
         return tuple(geocache[cache_key]) if geocache[cache_key] else None
 
-    result = _geocode_nominatim(city_name)
+    result = _geocode_nominatim(city_name, near)
     geocache[cache_key] = list(result) if result else None
     _save_geocache(geocache)
     return result
@@ -232,6 +242,38 @@ def _stop_markers(stop):
 
 # ── Plan parsing ──────────────────────────────────────────────────────────────
 
+# A "### Day trip: X" heading under a "## Stop" is a day trip from that stop.
+# The prefix is optional when writing by hand: any ### under a stop is a day trip.
+_DAYTRIP_PREFIX_RE = re.compile(r"^(?:day\s*trip|dagtrip|excursion)\s*[:\-–]\s*", re.IGNORECASE)
+
+
+def _all_stops(plan):
+    """Stops and their day trips, flattened (each day trip right after its stop)."""
+    for stop in plan["stops"]:
+        yield stop
+        yield from stop.get("daytrips", [])
+
+
+def _find_stop(plan, city_slug):
+    return next((s for s in _all_stops(plan) if s["city_slug"] == city_slug), None)
+
+
+def _heading_slug(heading):
+    """city_slug for a ## or ### heading's text — must match what _parse_stops produces."""
+    city_raw = _DAYTRIP_PREFIX_RE.sub("", heading).split("|", 1)[0].strip()
+    if "/" in city_raw:
+        return _slugify(city_raw.split("/")[-1].replace("_", " "))
+    return _slugify(city_raw)
+
+
+def _stop_center(stop):
+    """(lat, lng) for a stop: centroid of its POI markers, else the city's coordinates."""
+    pts = _stop_markers(stop)
+    if pts:
+        return sum(m["lat"] for m in pts) / len(pts), sum(m["lng"] for m in pts) / len(pts)
+    return _city_coords(stop)
+
+
 def _parse_plan(path):
     import frontmatter as fm
     if not path.is_file():
@@ -268,10 +310,17 @@ def _parse_stops(body, plan_slug):
         re.IGNORECASE,
     )
 
+    parent = None
     for line in body.splitlines():
-        h2 = re.match(r"^##\s+(.+)$", line)
+        h2 = re.match(r"^(#{2,3})\s+(.+)$", line)
         if h2:
-            heading = h2.group(1)
+            is_daytrip = len(h2.group(1)) == 3
+            heading = h2.group(2)
+            if is_daytrip:
+                if parent is None:
+                    current = None
+                    continue
+                heading = _DAYTRIP_PREFIX_RE.sub("", heading)
             if "|" in heading:
                 city_part, dates = heading.split("|", 1)
             else:
@@ -288,6 +337,8 @@ def _parse_stops(body, plan_slug):
             else:
                 city_name = city_part
                 hint = plan_slug + " " + " ".join(s.get("city_path") or "" for s in stops)
+                if is_daytrip and parent.get("city_path"):
+                    hint = parent["city_path"] + " " + hint
                 city_path = resolve_location_name(city_part, hint)
             if city_path:
                 _loc_page = load_page(city_path)
@@ -295,6 +346,8 @@ def _parse_stops(body, plan_slug):
                     _loc_type = _loc_page.meta.get("loc_type", "")
                     if _loc_type in ("country", "continent", "region"):
                         current = None
+                        if not is_daytrip:
+                            parent = None
                         continue
             city_slug = _slugify(city_name)
             current = {
@@ -304,8 +357,17 @@ def _parse_stops(body, plan_slug):
                 "dates": dates.strip(),
                 "url": f"/plans/{plan_slug}/{city_slug}/",
                 "items": [],
+                "daytrips": [],
+                "is_daytrip": is_daytrip,
             }
-            stops.append(current)
+            if is_daytrip:
+                current["parent_slug"] = parent["city_slug"]
+                current["parent_city"] = parent["city"]
+                current["parent_city_path"] = parent["city_path"]
+                parent["daytrips"].append(current)
+            else:
+                stops.append(current)
+                parent = current
             continue
         if current is None:
             continue
@@ -359,7 +421,7 @@ def _parse_stops(body, plan_slug):
                 "image_url": image_url,
             })
 
-    for stop in stops:
+    for stop in _all_stops({"stops": stops}):
         if stop.get("city_path"):
             stop["destination_url"] = _w66_url(stop["city_path"])
         else:
@@ -378,7 +440,7 @@ def _read_plan_items(plan_slug):
     plan = _parse_plan(PLANS_DIR / f"{plan_slug}.md")
     if not plan:
         return {}
-    return {s["city_slug"]: [item["text"] for item in s["items"]] for s in plan["stops"]}
+    return {s["city_slug"]: [item["text"] for item in s["items"]] for s in _all_stops(plan)}
 
 
 def authenticated_plan_stops(request):
@@ -390,7 +452,7 @@ def authenticated_plan_stops(request):
     for slug in request.session.get("authenticated_plans", []):
         plan = _parse_plan(PLANS_DIR / f"{slug}.md")
         if plan:
-            poi_paths = {item["text"] for s in plan["stops"] for item in s["items"]}
+            poi_paths = {item["text"] for s in _all_stops(plan) for item in s["items"]}
             result.append({
                 "slug": slug,
                 "title": plan["title"],
@@ -664,20 +726,22 @@ def plan_detail(request, slug):
 
     stop_markers = []
     for stop in plan["stops"]:
-        pts = _stop_markers(stop)
-        if pts:
-            lat = sum(m["lat"] for m in pts) / len(pts)
-            lng = sum(m["lng"] for m in pts) / len(pts)
-        else:
-            coords = _city_coords(stop)
-            if coords:
-                lat, lng = coords
-            else:
-                continue
+        center = _stop_center(stop)
+        if not center:
+            continue
+        daytrips = []
+        for dt in stop["daytrips"]:
+            dt_center = _stop_center(dt)
+            if dt_center:
+                daytrips.append({
+                    "lat": dt_center[0], "lng": dt_center[1],
+                    "title": dt["city"], "dates": dt["dates"], "url": dt["url"],
+                })
         stop_markers.append({
-            "lat": lat, "lng": lng,
+            "lat": center[0], "lng": center[1],
             "title": stop["city"], "dates": stop["dates"],
             "url": stop["url"],
+            "daytrips": daytrips,
         })
 
     if len(plan["stops"]) == 1:
@@ -743,10 +807,24 @@ def plan_stop(request, slug, city_slug):
     plan = _parse_plan(PLANS_DIR / f"{slug}.md")
     if not plan:
         raise Http404
-    stop = next((s for s in plan["stops"] if s["city_slug"] == city_slug), None)
+    stop = _find_stop(plan, city_slug)
     if not stop:
         raise Http404
     markers = _stop_markers(stop)
+    parent_stop = _find_stop(plan, stop["parent_slug"]) if stop["is_daytrip"] else None
+
+    daytrip_markers = []
+    for dt in stop["daytrips"]:
+        dt_page = load_page(dt["city_path"]) if dt.get("city_path") else None
+        dt_img = _image_path(dt_page) if dt_page else None
+        dt["image_url"] = f"/content-image/{dt_img}" if dt_img else next(
+            (i["image_url"] for i in dt["items"] if i.get("image_url")), None)
+        dt_center = _stop_center(dt)
+        if dt_center:
+            daytrip_markers.append({
+                "lat": dt_center[0], "lng": dt_center[1],
+                "title": dt["city"], "url": dt["url"],
+            })
     city_page = load_page(stop["city_path"]) if stop.get("city_path") else None
     city_coords = _city_coords(stop)
     city_center = {"lat": city_coords[0], "lng": city_coords[1]} if city_coords else None
@@ -1037,6 +1115,8 @@ def plan_stop(request, slug, city_slug):
         "plan": plan,
         "stop": stop,
         "markers": mark_safe(json.dumps(markers)),
+        "daytrip_markers": mark_safe(json.dumps(daytrip_markers)),
+        "parent_stop": parent_stop,
         "city_center": mark_safe(json.dumps(city_center)),
         "city_snippet": city_snippet,
         "city_intro": city_intro,
@@ -1254,15 +1334,9 @@ def _plan_file_add(slug, city_slug, poi_path):
     insert_at = None
     in_section = False
     for i, line in enumerate(lines):
-        h2 = re.match(r"^##\s+(.+)$", line)
+        h2 = re.match(r"^#{2,3}\s+(.+)$", line)
         if h2:
-            heading = h2.group(1)
-            city_raw = heading.split("|", 1)[0].strip()
-            if "/" in city_raw:
-                heading_slug = _slugify(city_raw.split("/")[-1].replace("_", " "))
-            else:
-                heading_slug = _slugify(city_raw)
-            in_section = (heading_slug == city_slug)
+            in_section = (_heading_slug(h2.group(1)) == city_slug)
             if in_section:
                 insert_at = i + 1
             continue
@@ -1305,6 +1379,75 @@ def _plan_file_remove(slug, poi_path):
     return True
 
 
+def _plan_file_add_daytrip(slug, parent_slug, destination, dates=""):
+    """Append a "### Day trip: X" section to the end of a stop's section.
+
+    Returns (day trip dict, None) or (None, error message).
+    """
+    import frontmatter as fm
+    path = PLANS_DIR / f"{slug}.md"
+    if not path.is_file():
+        return None, "plan not found"
+    plan = _parse_plan(path)
+    parent = next((s for s in plan["stops"] if s["city_slug"] == parent_slug), None)
+    if not parent:
+        return None, "stop not found"
+
+    destination = destination.strip()
+    city_path = resolve_location_name(destination, parent.get("city_path") or "")
+    city_page = load_page(city_path) if city_path else None
+    city_title = city_page.title if city_page else destination.title()
+    city_slug = _slugify(city_title)
+    if _find_stop(plan, city_slug):
+        return None, f"{city_title} is already in this trip"
+
+    post = fm.load(path)
+    lines = post.content.splitlines()
+    in_section = False
+    insert_at = None
+    for i, line in enumerate(lines):
+        h = re.match(r"^(#{2,3})\s+(.+)$", line)
+        if h and len(h.group(1)) == 2:
+            if in_section:
+                break
+            in_section = _heading_slug(h.group(2)) == parent_slug
+        if in_section and line.strip():
+            insert_at = i + 1
+    if insert_at is None:
+        return None, "stop not found"
+    heading = f"### Day trip: {city_title}" + (f" | {dates}" if dates else "")
+    lines.insert(insert_at, heading)
+    post.content = "\n".join(lines)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(fm.dumps(post))
+
+    img = _image_path(city_page) if city_page else None
+    return {
+        "city": city_title,
+        "city_slug": city_slug,
+        "city_path": city_path or "",
+        "parent_slug": parent_slug,
+        "url": f"/plans/{slug}/{city_slug}/",
+        "image_url": f"/content-image/{img}" if img else None,
+    }, None
+
+
+@_require_plan_auth
+@require_POST
+def plan_daytrip_add(request, slug, city_slug):
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "invalid JSON"}, status=400)
+    destination = (data.get("city") or "").strip()
+    if not destination:
+        return JsonResponse({"error": "city required"}, status=400)
+    daytrip, error = _plan_file_add_daytrip(slug, city_slug, destination)
+    if error:
+        return JsonResponse({"error": error}, status=400)
+    return JsonResponse({"ok": True, **daytrip})
+
+
 @_require_plan_auth
 def plan_poi_add(request, slug, city_slug=None):
     if request.method != "POST":
@@ -1334,13 +1477,13 @@ def plan_poi_add(request, slug, city_slug=None):
         if city_slug is None:
             plan = _parse_plan(PLANS_DIR / f"{slug}.md")
             if plan:
-                for stop in plan["stops"]:
+                for stop in sorted(_all_stops(plan), key=lambda s: -len(s.get("city_path") or "")):
                     cp = stop.get("city_path")
                     if cp and poi_path.startswith(cp + "/"):
                         city_slug = stop["city_slug"]
                         break
                 if city_slug is None:
-                    for stop in plan["stops"]:
+                    for stop in _all_stops(plan):
                         cs = stop["city_slug"].replace("-", "")
                         if cs in poi_path.replace("/", "").replace("_", "").lower():
                             city_slug = stop["city_slug"]
@@ -1490,10 +1633,11 @@ def api_plan_open(request):
     cities = [
         {
             "city_title": s["city"],
-            "city_path":  s.get("city_path", ""),
+            "city_path":  s.get("city_path") or "",
             "city_slug":  s["city_slug"],
+            "day_trip_from": s.get("parent_slug", ""),
         }
-        for s in plan["stops"]
+        for s in _all_stops(plan)
     ]
     return JsonResponse({
         "url":        f"{base_url}/plans/{slug}/",
@@ -1546,11 +1690,36 @@ def api_plan_create(request):
             used_slugs[b] += 1
             r["city_slug"] = f"{b}-{used_slugs[b]}"
 
+    # Optional day trips per stop: ["Pérouges", ...] or [{"destination": ..., "notes": ...}]
+    daytrips_by_stop = []
+    for raw, r in zip(raw_stops, resolved):
+        dts = []
+        for dt in raw.get("day_trips") or []:
+            if isinstance(dt, str):
+                dt = {"destination": dt}
+            dest = (dt.get("destination") or "").strip()
+            if not dest:
+                continue
+            dt_path = resolve_location_name(dest, r["city_path"]) or ""
+            dt_page = load_page(dt_path) if dt_path else None
+            dt_title = dt_page.title if dt_page else dest
+            dt_slug = _slugify(dt_title)
+            if dt_slug in used_slugs:
+                continue
+            used_slugs[dt_slug] = 1
+            dts.append({"city_title": dt_title, "city_path": dt_path, "city_slug": dt_slug,
+                        "notes": (dt.get("notes") or "").strip(), "day_trip_from": r["city_slug"]})
+        daytrips_by_stop.append(dts)
+
     content_lines = []
-    for r in resolved:
+    for r, dts in zip(resolved, daytrips_by_stop):
         content_lines.append(f"## {r['city_title']} | {r['date_str']}")
         if r["notes"]:
             content_lines.append(f"- {r['notes']}")
+        for dt in dts:
+            content_lines.append(f"### Day trip: {dt['city_title']}")
+            if dt["notes"]:
+                content_lines.append(f"- {dt['notes']}")
         content_lines.append("")
 
     post = fm.Post("\n".join(content_lines), title=trip_title, passphrase=passphrase)
@@ -1561,10 +1730,35 @@ def api_plan_create(request):
         "url":        f"{base_url}/plans/{slug}/",
         "slug":       slug,
         "passphrase": passphrase,
-        "cities":     [{"city_title": r["city_title"],
-                        "city_path":  r["city_path"],
-                        "city_slug":  r["city_slug"]} for r in resolved],
+        "cities":     [c for r, dts in zip(resolved, daytrips_by_stop) for c in
+                       [{"city_title": r["city_title"],
+                         "city_path":  r["city_path"],
+                         "city_slug":  r["city_slug"],
+                         "day_trip_from": ""}]
+                       + [{k: dt[k] for k in ("city_title", "city_path", "city_slug", "day_trip_from")} for dt in dts]],
     })
+
+
+@csrf_exempt
+@require_POST
+def api_plan_add_daytrip(request):
+    """Add a day trip to a stop — for MCP/Claude use."""
+    try:
+        body = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "invalid JSON"}, status=400)
+    plan_slug = (body.get("plan_slug") or "").strip()
+    city_slug = (body.get("city_slug") or "").strip()
+    destination = (body.get("destination") or "").strip()
+    if not plan_slug or not city_slug or not destination:
+        return JsonResponse({"error": "plan_slug, city_slug and destination are required"}, status=400)
+    if not _check_plan_auth(body, plan_slug):
+        return JsonResponse({"error": "unauthorized"}, status=403)
+    daytrip, error = _plan_file_add_daytrip(plan_slug, city_slug, destination, (body.get("dates") or "").strip())
+    if error:
+        return JsonResponse({"error": error}, status=400)
+    base_url = request.build_absolute_uri("/").rstrip("/")
+    return JsonResponse({**daytrip, "url": base_url + daytrip["url"]})
 
 
 @csrf_exempt

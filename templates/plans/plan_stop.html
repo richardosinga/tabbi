@@ -10,10 +10,13 @@
     <span class="plan-breadcrumb-sep">›</span>
     <a href="/plans/{{ plan.slug }}/">{{ plan.title }}</a>
     <span class="plan-breadcrumb-sep">›</span>
-    <span>{{ stop.city }}</span>
+    {% if parent_stop %}<a href="{{ parent_stop.url }}">{{ parent_stop.city }}</a>
+    <span class="plan-breadcrumb-sep">›</span>
+    {% endif %}<span>{{ stop.city }}</span>
   </nav>
   <div class="plan-header">
     <h1>{{ stop.city }}</h1>
+    {% if parent_stop %}<div class="plan-daytrip-from">Day trip from <a href="{{ parent_stop.url }}">{{ parent_stop.city }}</a></div>{% endif %}
     {% if stop.dates %}<div class="plan-stop-dates-large">{{ stop.dates }}</div>{% endif %}
     <a href="/plans/{{ plan.slug }}/edit/" class="plan-edit-link">Edit</a>
   </div>
@@ -260,6 +263,29 @@
 
       {% endif %}{# end grouped/ungrouped #}
 
+      {% if not stop.is_daytrip %}
+      <div class="plan-daytrips">
+        <h3 class="plan-section-label">Day trips</h3>
+        <div class="plan-daytrip-list" id="plan-daytrip-list">
+          {% for dt in stop.daytrips %}
+          <a class="plan-daytrip-card" href="{{ dt.url }}">
+            <div class="plan-daytrip-img"{% if dt.image_url %} style="background-image:url('{{ dt.image_url }}')"{% endif %}>{% if not dt.image_url %}🗺️{% endif %}</div>
+            <div class="plan-daytrip-info">
+              <div class="plan-daytrip-name">{{ dt.city }}</div>
+              <div class="plan-daytrip-count">{% if dt.dates %}{{ dt.dates }} · {% endif %}{{ dt.items|length }} place{% if dt.items|length != 1 %}s{% endif %}</div>
+            </div>
+            <span class="plan-daytrip-arrow">›</span>
+          </a>
+          {% endfor %}
+        </div>
+        <div class="plan-daytrip-add">
+          <input type="text" id="daytrip-input" class="tabbi-empty-title-input" placeholder="Add a day trip from {{ stop.city }}…" autocomplete="off">
+          <button type="button" id="daytrip-add-btn" class="tabbi-btn">Add →</button>
+        </div>
+        <div id="daytrip-error" class="plan-add-stop-error" hidden></div>
+      </div>
+      {% endif %}
+
       <div class="plan-budget-toggle-row">
         <button type="button" class="plan-budget-toggle-btn" id="budget-toggle-btn" onclick="toggleBudget()">＋ Budget</button>
       </div>
@@ -369,8 +395,29 @@
       .addTo(map);
   });
 
-  if (markers.length > 1) {
-    map.fitBounds(L.latLngBounds(markers.map(m => [m.lat, m.lng])).pad(0.25));
+  const daytrips = {{ daytrip_markers }};
+  const dtOrigin = cityCenter ? [cityCenter.lat, cityCenter.lng]
+    : (markers.length ? [markers[0].lat, markers[0].lng] : null);
+  daytrips.forEach(function(d) {
+    const icon = L.divIcon({
+      className: 'plan-daytrip-marker',
+      html: '<span>' + d.title + '</span>',
+      iconSize: null,
+      iconAnchor: [0, 0],
+    });
+    if (dtOrigin) {
+      L.polyline([dtOrigin, [d.lat, d.lng]], {color: '#e7a328', weight: 2, opacity: 0.5, dashArray: '2,6'}).addTo(map);
+    }
+    L.marker([d.lat, d.lng], {icon: icon})
+      .bindTooltip('Day trip: ' + d.title, {direction: 'top'})
+      .on('click', function() { window.location = d.url; })
+      .addTo(map);
+  });
+
+  const allPts = markers.map(m => [m.lat, m.lng]).concat(daytrips.map(d => [d.lat, d.lng]));
+  if (daytrips.length && dtOrigin) allPts.push(dtOrigin);
+  if (allPts.length > 1) {
+    map.fitBounds(L.latLngBounds(allPts).pad(0.25));
   } else if (markers.length === 1) {
     map.setView([markers[0].lat, markers[0].lng], 11);
   } else if (cityCenter) {
@@ -743,5 +790,35 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
   setTimeout(poll, 2000);
 })();
 {% endif %}
+</script>
+<script>
+(function () {
+  var input = document.getElementById('daytrip-input');
+  var btn = document.getElementById('daytrip-add-btn');
+  var errBox = document.getElementById('daytrip-error');
+  if (!input) return;
+  function addDaytrip() {
+    var city = input.value.trim();
+    if (!city) return;
+    btn.disabled = true;
+    btn.textContent = 'Adding…';
+    errBox.hidden = true;
+    fetch('/plans/{{ plan.slug }}/{{ stop.city_slug }}/add-daytrip/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+      body: JSON.stringify({city: city})
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.error) { errBox.textContent = data.error; errBox.hidden = false; return; }
+      // Reload so the map and card pick up the new day trip's location
+      window.location.reload();
+    })
+    .catch(function() { errBox.textContent = 'Something went wrong.'; errBox.hidden = false; })
+    .finally(function() { btn.disabled = false; btn.textContent = 'Add →'; });
+  }
+  btn.addEventListener('click', addDaytrip);
+  input.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); addDaytrip(); } });
+})();
 </script>
 {% endblock %}

@@ -121,6 +121,7 @@
             <div class="plan-dest-tile-city">{{ stop.city }}</div>
             {% if stop.dates %}<div class="plan-dest-tile-dates">{{ stop.dates }}</div>{% endif %}
             <div class="plan-dest-tile-count">{{ stop.items|length }} place{% if stop.items|length != 1 %}s{% endif %}</div>
+            {% if stop.daytrips %}<div class="plan-dest-tile-daytrips">+ day trip{{ stop.daytrips|length|pluralize }}: {% for dt in stop.daytrips %}<a href="{{ dt.url }}" onclick="event.stopPropagation()">{{ dt.city }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}
           </div>
           {% if stop.destination_url %}
           <a href="{{ stop.destination_url }}" class="plan-dest-tile-explore" target="_blank" rel="noopener" onclick="event.stopPropagation()">Explore ›</a>
@@ -198,9 +199,22 @@
       .addTo(map);
   });
 
+  // Day trips: small markers tied to their base stop, not part of the route
+  const allPts = stops.map(s => [s.lat, s.lng]);
+  stops.forEach(function(s) {
+    (s.daytrips || []).forEach(function(d) {
+      L.polyline([[s.lat, s.lng], [d.lat, d.lng]], {color: '#e7a328', weight: 1.5, opacity: 0.5, dashArray: '2,5'}).addTo(map);
+      L.marker([d.lat, d.lng], {icon: L.divIcon({className: 'plan-daytrip-dot', iconSize: [12, 12], iconAnchor: [6, 6]})})
+        .bindTooltip('<strong>' + d.title + '</strong><br>Day trip from ' + s.title, {direction: 'top'})
+        .on('click', function() { window.location = d.url; })
+        .addTo(map);
+      allPts.push([d.lat, d.lng]);
+    });
+  });
+
   if (stops.length > 1) {
     L.polyline(stops.map(s => [s.lat, s.lng]), {color: '#e7a328', weight: 2, opacity: 0.6, dashArray: '6,8'}).addTo(map);
-    map.fitBounds(L.latLngBounds(stops.map(s => [s.lat, s.lng])).pad(0.2));
+    map.fitBounds(L.latLngBounds(allPts).pad(0.2));
   } else if (stops.length === 1) {
     map.setView([stops[0].lat, stops[0].lng], 8);
   } else {
