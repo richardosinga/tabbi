@@ -40,8 +40,7 @@
       {% endif %}
 
       {% comment %}Image inspiration strip{% endcomment %}
-      {% if inspo_count > 1 %}
-      <div class="plan-inspo-strip">
+      <div class="plan-inspo-strip" id="plan-inspo-strip"{% if inspo_count < 2 %} hidden{% endif %}>
         {% if city_image_url %}
         <div class="plan-inspo-tile">
           <div class="plan-inspo-img" style="background-image:url('{{ city_image_url }}')"></div>
@@ -50,14 +49,32 @@
         {% endif %}
         {% for item in stop.items %}
           {% if item.image_url %}
-          <div class="plan-inspo-tile" onclick="scrollToCard({{ forloop.counter0 }})">
+          <div class="plan-inspo-tile" data-card="{{ forloop.counter0 }}">
             <div class="plan-inspo-img" style="background-image:url('{{ item.image_url }}')"></div>
             {% if item.page %}<span class="plan-inspo-label">{{ item.page.title }}</span>{% endif %}
+          </div>
+          {% elif item.page and photos_pending %}
+          <div class="plan-inspo-tile" data-photo-for="{{ item.text }}" data-card="{{ forloop.counter0 }}" hidden>
+            <div class="plan-inspo-img"></div>
+            <span class="plan-inspo-label">{{ item.page.title }}</span>
           </div>
           {% endif %}
         {% endfor %}
       </div>
-      {% endif %}
+
+      <div class="plan-lightbox" id="plan-lightbox" hidden>
+        <button type="button" class="plan-lightbox-close" aria-label="Close">×</button>
+        <button type="button" class="plan-lightbox-nav plan-lightbox-prev" aria-label="Previous photo">‹</button>
+        <figure class="plan-lightbox-figure">
+          <img class="plan-lightbox-img" alt="">
+          <figcaption class="plan-lightbox-caption">
+            <span class="plan-lightbox-title"></span>
+            <span class="plan-lightbox-count"></span>
+            <button type="button" class="plan-lightbox-goto">Show in plan ›</button>
+          </figcaption>
+        </figure>
+        <button type="button" class="plan-lightbox-nav plan-lightbox-next" aria-label="Next photo">›</button>
+      </div>
 
       {% if city_pending %}
       <div class="plan-pending" id="plan-pending">
@@ -820,6 +837,99 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
   }
   btn.addEventListener('click', addDaytrip);
   input.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); addDaytrip(); } });
+})();
+</script>
+{% if photos_pending %}
+<script>
+// Fetch inspiration photos for POIs without a world66 image (cached server-side after the first look-up)
+(function () {
+  var strip = document.getElementById('plan-inspo-strip');
+  fetch('/plans/{{ plan.slug }}/{{ stop.city_slug }}/poi-images/')
+    .then(function(r) { return r.ok ? r.json() : {}; })
+    .then(function(photos) {
+      strip.querySelectorAll('[data-photo-for]').forEach(function(tile) {
+        var url = photos[tile.dataset.photoFor];
+        if (!url) { tile.remove(); return; }
+        tile.querySelector('.plan-inspo-img').style.backgroundImage = "url('" + url + "')";
+        tile.hidden = false;
+      });
+      if (strip.querySelectorAll('.plan-inspo-tile:not([hidden])').length > 1) strip.hidden = false;
+    })
+    .catch(function() {});
+})();
+</script>
+{% endif %}
+<script>
+// Inspo strip: click a photo to see it large, then swipe / arrow through all of them
+(function () {
+  var strip = document.getElementById('plan-inspo-strip');
+  var box = document.getElementById('plan-lightbox');
+  if (!strip || !box) return;
+  var img = box.querySelector('.plan-lightbox-img');
+  var title = box.querySelector('.plan-lightbox-title');
+  var count = box.querySelector('.plan-lightbox-count');
+  var gotoBtn = box.querySelector('.plan-lightbox-goto');
+  var tiles = [], index = 0;
+
+  function photoUrl(tile) {
+    var m = (tile.querySelector('.plan-inspo-img').style.backgroundImage || '').match(/url\(["']?(.*?)["']?\)/);
+    return m ? m[1] : '';
+  }
+  // Wikimedia thumbnails come at 640–960px; ask for a bigger one for the lightbox
+  function largeUrl(url) {
+    return url.replace(/\/(\d+)px-/, '/1280px-').replace(/([?&]width=)\d+/, '$11600');
+  }
+  function show(i) {
+    index = (i + tiles.length) % tiles.length;
+    var tile = tiles[index], small = photoUrl(tile), large = largeUrl(small);
+    img.onerror = large !== small ? function() { img.onerror = null; img.src = small; } : null;
+    img.src = large;
+    var label = tile.querySelector('.plan-inspo-label');
+    title.textContent = label ? label.textContent : '';
+    count.textContent = tiles.length > 1 ? (index + 1) + ' / ' + tiles.length : '';
+    gotoBtn.hidden = !tile.dataset.card;
+    box.classList.toggle('plan-lightbox--single', tiles.length < 2);
+  }
+  function open(tile) {
+    tiles = Array.prototype.filter.call(strip.querySelectorAll('.plan-inspo-tile'), function(t) { return !t.hidden && photoUrl(t); });
+    if (!tiles.length) return;
+    box.hidden = false;
+    document.body.style.overflow = 'hidden';
+    show(Math.max(0, tiles.indexOf(tile)));
+  }
+  function close() {
+    box.hidden = true;
+    document.body.style.overflow = '';
+    img.removeAttribute('src');
+  }
+
+  strip.addEventListener('click', function(e) {
+    var tile = e.target.closest('.plan-inspo-tile');
+    if (tile) open(tile);
+  });
+  box.querySelector('.plan-lightbox-prev').addEventListener('click', function() { show(index - 1); });
+  box.querySelector('.plan-lightbox-next').addEventListener('click', function() { show(index + 1); });
+  box.querySelector('.plan-lightbox-close').addEventListener('click', close);
+  box.addEventListener('click', function(e) { if (e.target === box) close(); });
+  gotoBtn.addEventListener('click', function() {
+    var card = tiles[index].dataset.card;
+    close();
+    scrollToCard(card);
+  });
+  document.addEventListener('keydown', function(e) {
+    if (box.hidden) return;
+    if (e.key === 'Escape') close();
+    else if (e.key === 'ArrowLeft') show(index - 1);
+    else if (e.key === 'ArrowRight') show(index + 1);
+  });
+  var touchX = null;
+  box.addEventListener('touchstart', function(e) { touchX = e.touches[0].clientX; }, {passive: true});
+  box.addEventListener('touchend', function(e) {
+    if (touchX === null) return;
+    var dx = e.changedTouches[0].clientX - touchX;
+    touchX = null;
+    if (Math.abs(dx) > 40) show(index + (dx < 0 ? 1 : -1));
+  });
 })();
 </script>
 {% endblock %}

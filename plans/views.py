@@ -17,6 +17,8 @@ from django.views.decorators.http import require_POST
 from django.conf import settings as _settings
 from world66_content.models import CONTENT_DIR, TABBI_CONTENT_DIR, load_page, resolve_location_name
 
+from . import poi_images
+
 def _slugify(text: str) -> str:
     """ASCII slug: transliterates unicode (ü→u, é→e) rather than stripping it."""
     nfd = unicodedata.normalize("NFD", text.lower())
@@ -311,6 +313,7 @@ def _parse_stops(body, plan_slug):
     )
 
     parent = None
+    photo_cache = poi_images.load_cache()
     for line in body.splitlines():
         h2 = re.match(r"^(#{2,3})\s+(.+)$", line)
         if h2:
@@ -412,6 +415,8 @@ def _parse_stops(body, plan_slug):
                     img = _image_path(page)
                     if img:
                         image_url = f"/content-image/{img}"
+                    else:
+                        image_url = photo_cache.get(page.path)
             current["items"].append({
                 "text": text,
                 "page": page,
@@ -1110,6 +1115,9 @@ def plan_stop(request, slug, city_slug):
         _save_geocache(geocache)
 
     inspo_count = (1 if city_image_url else 0) + sum(1 for i in stop["items"] if i.get("image_url"))
+    photo_cache = poi_images.load_cache()
+    photos_pending = any(i["page"] and not i["image_url"] and i["page"].path not in photo_cache
+                         for i in stop["items"])
 
     return render(request, "plans/plan_stop.html", {
         "plan": plan,
@@ -1130,6 +1138,7 @@ def plan_stop(request, slug, city_slug):
         "items_drink": items_drink,
         "ungrouped": ungrouped,
         "inspo_count": inspo_count,
+        "photos_pending": photos_pending,
     })
 
 
@@ -1430,6 +1439,18 @@ def _plan_file_add_daytrip(slug, parent_slug, destination, dates=""):
         "url": f"/plans/{slug}/{city_slug}/",
         "image_url": f"/content-image/{img}" if img else None,
     }, None
+
+
+@_require_plan_auth
+def plan_poi_images(request, slug, city_slug):
+    """Inspiration photos for this stop's POIs that have no world66 image: {item text: url}."""
+    plan = _parse_plan(PLANS_DIR / f"{slug}.md")
+    stop = _find_stop(plan, city_slug) if plan else None
+    if not stop:
+        raise Http404
+    missing = [i for i in stop["items"] if i["page"] and not i["image_url"]]
+    photos = poi_images.fetch_missing([i["page"] for i in missing], stop["city"])
+    return JsonResponse({i["text"]: photos[i["page"].path] for i in missing if photos.get(i["page"].path)})
 
 
 @_require_plan_auth
