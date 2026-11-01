@@ -807,6 +807,58 @@ def plan_set_passport(request, slug):
     return HttpResponseRedirect(f"/plans/{slug}/")
 
 
+def _distance_km(a, b):
+    import math
+    lat1, lng1, lat2, lng2 = map(math.radians, (a[0], a[1], b[0], b[1]))
+    h = math.sin((lat2 - lat1) / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin((lng2 - lng1) / 2) ** 2
+    return 6371 * 2 * math.asin(math.sqrt(h))
+
+
+_DAYTRIP_MAX_KM = 120
+
+
+def _daytrip_suggestions(plan, stop, limit=15):
+    """World66 places in the stop's region within reach for a day, best first."""
+    from world66_content.models import _location_index
+    city_path = stop.get("city_path")
+    if stop["is_daytrip"] or not city_path or city_path.count("/") < 2:
+        return []
+    center = _city_coords(stop)
+    if not center:
+        return []
+    region = city_path.rsplit("/", 1)[0] + "/"
+    in_plan = {s.get("city_path") for s in _all_stops(plan)} | {s["city_slug"] for s in _all_stops(plan)}
+    candidates = sorted({p for paths in _location_index().values() for p in paths
+                         if p.startswith(region) and not p.startswith(city_path + "/") and p != city_path})
+    out = []
+    for path in candidates:
+        page = load_page(path)
+        if (not page or page.meta.get("loc_type") in ("country", "continent", "region")
+                or path in in_plan or _slugify(page.title) in in_plan):
+            continue
+        try:
+            coords = float(page.meta["latitude"]), float(page.meta["longitude"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        km = _distance_km(center, coords)
+        if km > _DAYTRIP_MAX_KM:
+            continue
+        img = _image_path(page)
+        score = float(page.meta.get("score") or 0)
+        out.append({
+            "page": page,
+            "image_url": f"/content-image/{img}" if img else None,
+            "distance_km": round(km),
+            "placeholder_emoji": "🗺️",
+            "placeholder_bg": "#E8F5E9",
+            "note_match": False,
+            # Good places first, but a nearby one beats a slightly better one 100 km away
+            "_rank": score - km / 25 + (1 if img else 0),
+        })
+    out.sort(key=lambda d: -d["_rank"])
+    return out[:limit]
+
+
 @_require_plan_auth
 def plan_stop(request, slug, city_slug):
     plan = _parse_plan(PLANS_DIR / f"{slug}.md")
@@ -1058,6 +1110,9 @@ def plan_stop(request, slug, city_slug):
         for label, key, icon in _CATEGORIES
         if any(s["category"] == key for s in suggestions)
     ]
+    daytrip_suggestions = _daytrip_suggestions(plan, stop)
+    if daytrip_suggestions:
+        suggestion_groups.append({"label": "Day trips", "key": "daytrip", "icon": "🗺️", "items": daytrip_suggestions})
 
     for item in stop["items"]:
         p = item.get("page")
@@ -1388,7 +1443,7 @@ def _plan_file_remove(slug, poi_path):
     return True
 
 
-def _plan_file_add_daytrip(slug, parent_slug, destination, dates=""):
+def _plan_file_add_daytrip(slug, parent_slug, destination, dates="", city_path=None):
     """Append a "### Day trip: X" section to the end of a stop's section.
 
     Returns (day trip dict, None) or (None, error message).
@@ -1403,7 +1458,7 @@ def _plan_file_add_daytrip(slug, parent_slug, destination, dates=""):
         return None, "stop not found"
 
     destination = destination.strip()
-    city_path = resolve_location_name(destination, parent.get("city_path") or "")
+    city_path = city_path or resolve_location_name(destination, parent.get("city_path") or "")
     city_page = load_page(city_path) if city_path else None
     city_title = city_page.title if city_page else destination.title()
     city_slug = _slugify(city_title)
@@ -1456,14 +1511,25 @@ def plan_poi_images(request, slug, city_slug):
 @_require_plan_auth
 @require_POST
 def plan_daytrip_add(request, slug, city_slug):
-    try:
-        data = json.loads(request.body)
-    except (json.JSONDecodeError, UnicodeDecodeError):
-        return JsonResponse({"error": "invalid JSON"}, status=400)
+    is_form = request.content_type != "application/json"
+    if is_form:
+        data = request.POST
+    else:
+        try:
+            data = json.loads(request.body)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return JsonResponse({"error": "invalid JSON"}, status=400)
     destination = (data.get("city") or "").strip()
+    city_path = (data.get("city_path") or "").strip() or None
+    if city_path and not load_page(city_path):
+        city_path = None
     if not destination:
+        if is_form:
+            return HttpResponseRedirect(data.get("next") or f"/plans/{slug}/{city_slug}/")
         return JsonResponse({"error": "city required"}, status=400)
-    daytrip, error = _plan_file_add_daytrip(slug, city_slug, destination)
+    daytrip, error = _plan_file_add_daytrip(slug, city_slug, destination, city_path=city_path)
+    if is_form:
+        return HttpResponseRedirect(data.get("next") or f"/plans/{slug}/{city_slug}/")
     if error:
         return JsonResponse({"error": error}, status=400)
     return JsonResponse({"ok": True, **daytrip})

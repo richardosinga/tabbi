@@ -933,6 +933,7 @@ span.plan-poi-title--draft::after { content: none; }
 .plan-suggestions-chip--todo   { color: #180A0A; background: #e7a328; border-color: #180A0A; }
 .plan-suggestions-chip--food   { color: #7C2D12; background: #FED7AA; border-color: #EA580C; }
 .plan-suggestions-chip--drinks { color: #1E3A5F; background: #BFDBFE; border-color: #2563EB; }
+.plan-suggestions-chip--daytrip { color: #14532D; background: #BBF7D0; border-color: #16A34A; }
 
 .plan-suggestions-strip-wrap { position: relative; }
 .plan-suggestions-strip {
@@ -997,6 +998,7 @@ span.plan-poi-title--draft::after { content: none; }
 .plan-suggestion-tile--todo   { border-top-color: #e7a328; }
 .plan-suggestion-tile--food   { border-top-color: #EA580C; }
 .plan-suggestion-tile--drinks { border-top-color: #2563EB; }
+.plan-suggestion-tile--daytrip { border-top-color: #16A34A; }
 
 .plan-suggestion-tile-img {
   height: 100px;
@@ -2196,8 +2198,13 @@ span.plan-poi-title--draft::after { content: none; }
 .plan-daytrip-name { font-weight: 700; font-size: 0.95rem; }
 .plan-daytrip-count { font-size: 0.78rem; color: #888; margin-top: 2px; }
 .plan-daytrip-arrow { color: #e7a328; font-size: 1.3rem; padding-right: 4px; }
-.plan-daytrip-add { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
-.plan-daytrip-add input { flex: 1; min-width: 0; }
+.plan-suggestion-distance { display: block; font-size: 0.7rem; font-weight: 700; color: #16A34A; margin-top: 2px; }
+.plan-custom-daytrip-form { margin-top: 8px; }
+.plan-custom-daytrip-btn {
+  width: 100%; padding: 9px 14px; border-radius: 999px; cursor: pointer;
+  background: #fff; color: #14532D; border: 2px solid #16A34A; font-weight: 700; font-size: 0.85rem;
+}
+.plan-custom-daytrip-btn:hover { background: #BBF7D0; }
 
 .plan-dest-tile-daytrips { font-size: 0.72rem; color: rgba(255,255,255,0.75); margin-top: 2px; }
 .plan-dest-tile-daytrips a { color: #e7a328; text-decoration: none; }
