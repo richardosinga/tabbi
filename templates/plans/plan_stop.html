@@ -21,6 +21,20 @@
     <a href="/plans/{{ plan.slug }}/edit/" class="plan-edit-link">Edit</a>
   </div>
 
+  {% comment %}Full-width photo gallery: this stop's photos, then its day trips'{% endcomment %}
+  <div class="plan-inspo-strip plan-inspo-strip--hero" id="plan-inspo-strip"{% if not gallery %} hidden{% endif %}>
+    {% for g in gallery %}
+    <div class="plan-inspo-tile{% if g.daytrip %} plan-inspo-tile--daytrip{% endif %}"
+         {% if g.card is not None and g.card != "" %}data-card="{{ g.card }}"{% endif %}
+         {% if g.href %}data-href="{{ g.href }}"{% endif %}
+         data-title="{{ g.label }}{% if g.daytrip %} · day trip{% if g.label != g.daytrip %} {{ g.daytrip }}{% endif %}{% endif %}"
+         {% if g.photo_for %}data-photo-for="{{ g.photo_for }}" hidden{% endif %}>
+      <div class="plan-inspo-img"{% if g.url %} style="background-image:url('{{ g.url }}')"{% endif %}></div>
+      <span class="plan-inspo-label">{% if g.daytrip %}<span class="plan-inspo-badge">Day trip{% if g.label != g.daytrip %} · {{ g.daytrip }}{% endif %}</span>{% endif %}{{ g.label }}</span>
+    </div>
+    {% endfor %}
+  </div>
+
   <div class="plan-stop-layout">
 
     <div class="plan-map-wrap">
@@ -38,29 +52,6 @@
         </div>
       </div>
       {% endif %}
-
-      {% comment %}Image inspiration strip{% endcomment %}
-      <div class="plan-inspo-strip" id="plan-inspo-strip"{% if inspo_count < 2 %} hidden{% endif %}>
-        {% if city_image_url %}
-        <div class="plan-inspo-tile">
-          <div class="plan-inspo-img" style="background-image:url('{{ city_image_url }}')"></div>
-          <span class="plan-inspo-label">{{ stop.city }}</span>
-        </div>
-        {% endif %}
-        {% for item in stop.items %}
-          {% if item.image_url %}
-          <div class="plan-inspo-tile" data-card="{{ forloop.counter0 }}">
-            <div class="plan-inspo-img" style="background-image:url('{{ item.image_url }}')"></div>
-            {% if item.page %}<span class="plan-inspo-label">{{ item.page.title }}</span>{% endif %}
-          </div>
-          {% elif item.page and photos_pending %}
-          <div class="plan-inspo-tile" data-photo-for="{{ item.text }}" data-card="{{ forloop.counter0 }}" hidden>
-            <div class="plan-inspo-img"></div>
-            <span class="plan-inspo-label">{{ item.page.title }}</span>
-          </div>
-          {% endif %}
-        {% endfor %}
-      </div>
 
       <div class="plan-lightbox" id="plan-lightbox" hidden>
         <button type="button" class="plan-lightbox-close" aria-label="Close">×</button>
@@ -280,7 +271,7 @@
 
       {% endif %}{# end grouped/ungrouped #}
 
-      {% if not stop.is_daytrip %}
+      {% if stop.daytrips %}
       <div class="plan-daytrips">
         <h3 class="plan-section-label">Day trips</h3>
         <div class="plan-daytrip-list" id="plan-daytrip-list">
@@ -295,11 +286,6 @@
           </a>
           {% endfor %}
         </div>
-        <div class="plan-daytrip-add">
-          <input type="text" id="daytrip-input" class="tabbi-empty-title-input" placeholder="Add a day trip from {{ stop.city }}…" autocomplete="off">
-          <button type="button" id="daytrip-add-btn" class="tabbi-btn">Add →</button>
-        </div>
-        <div id="daytrip-error" class="plan-add-stop-error" hidden></div>
       </div>
       {% endif %}
 
@@ -330,6 +316,14 @@
             </div>
             <button type="submit" class="plan-custom-spot-btn">＋ Add to plan</button>
           </form>
+          {% if not stop.is_daytrip %}
+          <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/add-daytrip/" class="plan-custom-daytrip-form">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <input type="hidden" name="city" id="add-daytrip-city">
+            <button type="submit" class="plan-custom-daytrip-btn">🗺️ Add <span id="add-daytrip-label">it</span> as a day trip from {{ stop.city }}</button>
+          </form>
+          {% endif %}
         </div>
         {% for group in suggestion_groups %}
         <div class="plan-suggestions-heading" data-cat="{{ group.key }}">
@@ -352,14 +346,25 @@
               </div>
               <div class="plan-suggestion-tile-body">
                 <a class="plan-suggestion-title" href="{{ WORLD66_SITE_URL }}/{{ s.page.path }}" target="_blank" rel="noopener">{{ s.page.title }}</a>
+                {% if s.distance_km is not None %}<span class="plan-suggestion-distance">{{ s.distance_km }} km from {{ stop.city }}</span>{% endif %}
                 {% if s.page.meta.snippet %}<p class="plan-suggestion-snippet">{{ s.page.meta.snippet }}</p>{% endif %}
               </div>
+              {% if group.key == "daytrip" %}
+              <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/add-daytrip/" class="plan-suggestion-add">
+                {% csrf_token %}
+                <input type="hidden" name="city" value="{{ s.page.title }}">
+                <input type="hidden" name="city_path" value="{{ s.page.path }}">
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <button type="submit" class="plan-suggestion-btn" title="Add as a day trip">+</button>
+              </form>
+              {% else %}
               <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/add/" class="plan-suggestion-add">
                 {% csrf_token %}
                 <input type="hidden" name="poi_path" value="{{ s.page.path }}">
                 <input type="hidden" name="next" value="{{ request.path }}">
                 <button type="submit" class="plan-suggestion-btn" title="Add to plan">+</button>
               </form>
+              {% endif %}
             </div>
             {% endfor %}
           </div>
@@ -596,6 +601,11 @@ function toggleConciergeForm(btn) {
     if (q && totalVisible === 0) {
       var titleInput = document.getElementById('add-custom-title');
       if (titleInput && !titleInput._userEdited) titleInput.value = searchInput.value.trim();
+      var dtCity = document.getElementById('add-daytrip-city');
+      if (dtCity) {
+        dtCity.value = searchInput.value.trim();
+        document.getElementById('add-daytrip-label').textContent = '“' + searchInput.value.trim() + '”';
+      }
       noResults.removeAttribute('hidden');
     } else {
       noResults.setAttribute('hidden', '');
@@ -809,36 +819,6 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
 })();
 {% endif %}
 </script>
-<script>
-(function () {
-  var input = document.getElementById('daytrip-input');
-  var btn = document.getElementById('daytrip-add-btn');
-  var errBox = document.getElementById('daytrip-error');
-  if (!input) return;
-  function addDaytrip() {
-    var city = input.value.trim();
-    if (!city) return;
-    btn.disabled = true;
-    btn.textContent = 'Adding…';
-    errBox.hidden = true;
-    fetch('/plans/{{ plan.slug }}/{{ stop.city_slug }}/add-daytrip/', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
-      body: JSON.stringify({city: city})
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data.error) { errBox.textContent = data.error; errBox.hidden = false; return; }
-      // Reload so the map and card pick up the new day trip's location
-      window.location.reload();
-    })
-    .catch(function() { errBox.textContent = 'Something went wrong.'; errBox.hidden = false; })
-    .finally(function() { btn.disabled = false; btn.textContent = 'Add →'; });
-  }
-  btn.addEventListener('click', addDaytrip);
-  input.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); addDaytrip(); } });
-})();
-</script>
 {% if photos_pending %}
 <script>
 // Fetch inspiration photos for POIs without a world66 image (cached server-side after the first look-up)
@@ -853,7 +833,7 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
         tile.querySelector('.plan-inspo-img').style.backgroundImage = "url('" + url + "')";
         tile.hidden = false;
       });
-      if (strip.querySelectorAll('.plan-inspo-tile:not([hidden])').length > 1) strip.hidden = false;
+      if (strip.querySelector('.plan-inspo-tile:not([hidden])')) strip.hidden = false;
     })
     .catch(function() {});
 })();
@@ -885,9 +865,10 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
     img.onerror = large !== small ? function() { img.onerror = null; img.src = small; } : null;
     img.src = large;
     var label = tile.querySelector('.plan-inspo-label');
-    title.textContent = label ? label.textContent : '';
+    title.textContent = tile.dataset.title || (label ? label.textContent : '');
     count.textContent = tiles.length > 1 ? (index + 1) + ' / ' + tiles.length : '';
-    gotoBtn.hidden = !tile.dataset.card;
+    gotoBtn.hidden = !tile.dataset.card && !tile.dataset.href;
+    gotoBtn.textContent = tile.dataset.href ? 'Open day trip ›' : 'Show in plan ›';
     box.classList.toggle('plan-lightbox--single', tiles.length < 2);
   }
   function open(tile) {
@@ -912,9 +893,10 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
   box.querySelector('.plan-lightbox-close').addEventListener('click', close);
   box.addEventListener('click', function(e) { if (e.target === box) close(); });
   gotoBtn.addEventListener('click', function() {
-    var card = tiles[index].dataset.card;
+    var tile = tiles[index];
+    if (tile.dataset.href) { window.location = tile.dataset.href; return; }
     close();
-    scrollToCard(card);
+    scrollToCard(tile.dataset.card);
   });
   document.addEventListener('keydown', function(e) {
     if (box.hidden) return;

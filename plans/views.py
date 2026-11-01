@@ -807,6 +807,58 @@ def plan_set_passport(request, slug):
     return HttpResponseRedirect(f"/plans/{slug}/")
 
 
+def _distance_km(a, b):
+    import math
+    lat1, lng1, lat2, lng2 = map(math.radians, (a[0], a[1], b[0], b[1]))
+    h = math.sin((lat2 - lat1) / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin((lng2 - lng1) / 2) ** 2
+    return 6371 * 2 * math.asin(math.sqrt(h))
+
+
+_DAYTRIP_MAX_KM = 120
+
+
+def _daytrip_suggestions(plan, stop, limit=15):
+    """World66 places in the stop's region within reach for a day, best first."""
+    from world66_content.models import _location_index
+    city_path = stop.get("city_path")
+    if stop["is_daytrip"] or not city_path or city_path.count("/") < 2:
+        return []
+    center = _city_coords(stop)
+    if not center:
+        return []
+    region = city_path.rsplit("/", 1)[0] + "/"
+    in_plan = {s.get("city_path") for s in _all_stops(plan)} | {s["city_slug"] for s in _all_stops(plan)}
+    candidates = sorted({p for paths in _location_index().values() for p in paths
+                         if p.startswith(region) and not p.startswith(city_path + "/") and p != city_path})
+    out = []
+    for path in candidates:
+        page = load_page(path)
+        if (not page or page.meta.get("loc_type") in ("country", "continent", "region")
+                or path in in_plan or _slugify(page.title) in in_plan):
+            continue
+        try:
+            coords = float(page.meta["latitude"]), float(page.meta["longitude"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        km = _distance_km(center, coords)
+        if km > _DAYTRIP_MAX_KM:
+            continue
+        img = _image_path(page)
+        score = float(page.meta.get("score") or 0)
+        out.append({
+            "page": page,
+            "image_url": f"/content-image/{img}" if img else None,
+            "distance_km": round(km),
+            "placeholder_emoji": "🗺️",
+            "placeholder_bg": "#E8F5E9",
+            "note_match": False,
+            # Good places first, but a nearby one beats a slightly better one 100 km away
+            "_rank": score - km / 25 + (1 if img else 0),
+        })
+    out.sort(key=lambda d: -d["_rank"])
+    return out[:limit]
+
+
 @_require_plan_auth
 def plan_stop(request, slug, city_slug):
     plan = _parse_plan(PLANS_DIR / f"{slug}.md")
@@ -1058,6 +1110,9 @@ def plan_stop(request, slug, city_slug):
         for label, key, icon in _CATEGORIES
         if any(s["category"] == key for s in suggestions)
     ]
+    daytrip_suggestions = _daytrip_suggestions(plan, stop)
+    if daytrip_suggestions:
+        suggestion_groups.append({"label": "Day trips", "key": "daytrip", "icon": "🗺️", "items": daytrip_suggestions})
 
     for item in stop["items"]:
         p = item.get("page")
@@ -1114,10 +1169,36 @@ def plan_stop(request, slug, city_slug):
     if geocache_dirty:
         _save_geocache(geocache)
 
-    inspo_count = (1 if city_image_url else 0) + sum(1 for i in stop["items"] if i.get("image_url"))
+    # Full-width photo gallery: the stop's own photos, then each day trip's (place photo, then its POIs).
+    # POIs without a photo yet get a hidden tile the page fills in via plan_poi_images.
     photo_cache = poi_images.load_cache()
-    photos_pending = any(i["page"] and not i["image_url"] and i["page"].path not in photo_cache
-                         for i in stop["items"])
+    gallery = []
+
+    def _add_photos(items, card_offset=None, daytrip=None):
+        for idx, item in enumerate(items):
+            page = item["page"]
+            pending = bool(page and not item["image_url"] and page.path not in photo_cache)
+            if not item["image_url"] and not pending:
+                continue
+            gallery.append({
+                "url": item["image_url"], "photo_for": item["text"] if pending else None,
+                "label": page.title if page else "",
+                "card": idx if card_offset is not None else None,
+                "href": daytrip["url"] if daytrip else None,
+                "daytrip": daytrip["city"] if daytrip else None,
+            })
+
+    if city_image_url:
+        gallery.append({"url": city_image_url, "label": stop["city"]})
+    _add_photos(stop["items"], card_offset=0)
+    for dt in stop["daytrips"]:
+        if dt.get("image_url"):
+            gallery.append({"url": dt["image_url"], "label": dt["city"], "href": dt["url"], "daytrip": dt["city"]})
+        _add_photos(dt["items"], daytrip=dt)
+    # A day trip's place photo often is its first POI's photo — don't show it twice
+    seen = set()
+    gallery = [g for g in gallery if not g["url"] or not (g["url"] in seen or seen.add(g["url"]))]
+    photos_pending = any(g.get("photo_for") for g in gallery)
 
     return render(request, "plans/plan_stop.html", {
         "plan": plan,
@@ -1137,7 +1218,7 @@ def plan_stop(request, slug, city_slug):
         "items_eat": items_eat,
         "items_drink": items_drink,
         "ungrouped": ungrouped,
-        "inspo_count": inspo_count,
+        "gallery": gallery,
         "photos_pending": photos_pending,
     })
 
@@ -1388,7 +1469,7 @@ def _plan_file_remove(slug, poi_path):
     return True
 
 
-def _plan_file_add_daytrip(slug, parent_slug, destination, dates=""):
+def _plan_file_add_daytrip(slug, parent_slug, destination, dates="", city_path=None):
     """Append a "### Day trip: X" section to the end of a stop's section.
 
     Returns (day trip dict, None) or (None, error message).
@@ -1403,7 +1484,7 @@ def _plan_file_add_daytrip(slug, parent_slug, destination, dates=""):
         return None, "stop not found"
 
     destination = destination.strip()
-    city_path = resolve_location_name(destination, parent.get("city_path") or "")
+    city_path = city_path or resolve_location_name(destination, parent.get("city_path") or "")
     city_page = load_page(city_path) if city_path else None
     city_title = city_page.title if city_page else destination.title()
     city_slug = _slugify(city_title)
@@ -1443,27 +1524,41 @@ def _plan_file_add_daytrip(slug, parent_slug, destination, dates=""):
 
 @_require_plan_auth
 def plan_poi_images(request, slug, city_slug):
-    """Inspiration photos for this stop's POIs that have no world66 image: {item text: url}."""
+    """Inspiration photos for POIs (of this stop and its day trips) without a world66 image: {item text: url}."""
     plan = _parse_plan(PLANS_DIR / f"{slug}.md")
     stop = _find_stop(plan, city_slug) if plan else None
     if not stop:
         raise Http404
-    missing = [i for i in stop["items"] if i["page"] and not i["image_url"]]
-    photos = poi_images.fetch_missing([i["page"] for i in missing], stop["city"])
-    return JsonResponse({i["text"]: photos[i["page"].path] for i in missing if photos.get(i["page"].path)})
+    photos = {}
+    for s in [stop] + stop["daytrips"]:
+        missing = [i for i in s["items"] if i["page"] and not i["image_url"]]
+        found = poi_images.fetch_missing([i["page"] for i in missing], s["city"])
+        photos.update({i["text"]: found[i["page"].path] for i in missing if found.get(i["page"].path)})
+    return JsonResponse(photos)
 
 
 @_require_plan_auth
 @require_POST
 def plan_daytrip_add(request, slug, city_slug):
-    try:
-        data = json.loads(request.body)
-    except (json.JSONDecodeError, UnicodeDecodeError):
-        return JsonResponse({"error": "invalid JSON"}, status=400)
+    is_form = request.content_type != "application/json"
+    if is_form:
+        data = request.POST
+    else:
+        try:
+            data = json.loads(request.body)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return JsonResponse({"error": "invalid JSON"}, status=400)
     destination = (data.get("city") or "").strip()
+    city_path = (data.get("city_path") or "").strip() or None
+    if city_path and not load_page(city_path):
+        city_path = None
     if not destination:
+        if is_form:
+            return HttpResponseRedirect(data.get("next") or f"/plans/{slug}/{city_slug}/")
         return JsonResponse({"error": "city required"}, status=400)
-    daytrip, error = _plan_file_add_daytrip(slug, city_slug, destination)
+    daytrip, error = _plan_file_add_daytrip(slug, city_slug, destination, city_path=city_path)
+    if is_form:
+        return HttpResponseRedirect(data.get("next") or f"/plans/{slug}/{city_slug}/")
     if error:
         return JsonResponse({"error": error}, status=400)
     return JsonResponse({"ok": True, **daytrip})
