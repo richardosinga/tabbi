@@ -14,6 +14,7 @@ urlpatterns = [
     path("<slug:slug>/<slug:city_slug>/remove/", views.plan_poi_remove, name="plan_poi_remove"),
     path("<slug:slug>/<slug:city_slug>/note/", views.plan_note_edit, name="plan_note_edit"),
     path("<slug:slug>/<slug:city_slug>/budget/", views.plan_budget_save, name="plan_budget_save"),
+    path("<slug:slug>/<slug:city_slug>/add-daytrip/", views.plan_daytrip_add, name="plan_daytrip_add"),
     path("<slug:slug>/<slug:city_slug>/pin-provider/", views.plan_pin_provider, name="plan_pin_provider"),
     # Must precede the generic <slug>/<city_slug>/ route below, otherwise
     # "set-passport" is captured as a city_slug and routed to plan_stop (404).
