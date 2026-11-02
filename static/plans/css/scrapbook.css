@@ -667,10 +667,10 @@ button.plan-poi-title, button.sb-coaster-title {
 .sb-tab--empty { opacity: 0.45; }
 /* the open folder: matches the active tab's colour along the top edge */
 .plan-suggestions-strip-wrap { margin-top: 0; border-radius: 0 6px 6px 6px; }
-.plan-suggestions-strip-wrap[data-cat="todo"] { box-shadow: inset 0 6px 0 #e7a328, 4px 4px 0 #180A0A; }
-.plan-suggestions-strip-wrap[data-cat="food"] { box-shadow: inset 0 6px 0 #FED7AA, 4px 4px 0 #180A0A; }
-.plan-suggestions-strip-wrap[data-cat="drinks"] { box-shadow: inset 0 6px 0 #BFDBFE, 4px 4px 0 #180A0A; }
-.plan-suggestions-strip-wrap[data-cat="daytrip"] { box-shadow: inset 0 6px 0 #BBF7D0, 4px 4px 0 #180A0A; }
+.plan-suggestions-strip-wrap[data-cat="todo"] { box-shadow: inset 0 6px 0 #e7a328; }
+.plan-suggestions-strip-wrap[data-cat="food"] { box-shadow: inset 0 6px 0 #FED7AA; }
+.plan-suggestions-strip-wrap[data-cat="drinks"] { box-shadow: inset 0 6px 0 #BFDBFE; }
+.plan-suggestions-strip-wrap[data-cat="daytrip"] { box-shadow: inset 0 6px 0 #BBF7D0; }
 
 /* ── Budget: a till receipt (stop budget and the trip total) ─────────────── */
 
@@ -716,3 +716,10 @@ button.plan-poi-title, button.sb-coaster-title {
 
 /* day-trip tickets: two columns when there's room, so they don't stretch */
 .plan-daytrip-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px 22px; }
+
+/* every tab's strip has the same height, so switching tabs doesn't make the page jump */
+.plan-suggestions-strip-wrap { box-shadow: none; }
+.plan-suggestions-strip { align-items: stretch; }
+.plan-suggestion-tile { height: 252px; box-sizing: border-box; }
+.plan-suggestion-tile-body { overflow: hidden; }
+.plan-suggestion-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; flex-shrink: 0; }
