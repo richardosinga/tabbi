@@ -293,81 +293,83 @@
            hidden>
       </div>
 
-      <div class="plan-suggestions">
-        {% if suggestion_groups %}
-        <div class="plan-suggestions-search-row">
-          <input type="text" id="suggestion-search" class="plan-suggestions-search" placeholder="Search or add anything…" autocomplete="off">
+    </div>
+
+  </div>
+
+  {% comment %}Adding spans the full width, under the map and the list{% endcomment %}
+  <div class="plan-suggestions">
+    {% if suggestion_groups %}
+    <div class="plan-suggestions-search-row">
+      <input type="text" id="suggestion-search" class="plan-suggestions-search" placeholder="Search or add anything…" autocomplete="off">
+    </div>
+    {% endif %}
+    <div id="suggestion-no-results" class="plan-suggestions-no-results"{% if suggestion_groups %} hidden{% endif %}>
+      <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/add/" class="plan-custom-spot-form">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <div class="plan-custom-spot-fields">
+          <input type="text" name="custom_title" id="add-custom-title" class="plan-custom-spot-input" placeholder="Name of the spot" autocomplete="off">
+          <input type="text" name="custom_desc" id="add-custom-desc" class="plan-custom-spot-input" placeholder="Notes (optional)" autocomplete="off">
+          <input type="text" name="custom_url" id="add-custom-url" class="plan-custom-spot-input" placeholder="Link (optional, e.g. booking page)" autocomplete="off">
         </div>
-        {% endif %}
-        <div id="suggestion-no-results" class="plan-suggestions-no-results"{% if suggestion_groups %} hidden{% endif %}>
-          <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/add/" class="plan-custom-spot-form">
-            {% csrf_token %}
-            <input type="hidden" name="next" value="{{ request.path }}">
-            <div class="plan-custom-spot-fields">
-              <input type="text" name="custom_title" id="add-custom-title" class="plan-custom-spot-input" placeholder="Name of the spot" autocomplete="off">
-              <input type="text" name="custom_desc" id="add-custom-desc" class="plan-custom-spot-input" placeholder="Notes (optional)" autocomplete="off">
-              <input type="text" name="custom_url" id="add-custom-url" class="plan-custom-spot-input" placeholder="Link (optional, e.g. booking page)" autocomplete="off">
+        <button type="submit" class="plan-custom-spot-btn">＋ Add to plan</button>
+      </form>
+      {% if not stop.is_daytrip %}
+      <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/add-daytrip/" class="plan-custom-daytrip-form">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <input type="hidden" name="city" id="add-daytrip-city">
+        <button type="submit" class="plan-custom-daytrip-btn">🗺️ Add <span id="add-daytrip-label">it</span> as a day trip from {{ stop.city }}</button>
+      </form>
+      {% endif %}
+    </div>
+    {% for group in suggestion_groups %}
+    <div class="plan-suggestions-heading" data-cat="{{ group.key }}">
+      <span class="plan-suggestions-chip plan-suggestions-chip--{{ group.key }}">{{ group.icon }} {{ group.label }}</span>
+    </div>
+    <div class="plan-suggestions-strip-wrap" data-cat="{{ group.key }}">
+      <button type="button" class="plan-suggestions-arrow plan-suggestions-arrow--prev" aria-label="Scroll left" hidden>‹</button>
+      <div class="plan-suggestions-strip">
+        {% for s in group.items %}
+        <div class="plan-suggestion-tile plan-suggestion-tile--{{ group.key }}{% if s.note_match %} plan-suggestion-tile--match{% endif %}" data-title="{{ s.page.title|lower }}">
+          <div class="plan-suggestion-tile-top">
+            {% if s.image_url %}
+            <div class="plan-suggestion-tile-img" style="background-image:url('{{ s.image_url }}')"></div>
+            {% else %}
+            <div class="plan-suggestion-tile-img plan-suggestion-tile-img--placeholder" style="background:{{ s.placeholder_bg }}">
+              <span class="plan-suggestion-tile-emoji">{{ s.placeholder_emoji }}</span>
             </div>
-            <button type="submit" class="plan-custom-spot-btn">＋ Add to plan</button>
-          </form>
-          {% if not stop.is_daytrip %}
-          <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/add-daytrip/" class="plan-custom-daytrip-form">
+            {% endif %}
+            {% if s.liked_match %}<span class="plan-suggestion-liked" title="In your passport">♥</span>{% endif %}
+          </div>
+          <div class="plan-suggestion-tile-body">
+            <a class="plan-suggestion-title" href="{{ WORLD66_SITE_URL }}/{{ s.page.path }}" target="_blank" rel="noopener">{{ s.page.title }}</a>
+            {% if s.distance_km is not None %}<span class="plan-suggestion-distance">{{ s.distance_km }} km from {{ stop.city }}</span>{% endif %}
+            {% if s.page.meta.snippet %}<p class="plan-suggestion-snippet">{{ s.page.meta.snippet }}</p>{% endif %}
+          </div>
+          {% if group.key == "daytrip" %}
+          <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/add-daytrip/" class="plan-suggestion-add">
             {% csrf_token %}
+            <input type="hidden" name="city" value="{{ s.page.title }}">
+            <input type="hidden" name="city_path" value="{{ s.page.path }}">
             <input type="hidden" name="next" value="{{ request.path }}">
-            <input type="hidden" name="city" id="add-daytrip-city">
-            <button type="submit" class="plan-custom-daytrip-btn">🗺️ Add <span id="add-daytrip-label">it</span> as a day trip from {{ stop.city }}</button>
+            <button type="submit" class="plan-suggestion-btn" title="Add as a day trip">+</button>
+          </form>
+          {% else %}
+          <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/add/" class="plan-suggestion-add">
+            {% csrf_token %}
+            <input type="hidden" name="poi_path" value="{{ s.page.path }}">
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <button type="submit" class="plan-suggestion-btn" title="Add to plan">+</button>
           </form>
           {% endif %}
         </div>
-        {% for group in suggestion_groups %}
-        <div class="plan-suggestions-heading" data-cat="{{ group.key }}">
-          <span class="plan-suggestions-chip plan-suggestions-chip--{{ group.key }}">{{ group.icon }} {{ group.label }}</span>
-        </div>
-        <div class="plan-suggestions-strip-wrap" data-cat="{{ group.key }}">
-          <button type="button" class="plan-suggestions-arrow plan-suggestions-arrow--prev" aria-label="Scroll left" hidden>‹</button>
-          <div class="plan-suggestions-strip">
-            {% for s in group.items %}
-            <div class="plan-suggestion-tile plan-suggestion-tile--{{ group.key }}{% if s.note_match %} plan-suggestion-tile--match{% endif %}" data-title="{{ s.page.title|lower }}">
-              <div class="plan-suggestion-tile-top">
-                {% if s.image_url %}
-                <div class="plan-suggestion-tile-img" style="background-image:url('{{ s.image_url }}')"></div>
-                {% else %}
-                <div class="plan-suggestion-tile-img plan-suggestion-tile-img--placeholder" style="background:{{ s.placeholder_bg }}">
-                  <span class="plan-suggestion-tile-emoji">{{ s.placeholder_emoji }}</span>
-                </div>
-                {% endif %}
-                {% if s.liked_match %}<span class="plan-suggestion-liked" title="In your passport">♥</span>{% endif %}
-              </div>
-              <div class="plan-suggestion-tile-body">
-                <a class="plan-suggestion-title" href="{{ WORLD66_SITE_URL }}/{{ s.page.path }}" target="_blank" rel="noopener">{{ s.page.title }}</a>
-                {% if s.distance_km is not None %}<span class="plan-suggestion-distance">{{ s.distance_km }} km from {{ stop.city }}</span>{% endif %}
-                {% if s.page.meta.snippet %}<p class="plan-suggestion-snippet">{{ s.page.meta.snippet }}</p>{% endif %}
-              </div>
-              {% if group.key == "daytrip" %}
-              <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/add-daytrip/" class="plan-suggestion-add">
-                {% csrf_token %}
-                <input type="hidden" name="city" value="{{ s.page.title }}">
-                <input type="hidden" name="city_path" value="{{ s.page.path }}">
-                <input type="hidden" name="next" value="{{ request.path }}">
-                <button type="submit" class="plan-suggestion-btn" title="Add as a day trip">+</button>
-              </form>
-              {% else %}
-              <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/add/" class="plan-suggestion-add">
-                {% csrf_token %}
-                <input type="hidden" name="poi_path" value="{{ s.page.path }}">
-                <input type="hidden" name="next" value="{{ request.path }}">
-                <button type="submit" class="plan-suggestion-btn" title="Add to plan">+</button>
-              </form>
-              {% endif %}
-            </div>
-            {% endfor %}
-          </div>
-          <button type="button" class="plan-suggestions-arrow plan-suggestions-arrow--next" aria-label="Scroll right" hidden>›</button>
-        </div>
         {% endfor %}
       </div>
+      <button type="button" class="plan-suggestions-arrow plan-suggestions-arrow--next" aria-label="Scroll right" hidden>›</button>
     </div>
-
+    {% endfor %}
   </div>
 
 
