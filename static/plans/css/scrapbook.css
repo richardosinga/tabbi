@@ -622,7 +622,7 @@ button.plan-poi-title, button.sb-coaster-title {
   .plan-stop-layout { display: block; }
   .plan-stop-layout::after { content: ""; display: block; clear: both; }
   .plan-stop-layout > .plan-map-wrap {
-    float: left; width: calc(50% - 14px); margin: 0 28px 28px 0;
+    float: left; width: calc(50% - 14px); margin: 0 28px 0 0; /* no bottom margin: the row after the map must be free to go full width */
     position: relative; top: auto; /* a float can't stay sticky without covering what flows under it */
   }
   .plan-poi-list { display: block; }

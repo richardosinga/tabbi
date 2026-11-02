@@ -409,6 +409,7 @@
   const markers = {{ markers }};
   const cityCenter = {{ city_center }};
   const map = L.map('plan-stop-map', {scrollWheelZoom: false, zoomControl: true});
+  window.tabbiStopMap = map;
 
   const tiles = tabbiTileLayers();
   const tileDark = tiles.dark;
@@ -578,6 +579,34 @@ function scrollToCard(index) {
   setTimeout(function() { card.classList.remove('plan-poi-card--highlight'); }, 1200);
 }
 
+// Desktop: the map floats left and is exactly as tall as the "Do" heading plus the
+// first two rows of cards next to it, so everything after that runs full width.
+function fitStopMap() {
+  var mapEl = document.getElementById('plan-stop-map');
+  var wrap = mapEl && mapEl.closest('.plan-map-wrap');
+  if (!wrap) return;
+  var cards = document.querySelectorAll('.plan-poi-list .sb-cards > .plan-poi-card');
+  var height = '';
+  if (window.matchMedia('(min-width: 769px)').matches && cards.length) {
+    var docTop = function(el) { var t = 0; for (; el; el = el.offsetParent) t += el.offsetTop; return t; };
+    var rows = [], bottom = 0;
+    cards.forEach(function(c) {
+      var top = docTop(c);
+      if (rows.indexOf(top) === -1) rows.push(top);
+      if (rows.indexOf(top) < 2) bottom = Math.max(bottom, top + c.offsetHeight);
+    });
+    height = Math.max(360, bottom - docTop(mapEl)) + 'px';
+  }
+  if (mapEl.style.height !== height) {
+    mapEl.style.height = height;
+    if (window.tabbiStopMap) window.tabbiStopMap.invalidateSize();
+  }
+}
+window.addEventListener('load', fitStopMap);
+window.addEventListener('resize', fitStopMap);
+document.addEventListener('DOMContentLoaded', fitStopMap);
+if (document.fonts) document.fonts.ready.then(fitStopMap);
+
 function togglePoiCard(event, card) {
   // the name opens the card; other links, buttons and forms do their own thing
   if (event.target.closest('form, a, button:not(.plan-poi-title--open)')) return;
@@ -586,6 +615,7 @@ function togglePoiCard(event, card) {
   var expanded = card.classList.toggle('plan-poi-card--expanded');
   var name = card.querySelector('.plan-poi-title--open');
   if (name) name.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  fitStopMap();
   if (expanded) full.removeAttribute('hidden');
   else full.setAttribute('hidden', '');
 }
