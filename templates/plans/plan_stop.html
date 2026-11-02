@@ -595,7 +595,7 @@ function fitStopMap() {
       if (rows.indexOf(top) === -1) rows.push(top);
       if (rows.indexOf(top) < 2) bottom = Math.max(bottom, top + c.offsetHeight);
     });
-    height = Math.max(360, bottom - docTop(mapEl)) + 'px';
+    height = Math.max(360, bottom - docTop(mapEl) - 26) + 'px';  // ends a little above row 2, leaving air under the map
   }
   if (mapEl.style.height !== height) {
     mapEl.style.height = height;
