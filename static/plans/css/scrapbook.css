@@ -1,0 +1,725 @@
+/*
+ * Tab.bi — scrapbook layer (loaded after tabbi.css)
+ *
+ * Same ink (#180A0A) and mustard (#e7a328), but the trip looks pinned down by hand:
+ * dotted journal paper, polaroids with washi tape, a paper map with a red route string,
+ * ticket stubs for day trips, index cards for places, stamps for dates.
+ *
+ *   Paper       #FBF7EE   page ground (with dot grid)
+ *   Map paper   #F6ECD6
+ *   Route red   #D7263D   the string between stops
+ *   Stamp rust  #C2410C   dates
+ *   Day trip    #16A34A
+ *   Sticky      #FCE7A6
+ *   Hand        Caveat         names, headings, captions
+ *   Receipt     Courier Prime  budget
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Courier+Prime:wght@400;700&display=swap');
+
+/* ── Paper ground ─────────────────────────────────────────────────────────── */
+
+body:has(.tabbi-page) {
+  background-color: #FBF7EE;
+  background-image: radial-gradient(rgba(24,10,10,0.09) 1.2px, transparent 1.3px);
+  background-size: 22px 22px;
+}
+
+/* ── Headings: highlighter + handwriting ──────────────────────────────────── */
+
+.sb-highlight {
+  background: linear-gradient(transparent 58%, rgba(231,163,40,0.85) 58%, rgba(231,163,40,0.85) 92%, transparent 92%);
+  padding: 0 6px;
+  margin-left: -6px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.plan-breadcrumb { font-family: 'Caveat', cursive; font-size: 1.35rem; font-weight: 700; }
+.plan-breadcrumb a { color: #6B5E55; }
+.plan-section-label {
+  font-family: 'Caveat', cursive; font-size: 2rem; font-weight: 700;
+  text-transform: none; letter-spacing: 0; color: #180A0A; margin: 18px 0 6px;
+}
+.plan-description, .plan-daytrip-from { font-family: 'Caveat', cursive; font-size: 1.5rem; color: #3A2E2A; }
+
+/* Dates as a passport stamp */
+.plan-stop-dates-large, .sb-stamp {
+  display: inline-block; padding: 4px 12px;
+  border: 2.5px solid #C2410C; border-radius: 10px; color: #C2410C;
+  font-size: 0.72rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+  transform: rotate(-3deg); background: none;
+}
+
+/* ── Washi tape ───────────────────────────────────────────────────────────── */
+
+.sb-tape {
+  position: absolute; top: -13px; left: 50%; z-index: 3;
+  width: 92px; height: 26px; margin-left: -46px;
+  background: rgba(231,163,40,0.72); transform: rotate(-5deg);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.12); pointer-events: none;
+}
+
+/* ── Trip overview: polaroids ─────────────────────────────────────────────── */
+
+.plan-dest-grid { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 44px 28px; padding: 18px 8px 8px; align-items: start; }
+
+.plan-dest-tile.sb-polaroid {
+  position: relative; display: block; height: auto; min-height: 0; aspect-ratio: auto;
+  background: #fff; background-image: none !important;
+  padding: 10px 10px 12px; border: 2px solid #180A0A; border-radius: 2px;
+  box-shadow: 5px 5px 0 #180A0A; cursor: pointer; overflow: visible;
+  transform: rotate(-1.8deg); transition: transform .15s ease, box-shadow .15s ease;
+}
+.plan-dest-grid > .sb-polaroid:nth-child(4n+2) { transform: rotate(1.6deg); }
+.plan-dest-grid > .sb-polaroid:nth-child(4n+3) { transform: rotate(-0.8deg); }
+.plan-dest-grid > .sb-polaroid:nth-child(4n+4) { transform: rotate(2.2deg); }
+.plan-dest-grid > .sb-polaroid:nth-child(4n+2) .sb-tape { background: rgba(191,219,254,0.9); transform: rotate(4deg); }
+.plan-dest-grid > .sb-polaroid:nth-child(4n+3) .sb-tape { background: rgba(187,247,208,0.9); transform: rotate(-3deg); }
+.plan-dest-grid > .sb-polaroid:nth-child(4n+4) .sb-tape { background: rgba(254,215,170,0.95); transform: rotate(6deg); }
+.plan-dest-tile.sb-polaroid:hover { transform: rotate(0deg) translateY(-3px); box-shadow: 7px 8px 0 #180A0A; }
+
+.sb-polaroid .plan-dest-tile-num {
+  position: absolute; top: -12px; left: -12px; z-index: 4;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: #e7a328; border: 2.5px solid #180A0A; color: #180A0A;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.85rem; box-shadow: 1px 2px 0 rgba(24,10,10,0.35);
+}
+.sb-photo {
+  aspect-ratio: 1 / 0.9; background: #F6ECD6 center / cover no-repeat;
+  filter: saturate(0.92) contrast(1.03);
+}
+.sb-caption { padding-top: 8px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.sb-caption-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; width: 100%; }
+.sb-city { font-family: 'Caveat', cursive; font-size: 2rem; font-weight: 700; line-height: 1; color: #180A0A; text-decoration: none; }
+.sb-count { font-size: 0.68rem; font-weight: 700; color: #6B5E55; white-space: nowrap; }
+.sb-absent { font-family: 'Caveat', cursive; font-size: 1.25rem; font-weight: 700; color: #2563EB; line-height: 1; }
+.sb-explore { font-size: 0.68rem; font-weight: 700; color: #6B5E55; text-decoration: none; }
+.sb-explore:hover { color: #180A0A; text-decoration: underline; }
+
+/* Day trips: ticket stubs under the polaroid */
+.sb-tickets { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px -4px -2px; }
+.sb-ticket {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px 3px 7px; background: #E8F7EC;
+  border: 2px solid #180A0A; border-left: 2px dashed #16A34A; border-radius: 3px;
+  font-size: 0.68rem; font-weight: 700; color: #180A0A; text-decoration: none;
+}
+.sb-ticket::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #16A34A; }
+.sb-ticket:nth-child(even) { transform: rotate(2deg); }
+.sb-ticket:nth-child(odd) { transform: rotate(-1.5deg); }
+.sb-ticket:hover { background: #BBF7D0; }
+
+/* ── Paper map ────────────────────────────────────────────────────────────── */
+
+/* The real tiles, aged: warmer, softer, a bit faded… */
+.sb-paper-map .leaflet-tile-pane { filter: sepia(0.38) saturate(0.8) hue-rotate(-6deg) contrast(0.96) brightness(1.03); }
+.sb-paper-map { background: #F6ECD6; }
+/* …then paper on top: grain, two fold creases, worn edges. Sits above the tiles
+   (z 200) and below routes (400) and pins (600), and never catches the mouse. */
+.sb-paper-map::after {
+  content: ""; position: absolute; inset: 0; z-index: 350; pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent calc(33.3% - 1px), rgba(24,10,10,0.10) 33.3%, rgba(255,255,255,0.35) calc(33.3% + 1px), transparent calc(33.3% + 3px)),
+    linear-gradient(90deg, transparent calc(66.6% - 1px), rgba(24,10,10,0.10) 66.6%, rgba(255,255,255,0.35) calc(66.6% + 1px), transparent calc(66.6% + 3px)),
+    linear-gradient(0deg, transparent calc(50% - 1px), rgba(24,10,10,0.08) 50%, rgba(255,255,255,0.3) calc(50% + 1px), transparent calc(50% + 3px)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.35 0 0 0 0 0.25 0 0 0 0 0.12 0 0 0 0.10 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  box-shadow: inset 0 0 60px rgba(120,84,30,0.22);
+  mix-blend-mode: multiply;
+}
+/* the frame is the brand: ink border, hard shadow; tape holds it down */
+.plan-map-wrap { position: relative; z-index: 1; } /* own stacking context: tiles, pins and tape stay under the sticky nav */
+.plan-map-wrap::before, .plan-map-wrap::after {
+  content: ""; position: absolute; top: -12px; z-index: 1001; width: 110px; height: 28px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.12); pointer-events: none;
+}
+.plan-map-wrap::before { left: 28px; background: rgba(231,163,40,0.72); transform: rotate(-6deg); }
+.plan-map-wrap::after { right: 36px; background: rgba(191,219,254,0.9); transform: rotate(5deg); }
+
+/* pins: push-pin heads */
+.sb-paper-map .plan-stop-marker {
+  border: 2.5px solid #180A0A !important;
+  box-shadow: 2px 3px 0 rgba(24,10,10,0.35) !important;
+  background: radial-gradient(circle at 34% 30%, #FFE7B0 0 3px, #e7a328 4px) !important;
+}
+.sb-paper-map .plan-daytrip-dot { background: #16A34A !important; border: 2px solid #180A0A !important; box-shadow: 1px 2px 0 rgba(24,10,10,0.3) !important; }
+.sb-paper-map .plan-daytrip-marker span {
+  border: 2px solid #180A0A; background: #E8F7EC; box-shadow: 2px 2px 0 rgba(24,10,10,0.35);
+  font-family: 'Caveat', cursive; font-size: 17px; border-radius: 3px; border-left: 2px dashed #16A34A;
+}
+.sb-paper-map .sb-route { filter: drop-shadow(1px 2px 0 rgba(24,10,10,0.25)); }
+
+/* handwritten city labels next to the pins */
+.leaflet-tooltip.sb-map-label {
+  background: none; border: 0; box-shadow: none; padding: 0;
+  font-family: 'Caveat', cursive; font-size: 21px; font-weight: 700; color: #180A0A;
+  text-shadow: 0 0 3px #FBF7EE, 0 0 3px #FBF7EE, 0 0 6px #FBF7EE;
+}
+.leaflet-tooltip.sb-map-label::before { display: none; }
+#plan-overview-map:not(.sb-paper-map) .sb-map-label { color: #fff; text-shadow: 0 0 4px #000, 0 0 4px #000; }
+
+/* light controls on paper */
+.sb-paper-map .leaflet-control-zoom a { background: #fffdf7 !important; color: #180A0A !important; border-color: #180A0A !important; }
+.sb-paper-map .leaflet-control-zoom a:hover { background: #e7a328 !important; }
+.sb-paper-map .leaflet-control-attribution { background: rgba(251,247,238,0.8) !important; color: #6B5E55 !important; }
+.sb-paper-map .leaflet-control-attribution a { color: #6B5E55 !important; }
+
+/* ── Stop page ────────────────────────────────────────────────────────────── */
+
+/* Gallery: polaroids with tape */
+.plan-inspo-strip--hero { gap: 26px; padding: 22px 10px 18px; margin-bottom: 28px; }
+.plan-inspo-strip--hero .plan-inspo-tile {
+  width: 260px; flex: 0 0 auto; background: #fff; padding: 10px 10px 12px;
+  border: 2px solid #180A0A; box-shadow: 5px 5px 0 #180A0A; transform: rotate(-2deg);
+}
+.plan-inspo-strip--hero .plan-inspo-tile:nth-child(even) { transform: rotate(1.8deg); margin-top: 14px; }
+.plan-inspo-strip--hero .plan-inspo-tile:nth-child(3n) { transform: rotate(-0.6deg); }
+.plan-inspo-strip--hero .plan-inspo-tile::before {
+  content: ""; position: absolute; top: -12px; left: 50%; width: 80px; height: 24px; margin-left: -40px; z-index: 2;
+  background: rgba(231,163,40,0.72); transform: rotate(-4deg);
+}
+.plan-inspo-strip--hero .plan-inspo-tile:nth-child(even)::before { background: rgba(191,219,254,0.9); transform: rotate(5deg); }
+.plan-inspo-strip--hero .plan-inspo-img { width: 100%; height: 200px; border: 0; border-radius: 0; box-shadow: none; }
+.plan-inspo-strip--hero .plan-inspo-img::after { display: none; }
+.plan-inspo-strip--hero .plan-inspo-label {
+  position: static; display: block; max-width: none; margin-top: 8px; padding: 0;
+  background: none; color: #180A0A; text-shadow: none;
+  font-family: 'Caveat', cursive; font-size: 1.6rem; font-weight: 700; line-height: 1.05;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.plan-inspo-strip--hero .plan-inspo-badge {
+  display: table; margin-bottom: 4px; padding: 1px 8px;
+  background: #BBF7D0; border: 2px solid #16A34A; border-radius: 999px; color: #14532D;
+  font-family: 'Lexend Exa', sans-serif; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.plan-inspo-tile--daytrip .plan-inspo-img { border: 0; box-shadow: none; }
+@media (max-width: 600px) {
+  .plan-inspo-strip--hero .plan-inspo-tile { width: 200px; }
+  .plan-inspo-strip--hero .plan-inspo-img { width: 100%; height: 150px; }
+}
+
+/* Places: index cards (ruled lines, red margin rule), notes: sticky notes */
+.plan-poi-card {
+  border-radius: 2px; border-width: 2px;
+  background-color: #fff;
+  background-image: repeating-linear-gradient(transparent 0 27px, rgba(37,99,235,0.12) 27px 28px);
+  box-shadow: 4px 4px 0 #180A0A;
+  transform: rotate(-0.5deg);
+}
+.plan-poi-card:nth-of-type(even) { transform: rotate(0.6deg); }
+.plan-poi-card:hover { transform: rotate(0) translate(-1px, -2px); }
+.plan-poi-card::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 10px; height: 2px; background: #D7263D; opacity: 0.45; pointer-events: none;
+}
+.plan-poi-card.plan-poi-card-note {
+  background: #FCE7A6; background-image: none; border: 0; box-shadow: 3px 7px 12px rgba(24,10,10,0.16);
+  transform: rotate(-1.5deg);
+}
+.plan-poi-card.plan-poi-card-note::after { display: none; }
+.plan-poi-card-note .plan-note-text { font-family: 'Caveat', cursive; font-size: 1.45rem; font-weight: 700; line-height: 1.15; color: #180A0A; }
+.plan-poi-tagline, .plan-poi-snippet { font-family: 'Caveat', cursive; font-size: 1.3rem; line-height: 1.2; color: #3A2E2A; }
+
+/* Day trips: train tickets */
+.plan-daytrip-card {
+  border-radius: 3px; border-width: 2px; padding: 0; gap: 0; align-items: stretch; overflow: hidden;
+  box-shadow: 4px 4px 0 #180A0A;
+}
+.plan-daytrip-card:nth-child(odd) { transform: rotate(-0.8deg); }
+.plan-daytrip-card:nth-child(even) { transform: rotate(0.7deg); }
+.plan-daytrip-card:hover { transform: rotate(0) translate(-1px, -2px); }
+.plan-daytrip-card .plan-daytrip-img { flex: 0 0 64px; height: auto; min-height: 60px; border-radius: 0; border-right: 2px solid #180A0A; }
+.plan-daytrip-card .plan-daytrip-info { padding: 8px 12px; }
+.plan-daytrip-card .plan-daytrip-name { font-family: 'Caveat', cursive; font-size: 1.7rem; font-weight: 700; line-height: 1; }
+.plan-daytrip-card .plan-daytrip-arrow {
+  display: flex; align-items: center; justify-content: center; width: 46px;
+  border-left: 2.5px dashed #180A0A; background: #E8F7EC; color: #16A34A; font-weight: 800;
+}
+
+/* ── Who's going: stickers ────────────────────────────────────────────────── */
+
+.plan-travelers { gap: 10px 14px; }
+.plan-travelers-label { font-family: 'Caveat', cursive; font-size: 1.4rem; text-transform: none; letter-spacing: 0; color: #6B5E55; }
+.plan-traveler { background: none; border: 0; box-shadow: none; transform: rotate(-4deg); }
+.plan-traveler:nth-of-type(even) { transform: rotate(3deg); }
+.plan-traveler-main { font-family: 'Caveat', cursive; font-size: 1.35rem; font-weight: 700; gap: 6px; }
+.plan-traveler-avatar {
+  width: 36px; height: 36px; font-family: 'Lexend Exa', sans-serif; font-size: 0.8rem;
+  border: 2.5px solid #180A0A; box-shadow: 2px 2px 0 #180A0A;
+}
+.plan-traveler:nth-of-type(4n+2) .plan-traveler-avatar { background: #BFDBFE; }
+.plan-traveler:nth-of-type(4n+3) .plan-traveler-avatar { background: #BBF7D0; }
+.plan-traveler:nth-of-type(4n+4) .plan-traveler-avatar { background: #FED7AA; }
+.plan-traveler--off { border: 0; }
+.plan-traveler--off .plan-traveler-avatar { background: #fff !important; border-style: dashed; box-shadow: none; }
+.plan-traveler-add { width: 36px; height: 36px; font-family: 'Caveat', cursive; font-size: 1.6rem; transform: rotate(8deg); }
+
+/* tabbi.css sets Lexend on every element under .tabbi-page and on headings/buttons with a
+   stronger selector; the handwritten bits need the extra .tabbi-page to win. */
+.tabbi-page .plan-breadcrumb, .tabbi-page .plan-breadcrumb *,
+.tabbi-page .plan-section-label,
+.tabbi-page .plan-description, .tabbi-page .plan-daytrip-from, .tabbi-page .plan-daytrip-from a,
+.tabbi-page .sb-city, .tabbi-page .sb-absent,
+.tabbi-page .plan-travelers-label, .tabbi-page .plan-traveler-main, .tabbi-page .plan-traveler-add,
+.tabbi-page .plan-inspo-strip--hero .plan-inspo-label,
+.tabbi-page .plan-poi-card-note .plan-note-text,
+.tabbi-page .plan-poi-tagline, .tabbi-page .plan-poi-snippet,
+.tabbi-page .plan-daytrip-card .plan-daytrip-name { font-family: 'Caveat', cursive; }
+.tabbi-page .plan-traveler-avatar,
+.tabbi-page .plan-inspo-strip--hero .plan-inspo-badge { font-family: 'Lexend Exa', sans-serif; }
+.plan-traveler--off .plan-traveler-main { text-decoration: none; }
+
+/* ── Drink: beer mats, a different shape each ─────────────────────────────── */
+
+.sb-coasters { display: flex; flex-wrap: wrap; gap: 26px 22px; padding: 10px 4px 18px; }
+.sb-coaster {
+  position: relative; width: 190px; height: 190px; flex: 0 0 auto;
+  /* outline + hard shadow drawn around whatever shape the face is clipped to */
+  filter: drop-shadow(1.5px 0 0 #180A0A) drop-shadow(-1.5px 0 0 #180A0A) drop-shadow(0 1.5px 0 #180A0A) drop-shadow(0 -1.5px 0 #180A0A) drop-shadow(4px 4px 0 #180A0A);
+  transform: rotate(-6deg); transition: transform .15s ease;
+}
+.sb-coaster:nth-child(even) { transform: rotate(7deg); }
+.sb-coaster:nth-child(3n) { transform: rotate(-2deg); }
+.sb-coaster:hover { transform: rotate(0) translateY(-3px); }
+.sb-coaster-face {
+  width: 100%; height: 100%; box-sizing: border-box; padding: 30px 26px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  text-align: center; background: #BFDBFE; overflow: hidden;
+}
+.tabbi-page .sb-coaster-kicker { font-size: 0.55rem; font-weight: 800; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(24,10,10,0.7); }
+.tabbi-page .sb-coaster-title {
+  font-size: 0.92rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.12; color: #180A0A; text-decoration: none;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.tabbi-page a.sb-coaster-title:hover { text-decoration: underline; }
+.tabbi-page .sb-coaster-note {
+  font-family: 'Caveat', cursive; font-size: 1.05rem; line-height: 1.05; color: #3A2E2A;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.sb-coaster-remove { position: absolute; top: 6px; right: 6px; z-index: 2; opacity: 0; transition: opacity .12s; }
+.sb-coaster:hover .sb-coaster-remove, .sb-coaster:focus-within .sb-coaster-remove { opacity: 1; }
+.sb-coaster-remove .plan-remove-btn { background: #fff; }
+
+/* round pub mat with a printed ring */
+.sb-coaster--round .sb-coaster-face {
+  border-radius: 50%; background: #BFDBFE;
+  box-shadow: inset 0 0 0 10px #BFDBFE, inset 0 0 0 12px rgba(24,10,10,0.55);
+}
+/* square board mat, rounded corners, double frame */
+.sb-coaster--square .sb-coaster-face {
+  border-radius: 18px; background: #FFF3D6;
+  box-shadow: inset 0 0 0 9px #FFF3D6, inset 0 0 0 11px #C2410C, inset 0 0 0 14px #FFF3D6, inset 0 0 0 15.5px #C2410C;
+}
+.sb-coaster--square .sb-coaster-kicker { color: #C2410C; }
+/* sunburst / scalloped */
+.sb-coaster--burst .sb-coaster-face {
+  background: radial-gradient(circle, #FED7AA 0 60%, rgba(24,10,10,0.5) 60.5% 61.5%, #FDBA74 62%);
+  clip-path: polygon(50% 0%, 57% 8%, 67% 3%, 71% 13%, 82% 12%, 82% 22%, 93% 25%, 89% 35%, 98% 42%, 92% 50%, 98% 58%, 89% 65%, 93% 75%, 82% 78%, 82% 88%, 71% 87%, 67% 97%, 57% 92%, 50% 100%, 43% 92%, 33% 97%, 29% 87%, 18% 88%, 18% 78%, 7% 75%, 11% 65%, 2% 58%, 8% 50%, 2% 42%, 11% 35%, 7% 25%, 18% 22%, 18% 12%, 29% 13%, 33% 3%, 43% 8%);
+  padding: 38px 34px;
+}
+/* octagon, two-tone */
+.sb-coaster--octagon .sb-coaster-face {
+  background: linear-gradient(#BBF7D0 0 50%, #86EFAC 50%);
+  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
+}
+.sb-coaster--octagon .sb-coaster-kicker { color: #14532D; }
+/* plain white round mat that has seen a few glasses */
+.sb-coaster--stained .sb-coaster-face {
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 62% 64%, transparent 0 34%, rgba(150,95,30,0.28) 35% 37%, transparent 38.5%),
+    radial-gradient(circle at 40% 38%, transparent 0 30%, rgba(150,95,30,0.16) 31% 32.5%, transparent 34%),
+    #FFFDF7;
+}
+@media (max-width: 600px) {
+  .sb-coaster { width: 160px; height: 160px; }
+  .sb-coaster-face { padding: 24px 20px; }
+}
+
+/* ── Photo slideshow: the photo as a big polaroid on a dark desk ──────────── */
+
+.plan-lightbox {
+  background-color: rgba(30, 20, 14, 0.93);
+  background-image: radial-gradient(rgba(251,247,238,0.07) 1.2px, transparent 1.3px);
+  background-size: 22px 22px;
+}
+.plan-lightbox-figure {
+  position: relative; --tilt: -1.5deg;
+  max-width: min(88vw, 1100px);
+  background: #fff; padding: 16px 16px 0;
+  border: 2px solid #180A0A; box-shadow: 10px 10px 0 #180A0A;
+  transform: rotate(var(--tilt));
+}
+.plan-lightbox-figure::before {
+  content: ""; position: absolute; top: -16px; left: 50%; z-index: 2;
+  width: 130px; height: 34px; margin-left: -65px;
+  background: rgba(231,163,40,0.78); transform: rotate(-4deg);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+.plan-lightbox-figure.sb-drop { animation: sb-drop .32s cubic-bezier(.2,.9,.3,1.2); }
+@keyframes sb-drop {
+  from { opacity: 0; transform: rotate(calc(var(--tilt) * -2)) scale(1.06) translateY(-14px); }
+  to   { opacity: 1; transform: rotate(var(--tilt)) scale(1) translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) { .plan-lightbox-figure.sb-drop { animation: none; } }
+.plan-lightbox-img { max-height: 68vh; border: 0; border-radius: 0; background: #F6ECD6; }
+.plan-lightbox-caption {
+  width: 100%; margin: 0; padding: 14px 6px 20px;
+  justify-content: space-between; gap: 10px 16px; color: #180A0A;
+}
+.tabbi-page .plan-lightbox-title, .plan-lightbox-title {
+  font-family: 'Caveat', cursive; font-size: 2.1rem; font-weight: 700; line-height: 1; text-align: left;
+}
+.plan-lightbox-count {
+  padding: 3px 10px; border: 2px solid #C2410C; border-radius: 8px; color: #C2410C;
+  font-size: 0.7rem; font-weight: 800; letter-spacing: 0.1em; transform: rotate(-4deg);
+}
+.plan-lightbox-goto {
+  margin-left: auto; padding: 8px 16px;
+  background: #e7a328; color: #180A0A; border: 2.5px solid #180A0A; border-radius: 999px;
+  box-shadow: 3px 3px 0 #180A0A; font-size: 0.75rem; font-weight: 800;
+}
+.plan-lightbox-goto:hover { background: #c8891a; color: #180A0A; transform: translate(-1px, -1px); box-shadow: 4px 4px 0 #180A0A; }
+/* close and arrows: round stickers */
+.plan-lightbox-close, .plan-lightbox-nav {
+  width: 52px; height: 52px; padding: 0; border-radius: 50%; opacity: 1;
+  display: flex; align-items: center; justify-content: center;
+  background: #e7a328; color: #180A0A; border: 2.5px solid #180A0A; box-shadow: 3px 3px 0 #180A0A;
+  font-size: 1.8rem; font-weight: 800; z-index: 3;
+}
+.plan-lightbox-close:hover, .plan-lightbox-nav:hover { color: #180A0A; background: #c8891a; }
+.plan-lightbox-close { top: 18px; right: 18px; background: #fff; transform: rotate(6deg); }
+.plan-lightbox-prev { left: 20px; transform: translateY(-50%) rotate(-6deg); }
+.plan-lightbox-next { right: 20px; transform: translateY(-50%) rotate(6deg); }
+@media (max-width: 600px) {
+  .plan-lightbox-figure { padding: 10px 10px 0; box-shadow: 6px 6px 0 #180A0A; }
+  .plan-lightbox-img { max-height: 62vh; }
+}
+
+/* ── Do: square index cards in a grid; opened card = a full-width clipping ── */
+
+.sb-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); grid-auto-flow: row dense; gap: 22px 20px; padding: 8px 4px 16px; align-items: start; }
+.sb-cards .plan-poi-card { min-height: 200px; margin: 0; padding: 22px 16px 14px 24px; align-items: flex-start; }
+.sb-cards .plan-poi-card:nth-child(3n+2) { transform: rotate(0.9deg); }
+.sb-cards .plan-poi-card:nth-child(3n) { transform: rotate(-1.1deg); }
+.sb-cards .plan-poi-card:hover { transform: rotate(0) translate(-1px, -2px); }
+.sb-cards .plan-poi-card--expandable::before { top: 24px; transform: none; }
+.sb-cards .plan-poi-title { font-size: 0.88rem; line-height: 1.25; padding-right: 22px; }
+.sb-cards .plan-poi-tagline, .sb-cards .plan-poi-snippet {
+  margin-top: 6px; font-size: 1.2rem; line-height: 28px; color: #3A2E2A;
+  -webkit-line-clamp: 5; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden;
+}
+.sb-cards .plan-remove-form { position: absolute; top: 14px; right: 10px; }
+
+/* opened: spans the row, photo taped to the card, body on the ruled lines */
+.sb-cards .plan-poi-card--expanded {
+  grid-column: 1 / -1; transform: rotate(-0.3deg); min-height: 0;
+  padding: 26px 26px 20px 30px; box-shadow: 6px 6px 0 #180A0A; z-index: 2;
+}
+.sb-cards .plan-poi-card--expanded:hover { transform: rotate(-0.3deg); }
+.sb-cards .plan-poi-card--expanded .plan-poi-tagline { display: none; }
+.sb-cards .plan-poi-card--expanded .plan-poi-title { font-size: 1.15rem; }
+.plan-poi-card--expanded .plan-poi-full { border-top: 0; margin-top: 4px; padding-top: 0; display: flow-root; }
+.plan-poi-card--expanded .plan-poi-full-image {
+  float: right; width: min(42%, 320px); height: auto; aspect-ratio: 4 / 3;
+  margin: 2px 0 16px 22px; border: 8px solid #fff; border-bottom-width: 26px; border-radius: 0;
+  outline: 2px solid #180A0A; box-shadow: 5px 5px 0 #180A0A; transform: rotate(2deg); position: relative;
+}
+.plan-poi-card--expanded .plan-poi-full-image::before {
+  content: ""; position: absolute; top: -22px; left: 50%; width: 84px; height: 24px; margin-left: -42px;
+  background: rgba(191,219,254,0.9); transform: rotate(-5deg);
+}
+.plan-poi-card--expanded .plan-poi-full-body { font-size: 0.86rem; line-height: 28px; color: #2B211D; margin: 0 0 10px; }
+.plan-poi-card--expanded .plan-poi-full-link {
+  display: inline-block; padding: 6px 14px; border: 2px solid #180A0A; border-radius: 999px;
+  background: #fffdf7; box-shadow: 2px 2px 0 #180A0A; color: #180A0A; font-size: 0.72rem; font-weight: 800;
+}
+.plan-poi-card--expanded .plan-poi-full-link:hover { background: #e7a328; }
+@media (max-width: 600px) {
+  .plan-poi-card--expanded .plan-poi-full-image { float: none; width: 100%; margin: 6px 0 18px; }
+}
+
+/* ── Adding: search strip, folder tabs, suggestions as little polaroids ───── */
+
+.plan-suggestions { border-top: 0; padding-top: 8px; margin-top: 36px; }
+.plan-suggestions::before {
+  content: "add more"; display: block; margin-bottom: 10px;
+  font-family: 'Caveat', cursive; font-size: 2rem; font-weight: 700; color: #180A0A;
+}
+.tabbi-page .plan-suggestions-search {
+  font-family: 'Caveat', cursive; font-size: 1.6rem; font-weight: 700;
+  padding: 12px 18px; border: 2px solid #180A0A; border-radius: 3px; background: #fff;
+  box-shadow: 4px 4px 0 #180A0A; transform: rotate(-0.4deg);
+}
+.plan-suggestions-search:focus { border-color: #180A0A; box-shadow: 4px 4px 0 #e7a328; }
+
+/* category = folder tab on top of its strip */
+.plan-suggestions-heading { margin: 26px 0 0 14px; position: relative; z-index: 1; }
+.plan-suggestions-chip {
+  border: 2px solid #180A0A !important; border-bottom: 0 !important; border-radius: 10px 10px 0 0;
+  padding: 7px 16px 8px; box-shadow: none; color: #180A0A !important; transform: none;
+}
+.plan-suggestions-strip-wrap {
+  margin-top: -2px; border: 2px solid #180A0A; background: rgba(255,253,247,0.75);
+  box-shadow: 4px 4px 0 #180A0A; border-radius: 0 6px 6px 6px;
+}
+.plan-suggestions-strip { gap: 18px; padding: 22px 16px 18px; }
+.plan-suggestion-tile {
+  width: 170px; border: 2px solid #180A0A; border-radius: 2px; padding: 8px 8px 10px; overflow: visible;
+  box-shadow: 3px 3px 0 #180A0A; transform: rotate(-1.4deg); position: relative;
+}
+.plan-suggestion-tile:nth-child(even) { transform: rotate(1.2deg); }
+.plan-suggestion-tile:hover { transform: rotate(0) translateY(-3px); box-shadow: 5px 6px 0 #180A0A; }
+.plan-suggestion-tile--todo, .plan-suggestion-tile--food, .plan-suggestion-tile--drinks, .plan-suggestion-tile--daytrip { border-top-color: #180A0A; }
+.plan-suggestion-tile--match { box-shadow: 3px 3px 0 #e7a328; border-color: #180A0A; }
+.plan-suggestion-tile-img { height: 108px; border: 0; }
+.plan-suggestion-tile-body { padding: 8px 2px 2px; gap: 2px; }
+.plan-suggestion-title { font-size: 0.78rem; }
+.tabbi-page .plan-suggestion-snippet {
+  font-family: 'Caveat', cursive; font-size: 1.05rem; line-height: 1.1; color: #3A2E2A; margin: 2px 0 0;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.tabbi-page .plan-suggestion-distance { font-family: 'Caveat', cursive; font-size: 1rem; color: #16A34A; }
+/* "+" = a sticker in the corner */
+.plan-suggestion-add { position: absolute; top: -12px; right: -12px; margin: 0; padding: 0; z-index: 2; }
+.plan-suggestion-btn {
+  width: 38px; height: 38px; border-radius: 50%; padding: 0; font-size: 1.3rem;
+  box-shadow: 2px 3px 0 #180A0A; transform: rotate(10deg);
+}
+.plan-suggestion-btn:hover { transform: rotate(0) scale(1.08); }
+.plan-suggestions-arrow { top: 50%; margin-top: -19px; width: 38px; height: 38px; background: #e7a328; box-shadow: 2px 3px 0 #180A0A; }
+
+/* nothing found: a sticky note to write it down yourself */
+.plan-custom-spot-form, .plan-custom-daytrip-form {
+  background: #FCE7A6; border: 0; border-radius: 0; padding: 22px 20px 18px;
+  box-shadow: 3px 8px 14px rgba(24,10,10,0.18); transform: rotate(-0.8deg); position: relative;
+}
+.plan-custom-spot-form::before {
+  content: ""; position: absolute; top: -11px; left: 50%; width: 84px; height: 24px; margin-left: -42px;
+  background: rgba(255,255,255,0.65); border: 1px solid rgba(24,10,10,0.1); transform: rotate(3deg);
+}
+.tabbi-page .plan-custom-spot-input {
+  font-family: 'Caveat', cursive; font-size: 1.45rem; font-weight: 700;
+  background: transparent; border: 0; border-bottom: 2px dashed rgba(24,10,10,0.55); border-radius: 0; padding: 6px 2px;
+}
+.plan-custom-spot-input:focus { border-bottom-color: #180A0A; }
+.plan-custom-daytrip-form { margin-top: 16px; background: #E8F7EC; transform: rotate(0.6deg); }
+.plan-lightbox-figure.sb-loading { opacity: 0; }
+
+/* ── Eat: menu card / receipt / chalkboard (opened = the usual clipping) ──── */
+
+.sb-eat .plan-poi-card:not(.plan-poi-card--expanded)::after { display: none; }
+/* menu card: cream, framed twice, centred */
+.sb-eat .sb-eat--menu:not(.plan-poi-card--expanded) {
+  background: #FFFDF7; background-image: none; text-align: center;
+  outline: 2px solid #180A0A; outline-offset: -10px; padding: 34px 22px 22px;
+}
+.sb-eat .sb-eat--menu:not(.plan-poi-card--expanded)::before { content: "— menu —"; position: absolute; top: 18px; left: 0; right: 0; transform: none; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.24em; text-transform: uppercase; color: #C2410C; }
+.sb-eat .sb-eat--menu:not(.plan-poi-card--expanded) .plan-poi-title { padding: 0 18px; }
+/* receipt: Courier, zig-zag bottom edge */
+.sb-eat .sb-eat--receipt:not(.plan-poi-card--expanded) {
+  background: #fff; background-image: none; border-bottom: 0; box-shadow: 4px 0 0 #180A0A;
+  padding-bottom: 26px; margin-bottom: 12px;
+  -webkit-mask: linear-gradient(#000 0 0) top / 100% calc(100% - 10px) no-repeat, conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 16px 10px repeat-x;
+          mask: linear-gradient(#000 0 0) top / 100% calc(100% - 10px) no-repeat, conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / 16px 10px repeat-x;
+}
+.tabbi-page .sb-eat--receipt:not(.plan-poi-card--expanded) .plan-poi-title,
+.tabbi-page .sb-eat--receipt:not(.plan-poi-card--expanded) .plan-poi-tagline { font-family: 'Courier Prime', monospace; }
+.sb-eat .sb-eat--receipt:not(.plan-poi-card--expanded) .plan-poi-title { text-transform: uppercase; letter-spacing: 0.04em; }
+.sb-eat .sb-eat--receipt:not(.plan-poi-card--expanded) .plan-poi-tagline { font-size: 0.85rem; line-height: 1.45; border-top: 2px dashed #180A0A; padding-top: 8px; }
+/* chalkboard: slate with chalk writing in a wooden frame */
+.sb-eat .sb-eat--chalk:not(.plan-poi-card--expanded) {
+  background: #2F3B33; background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1.5px); background-size: 7px 7px;
+  border: 7px solid #8A5A2B; outline: 2px solid #180A0A; box-shadow: 5px 5px 0 #180A0A;
+}
+.sb-eat .sb-eat--chalk:not(.plan-poi-card--expanded) .plan-poi-title { color: #FFF8E7; }
+.sb-eat .sb-eat--chalk:not(.plan-poi-card--expanded) .plan-poi-title::after { color: #FCD34D; }
+.sb-eat .sb-eat--chalk:not(.plan-poi-card--expanded) .plan-poi-tagline { color: rgba(255,248,231,0.85); }
+.sb-eat .sb-eat--chalk:not(.plan-poi-card--expanded)::before { color: #FCD34D; }
+.sb-eat .sb-eat--chalk .plan-remove-btn { background: transparent; }
+
+/* ── Drinks: "read more" on the mat, story in a clipping below ────────────── */
+
+.tabbi-page .sb-coaster-more {
+  margin-top: 4px; padding: 2px 10px; border: 1.5px solid #180A0A; border-radius: 999px;
+  background: rgba(255,255,255,0.75); font-family: 'Caveat', cursive; font-size: 1rem; font-weight: 700;
+  color: #180A0A; cursor: pointer;
+}
+.sb-coaster-more:hover, .sb-coaster--open .sb-coaster-more { background: #e7a328; }
+.sb-coaster--open { transform: rotate(0) translateY(-6px) scale(1.04); }
+.sb-detail {
+  position: relative; margin: 8px 4px 24px; padding: 26px 26px 20px 30px;
+  background-color: #fff; background-image: repeating-linear-gradient(transparent 0 27px, rgba(37,99,235,0.12) 27px 28px);
+  border: 2px solid #180A0A; box-shadow: 6px 6px 0 #180A0A; transform: rotate(-0.3deg);
+}
+.sb-detail[hidden] { display: none; }
+.sb-detail::after { content: ""; position: absolute; left: 0; right: 0; top: 10px; height: 2px; background: #D7263D; opacity: 0.45; }
+.sb-detail .sb-detail-content { display: flow-root; margin: 0; padding: 0; border: 0; }
+.sb-detail .sb-detail-title { margin: 0 0 6px; font-size: 1.15rem; font-weight: 800; letter-spacing: -0.02em; }
+.sb-detail .plan-poi-full-image {
+  float: right; width: min(42%, 320px); height: auto; aspect-ratio: 4 / 3;
+  margin: 2px 0 16px 22px; border: 8px solid #fff; border-bottom-width: 26px; border-radius: 0;
+  outline: 2px solid #180A0A; box-shadow: 5px 5px 0 #180A0A; transform: rotate(2deg);
+}
+.sb-detail .plan-poi-full-body { font-size: 0.86rem; line-height: 28px; color: #2B211D; margin: 0 0 10px; }
+.sb-detail .plan-poi-full-link {
+  display: inline-block; padding: 6px 14px; border: 2px solid #180A0A; border-radius: 999px;
+  background: #fffdf7; box-shadow: 2px 2px 0 #180A0A; color: #180A0A; font-size: 0.72rem; font-weight: 800; text-decoration: none;
+}
+.sb-detail .plan-poi-full-link:hover { background: #e7a328; }
+.sb-detail-close {
+  position: absolute; top: -14px; right: -14px; z-index: 2; width: 38px; height: 38px; border-radius: 50%;
+  background: #fff; border: 2.5px solid #180A0A; box-shadow: 2px 3px 0 #180A0A; font-size: 1.3rem; font-weight: 800; cursor: pointer;
+}
+.sb-detail-close:hover { background: #e7a328; }
+@media (max-width: 600px) { .sb-detail .plan-poi-full-image { float: none; width: 100%; margin: 6px 0 18px; } }
+
+/* ── Do: photo cards (the photo strip is gone; it only feeds the slideshow) ─ */
+
+#plan-inspo-strip { display: none !important; }
+.sb-card-photo {
+  display: block; width: calc(100% + 8px); margin: -8px -4px 10px -10px; padding: 0;
+  aspect-ratio: 4 / 3; border: 0; border-radius: 0; cursor: zoom-in;
+  background: #F6ECD6 center / cover no-repeat;
+  filter: saturate(0.92) contrast(1.03);
+}
+.sb-card-photo:hover { filter: none; }
+.sb-card-photo:focus-visible { outline: 3px solid #e7a328; outline-offset: 2px; }
+/* a card with a photo is a polaroid: white, no ruling, handwritten caption */
+.sb-photo-cards .plan-poi-card:has(.sb-card-photo) { background-image: none; min-height: 0; padding: 14px 14px 16px 20px; }
+.sb-photo-cards .plan-poi-card:has(.sb-card-photo)::after { display: none; }
+.sb-photo-cards .plan-poi-card:has(.sb-card-photo):not(.plan-poi-card--expanded) .plan-poi-tagline,
+.sb-photo-cards .plan-poi-card:has(.sb-card-photo):not(.plan-poi-card--expanded) .plan-poi-snippet { display: none; }
+.tabbi-page .sb-photo-cards .plan-poi-card:has(.sb-card-photo):not(.plan-poi-card--expanded) .plan-poi-title {
+  font-family: 'Caveat', cursive; font-size: 1.6rem; font-weight: 700; line-height: 1.05; letter-spacing: 0;
+}
+.sb-photo-cards .plan-poi-card:has(.sb-card-photo):not(.plan-poi-card--expanded) .plan-poi-title::after { content: none; }
+.sb-photo-cards .plan-poi-card:has(.sb-card-photo)::before { top: auto; bottom: 20px; }
+.sb-photo-cards .plan-poi-card:has(.sb-card-photo) .plan-remove-form { top: 22px; right: 18px; }
+.sb-photo-cards .plan-poi-card:has(.sb-card-photo) .plan-remove-btn { background: #fff; }
+/* opened: the clipping already shows the photo, so drop the card's own */
+.sb-photo-cards .plan-poi-card--expanded .sb-card-photo { display: none; }
+.sb-photo-cards .plan-poi-card--expanded:has(.sb-card-photo) {
+  background-image: repeating-linear-gradient(transparent 0 27px, rgba(37,99,235,0.12) 27px 28px); padding: 26px 26px 20px 30px;
+}
+.sb-photo-cards .plan-poi-card--expanded:has(.sb-card-photo)::after { display: block; }
+.sb-photo-cards .plan-poi-card--expanded:has(.sb-card-photo)::before { top: 24px; bottom: auto; }
+
+/* names that open their card (instead of jumping to world66) */
+button.plan-poi-title, button.sb-coaster-title {
+  background: none; border: 0; padding: 0; margin: 0; text-align: inherit; cursor: pointer;
+  font-size: inherit; color: #180A0A;
+}
+.tabbi-page button.plan-poi-title { font-weight: 700; font-size: 0.9rem; letter-spacing: -0.01em; text-align: left; }
+.tabbi-page .sb-cards button.plan-poi-title { font-size: 0.88rem; }
+.plan-poi-title--open::after { content: none; }
+.plan-poi-title--open:hover, button.sb-coaster-title:hover { color: #180A0A; text-decoration: underline; text-decoration-color: #e7a328; text-decoration-thickness: 3px; text-underline-offset: 3px; }
+.tabbi-page .sb-cards .plan-poi-card--expanded button.plan-poi-title { font-size: 1.15rem; }
+
+/* ── Stop page: map on the left, the list flows next to it and then
+   continues full width underneath (desktop) ─────────────────────────────── */
+
+@media (min-width: 769px) {
+  .plan-stop-layout { display: block; }
+  .plan-stop-layout::after { content: ""; display: block; clear: both; }
+  .plan-stop-layout > .plan-map-wrap {
+    float: left; width: calc(50% - 14px); margin: 0 28px 0 0; /* no bottom margin: the row after the map must be free to go full width */
+    position: relative; top: auto; /* a float can't stay sticky without covering what flows under it */
+  }
+  .plan-poi-list { display: block; }
+  .plan-poi-list > * + * { margin-top: 12px; }
+  /* boxes with a background must not run underneath the map */
+  .plan-budget-section, .sb-detail, .plan-pending, .plan-budget-toggle-row { display: flow-root; }
+  .sb-detail[hidden], .plan-budget-section[hidden] { display: none; }
+
+  /* card grids become rows of inline cards: two beside the map, four below it */
+  .sb-cards, .sb-coasters { display: block; font-size: 0; padding: 8px 0 4px 4px; }
+  .sb-cards > .plan-poi-card {
+    display: inline-flex; vertical-align: top; font-size: 1rem;
+    width: calc(25% - 28px); margin: 0 20px 22px 0; box-sizing: border-box;
+  }
+  /* an opened card takes the full row (beside the map: what's left of it) */
+  .sb-cards > .plan-poi-card--expanded { display: flex; width: auto; margin-right: 4px; }
+  .sb-coasters > .sb-coaster { display: inline-block; vertical-align: top; font-size: 1rem; margin: 0 22px 26px 0; }
+}
+
+/* ── Add: real tabs (folder tabs) over one strip ──────────────────────────── */
+
+.plan-suggestions-heading { display: none; }
+.sb-tabs { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 4px; margin: 24px 0 0 14px; position: relative; z-index: 1; }
+.sb-tabs[hidden] { display: none; }
+.tabbi-page .sb-tab {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 7px 16px 8px; margin-bottom: -2px;
+  border: 2px solid #180A0A; border-bottom: 0; border-radius: 10px 10px 0 0;
+  background: #EFE6D2; color: #3A2E2A; font-size: 0.8rem; font-weight: 800; cursor: pointer;
+  transform: translateY(4px); transition: transform .12s ease;
+}
+.sb-tab:hover { transform: translateY(1px); }
+.tabbi-page .sb-tab[aria-selected="true"] { transform: none; padding-bottom: 12px; color: #180A0A; }
+.sb-tab--todo[aria-selected="true"]    { background: #e7a328; }
+.sb-tab--food[aria-selected="true"]    { background: #FED7AA; }
+.sb-tab--drinks[aria-selected="true"]  { background: #BFDBFE; }
+.sb-tab--daytrip[aria-selected="true"] { background: #BBF7D0; }
+.sb-tab-count {
+  min-width: 20px; padding: 1px 6px; border-radius: 999px; background: #fff; border: 1.5px solid #180A0A;
+  font-size: 0.65rem; line-height: 1.3; text-align: center;
+}
+.sb-tab--empty { opacity: 0.45; }
+/* the open folder: matches the active tab's colour along the top edge */
+.plan-suggestions-strip-wrap { margin-top: 0; border-radius: 0 6px 6px 6px; }
+.plan-suggestions-strip-wrap[data-cat="todo"] { box-shadow: inset 0 6px 0 #e7a328; }
+.plan-suggestions-strip-wrap[data-cat="food"] { box-shadow: inset 0 6px 0 #FED7AA; }
+.plan-suggestions-strip-wrap[data-cat="drinks"] { box-shadow: inset 0 6px 0 #BFDBFE; }
+.plan-suggestions-strip-wrap[data-cat="daytrip"] { box-shadow: inset 0 6px 0 #BBF7D0; }
+
+/* ── Budget: a till receipt (stop budget and the trip total) ─────────────── */
+
+.tabbi-page .plan-budget-toggle-btn {
+  font-family: 'Caveat', cursive; font-size: 1.35rem; font-weight: 700; color: #180A0A;
+  background: #fff; border: 2px dashed #180A0A; border-radius: 999px; padding: 2px 16px; transform: rotate(-2deg);
+}
+.tabbi-page .plan-budget-toggle-btn:hover, .tabbi-page .plan-budget-toggle-btn--open { background: #FCE7A6; border-style: solid; }
+
+.plan-budget-section, .plan-total-budget {
+  position: relative; max-width: 360px; margin: 16px 0 26px; padding: 22px 22px 14px;
+  background: #fff; border: 2px solid #180A0A; border-bottom: 0; border-radius: 0; box-shadow: none;
+  filter: drop-shadow(4px 4px 0 #180A0A); transform: rotate(1deg);
+}
+/* torn zig-zag bottom edge (the drop-shadow follows the teeth) */
+.plan-budget-section::after, .plan-total-budget::after {
+  content: ""; position: absolute; left: -2px; right: -2px; bottom: -10px; height: 10px;
+  background:
+    linear-gradient(135deg, #fff 0 50%, transparent 50%) 0 0 / 14px 10px repeat-x,
+    linear-gradient(-135deg, #fff 0 50%, transparent 50%) 0 0 / 14px 10px repeat-x;
+}
+.tabbi-page .plan-budget-section, .tabbi-page .plan-budget-section *,
+.tabbi-page .plan-total-budget, .tabbi-page .plan-total-budget * { font-family: 'Courier Prime', monospace; }
+.plan-budget-heading {
+  text-align: center; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.18em; margin-bottom: 14px;
+  padding-bottom: 10px; border-bottom: 2px dashed #180A0A;
+}
+.plan-budget-heading::before { content: "*** "; }
+.plan-budget-heading::after { content: " ***"; }
+.plan-budget-label { color: #180A0A; font-size: 0.88rem; width: auto; text-transform: uppercase; }
+.plan-budget-row .plan-budget-value, .plan-budget-row .plan-budget-value-static { text-align: right; font-size: 0.95rem; }
+.plan-budget-row .plan-budget-label, .plan-budget-row .plan-budget-value, .plan-budget-row .plan-budget-value-static { border-bottom: 1px dotted rgba(24,10,10,0.3); padding: 6px 0; }
+.plan-budget-value:hover { border-bottom: 1px dotted #e7a328; background: #FFF7E0; }
+.plan-budget-empty { color: #B8AFA6; }
+.plan-budget-empty::before { content: "___"; }
+.plan-budget-empty { font-size: 0; }
+.plan-budget-empty::before { font-size: 0.95rem; }
+.plan-budget-input { text-align: right; border-bottom: 2px dashed #180A0A; font-family: 'Courier Prime', monospace; }
+.plan-budget-total-row .plan-budget-label, .plan-budget-total-row .plan-budget-total {
+  border-top: 2px dashed #180A0A; border-bottom: 0; padding-top: 12px; font-weight: 700; font-size: 1.05rem;
+}
+.plan-budget-total { text-align: right; }
+
+/* day-trip tickets: two columns when there's room, so they don't stretch */
+.plan-daytrip-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px 22px; }
+
+/* every tab's strip has the same height, so switching tabs doesn't make the page jump */
+.plan-suggestions-strip-wrap { box-shadow: none; }
+.plan-suggestions-strip { align-items: stretch; }
+.plan-suggestion-tile { height: 252px; box-sizing: border-box; }
+.plan-suggestion-tile-body { overflow: hidden; }
+.plan-suggestion-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; flex-shrink: 0; }

@@ -11,7 +11,7 @@
     <span>{{ plan.title }}</span>
   </nav>
   <div class="plan-header">
-    <h1>{{ plan.title }}</h1>
+    <h1><span class="sb-highlight">{{ plan.title }}</span></h1>
     {% if plan.budget %}<div class="plan-budget">Budget: {{ plan.budget }}</div>{% endif %}
     <a href="/plans/{{ plan.slug }}/edit/" class="plan-edit-link">Edit</a>
   </div>
@@ -114,21 +114,24 @@
     <div class="plan-right-col">
       <div class="plan-dest-grid" id="plan-dest-grid">
       {% for stop in plan.stops %}
-      <div class="plan-dest-tile" onclick="window.location='{{ stop.url }}'"
-           {% if stop.city_image_url %}style="background-image:url('{{ stop.city_image_url }}')"{% endif %}>
-        <div class="plan-dest-tile-overlay">
-          <div class="plan-dest-tile-num">{{ forloop.counter }}</div>
-          <div class="plan-dest-tile-info">
-            <div class="plan-dest-tile-city">{{ stop.city }}</div>
-            {% if stop.dates %}<div class="plan-dest-tile-dates">{{ stop.dates }}</div>{% endif %}
-            <div class="plan-dest-tile-count">{{ stop.items|length }} place{% if stop.items|length != 1 %}s{% endif %}</div>
-            {% if stop.absent %}<div class="plan-dest-tile-absent">without {{ stop.absent|join:", " }}</div>{% endif %}
-            {% if stop.daytrips %}<div class="plan-dest-tile-daytrips">+ day trip{{ stop.daytrips|length|pluralize }}: {% for dt in stop.daytrips %}<a href="{{ dt.url }}" onclick="event.stopPropagation()">{{ dt.city }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+      <div class="plan-dest-tile sb-polaroid" onclick="window.location='{{ stop.url }}'">
+        <span class="sb-tape" aria-hidden="true"></span>
+        <div class="plan-dest-tile-num">{{ forloop.counter }}</div>
+        <div class="sb-photo"{% if stop.city_image_url %} style="background-image:url('{{ stop.city_image_url }}')"{% endif %}></div>
+        <div class="sb-caption">
+          <div class="sb-caption-row">
+            <a class="sb-city" href="{{ stop.url }}">{{ stop.city }}</a>
+            <span class="sb-count">{{ stop.items|length }} place{% if stop.items|length != 1 %}s{% endif %}</span>
           </div>
-          {% if stop.destination_url %}
-          <a href="{{ stop.destination_url }}" class="plan-dest-tile-explore" target="_blank" rel="noopener" onclick="event.stopPropagation()">Explore ›</a>
-          {% endif %}
+          {% if stop.dates %}<span class="sb-stamp">{{ stop.dates }}</span>{% endif %}
+          {% if stop.absent %}<div class="sb-absent">without {{ stop.absent|join:" & " }}</div>{% endif %}
+          {% if stop.destination_url %}<a href="{{ stop.destination_url }}" class="sb-explore" target="_blank" rel="noopener" onclick="event.stopPropagation()">Explore on world66 ›</a>{% endif %}
         </div>
+        {% if stop.daytrips %}
+        <div class="sb-tickets">
+          {% for dt in stop.daytrips %}<a class="sb-ticket" href="{{ dt.url }}" onclick="event.stopPropagation()">{{ dt.city }}</a>{% endfor %}
+        </div>
+        {% endif %}
       </div>
       {% endfor %}
       </div><!-- /.plan-dest-grid -->
@@ -175,14 +178,16 @@
   const tiles = tabbiTileLayers();
   const tileDark = tiles.dark;
   const tileLight = tiles.light;
-  var mapDark = localStorage.getItem('tabbi_map_dark') !== 'false';
+  var mapEl = document.getElementById('plan-overview-map');
+  var mapDark = tabbiMapIsDark();
+  tabbiSetMapDark(mapDark, mapEl);
   (mapDark ? tileDark : tileLight).addTo(map);
   var toggleBtn = document.getElementById('plan-map-toggle');
   if (toggleBtn) {
     toggleBtn.textContent = mapDark ? '☀️' : '🌙';
     toggleBtn.addEventListener('click', function() {
       mapDark = !mapDark;
-      localStorage.setItem('tabbi_map_dark', mapDark);
+      tabbiSetMapDark(mapDark, mapEl);
       map.removeLayer(mapDark ? tileLight : tileDark);
       (mapDark ? tileDark : tileLight).addTo(map);
       toggleBtn.textContent = mapDark ? '☀️' : '🌙';
@@ -197,7 +202,7 @@
       iconAnchor: [16, 16],
     });
     L.marker([s.lat, s.lng], {icon: icon})
-      .bindTooltip('<strong>' + s.title + '</strong>' + (s.dates ? '<br>' + s.dates : ''), {direction: 'top'})
+      .bindTooltip(s.title, {permanent: true, direction: 'right', offset: [14, 0], className: 'sb-map-label'})
       .on('click', function() { window.location = s.url; })
       .addTo(map);
   });
@@ -206,7 +211,7 @@
   const allPts = stops.map(s => [s.lat, s.lng]);
   stops.forEach(function(s) {
     (s.daytrips || []).forEach(function(d) {
-      L.polyline([[s.lat, s.lng], [d.lat, d.lng]], {color: '#e7a328', weight: 1.5, opacity: 0.5, dashArray: '2,5'}).addTo(map);
+      L.polyline([[s.lat, s.lng], [d.lat, d.lng]], {color: '#16A34A', weight: 2, opacity: 0.8, dashArray: '3,5', className: 'sb-daytrip-line'}).addTo(map);
       L.marker([d.lat, d.lng], {icon: L.divIcon({className: 'plan-daytrip-dot', iconSize: [12, 12], iconAnchor: [6, 6]})})
         .bindTooltip('<strong>' + d.title + '</strong><br>Day trip from ' + s.title, {direction: 'top'})
         .on('click', function() { window.location = d.url; })
@@ -216,7 +221,7 @@
   });
 
   if (stops.length > 1) {
-    L.polyline(stops.map(s => [s.lat, s.lng]), {color: '#e7a328', weight: 2, opacity: 0.6, dashArray: '6,8'}).addTo(map);
+    L.polyline(tabbiString(stops.map(s => [s.lat, s.lng])), {color: '#D7263D', weight: 3, opacity: 0.9, lineCap: 'round', className: 'sb-route'}).addTo(map);
     map.fitBounds(L.latLngBounds(allPts).pad(0.2));
   } else if (stops.length === 1) {
     map.setView([stops[0].lat, stops[0].lng], 8);

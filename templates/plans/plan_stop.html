@@ -15,7 +15,7 @@
     {% endif %}<span>{{ stop.city }}</span>
   </nav>
   <div class="plan-header">
-    <h1>{{ stop.city }}</h1>
+    <h1><span class="sb-highlight">{{ stop.city }}</span></h1>
     {% if parent_stop %}<div class="plan-daytrip-from">Day trip from <a href="{{ parent_stop.url }}">{{ parent_stop.city }}</a></div>{% endif %}
     {% if stop.dates %}<div class="plan-stop-dates-large">{{ stop.dates }}</div>{% endif %}
     <a href="/plans/{{ plan.slug }}/edit/" class="plan-edit-link">Edit</a>
@@ -23,7 +23,7 @@
   {% include "plans/_travelers.html" with stop=stop %}
 
   {% comment %}Full-width photo gallery: this stop's photos, then its day trips'{% endcomment %}
-  <div class="plan-inspo-strip plan-inspo-strip--hero" id="plan-inspo-strip"{% if not gallery %} hidden{% endif %}>
+  <div class="plan-inspo-strip plan-inspo-strip--hero" id="plan-inspo-strip" hidden>
     {% for g in gallery %}
     <div class="plan-inspo-tile{% if g.daytrip %} plan-inspo-tile--daytrip{% endif %}"
          {% if g.card is not None and g.card != "" %}data-card="{{ g.card }}"{% endif %}
@@ -45,15 +45,6 @@
     </div>
 
     <div class="plan-poi-list">
-      {% if city_intro or city_snippet %}
-      <div class="plan-city-intro">
-        <div>
-          <p class="plan-city-intro-text">{{ city_intro|default:city_snippet }}</p>
-          {% if stop.destination_url %}<a href="{{ stop.destination_url }}" class="plan-city-explore" target="_blank" rel="noopener">Read more on world66</a>{% endif %}
-        </div>
-      </div>
-      {% endif %}
-
       <div class="plan-lightbox" id="plan-lightbox" hidden>
         <button type="button" class="plan-lightbox-close" aria-label="Close">×</button>
         <button type="button" class="plan-lightbox-nav plan-lightbox-prev" aria-label="Previous photo">‹</button>
@@ -85,7 +76,7 @@
             {% elif item.page.path|slice:":6" == "~pois/" or item.page.meta.tabbi_only %}
             <span class="plan-poi-title plan-poi-title--draft">{{ item.page.title }}</span>
             {% else %}
-            <a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.page.title }}</a>
+            {% if item.is_expandable %}<button type="button" class="plan-poi-title plan-poi-title--open" aria-expanded="false">{{ item.page.title }}</button>{% else %}<a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.page.title }}</a>{% endif %}
             {% endif %}
             {% if item.is_expandable %}
               {% if item.page.meta.snippet %}
@@ -97,7 +88,7 @@
                 {% endif %}
                 <p class="plan-poi-full-body">{{ item.page.body }}</p>
                 {% if not item.page.path|slice:":6" == "~pois/" and not item.page.meta.provider_category and not item.page.meta.provider and not item.page.meta.tabbi_only %}
-                <a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Read more on world66</a>
+                <a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Open in world66 ↗</a>
                 {% endif %}
               </div>
             {% else %}
@@ -142,23 +133,27 @@
 
       {% if items_do %}
       <h3 class="plan-section-label">Do</h3>
+      <div class="sb-cards sb-photo-cards">
       {% for item in items_do %}
-      <div class="plan-poi-card{% if not item.page and not item.external_url %} plan-poi-card-note{% endif %}{% if item.is_expandable %} plan-poi-card--expandable{% endif %}" data-card-index="{{ forloop.counter0 }}"{% if item.is_expandable %} onclick="togglePoiCard(event, this)"{% endif %}>
+      <div class="plan-poi-card{% if not item.page and not item.external_url %} plan-poi-card-note{% endif %}{% if item.is_expandable %} plan-poi-card--expandable{% endif %}" data-card-index="{{ item.card_index }}"{% if item.is_expandable %} onclick="togglePoiCard(event, this)"{% endif %}>
         <div class="plan-poi-body">
           {% if item.page %}
+            {% if item.image_url or item.photo_pending %}
+            <button type="button" class="sb-card-photo" data-card="{{ item.card_index }}"{% if item.image_url %} style="background-image:url('{{ item.image_url }}')"{% endif %}{% if item.photo_pending %} data-photo-for="{{ item.text }}"{% endif %} aria-label="Photo of {{ item.page.title }}" onclick="event.stopPropagation(); tabbiOpenPhoto(this.dataset.card)"></button>
+            {% endif %}
             {% if item.page.meta.external_url or item.page.meta.source_url %}
             <a class="plan-poi-title plan-poi-title--draft" href="{{ item.page.meta.external_url|default:item.page.meta.source_url }}" target="_blank" rel="noopener">{{ item.page.title }}</a>
             {% elif item.page.path|slice:":6" == "~pois/" or item.page.meta.tabbi_only %}
             <span class="plan-poi-title plan-poi-title--draft">{{ item.page.title }}</span>
             {% else %}
-            <a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.page.title }}</a>
+            {% if item.is_expandable %}<button type="button" class="plan-poi-title plan-poi-title--open" aria-expanded="false">{{ item.page.title }}</button>{% else %}<a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.page.title }}</a>{% endif %}
             {% endif %}
             {% if item.is_expandable %}
               {% if item.page.meta.snippet %}<p class="plan-poi-tagline">{{ item.page.meta.snippet }}</p>{% endif %}
               <div class="plan-poi-full" hidden>
                 {% if item.image_url %}<div class="plan-poi-full-image" style="background-image:url('{{ item.image_url }}')"></div>{% endif %}
                 <p class="plan-poi-full-body">{{ item.page.body }}</p>
-                {% if not item.page.path|slice:":6" == "~pois/" and not item.page.meta.provider_category and not item.page.meta.provider and not item.page.meta.tabbi_only %}<a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Read more on world66</a>{% endif %}
+                {% if not item.page.path|slice:":6" == "~pois/" and not item.page.meta.provider_category and not item.page.meta.provider and not item.page.meta.tabbi_only %}<a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Open in world66 ↗</a>{% endif %}
               </div>
             {% else %}
               {% if item.page.meta.snippet %}<p class="plan-poi-snippet">{{ item.page.meta.snippet }}</p>{% endif %}
@@ -208,18 +203,21 @@
         </form>
       </div>
       {% endfor %}
+      </div>
       {% endif %}
 
       {% if items_eat %}
       <h3 class="plan-section-label">Eat</h3>
+      {% comment %}Restaurants as menu card / receipt / chalkboard, cycling{% endcomment %}
+      <div class="sb-cards sb-eat">
       {% for item in items_eat %}
-      <div class="plan-poi-card{% if item.is_expandable %} plan-poi-card--expandable{% endif %}" data-card-index="{{ forloop.counter0 }}"{% if item.is_expandable %} onclick="togglePoiCard(event, this)"{% endif %}>
+      <div class="plan-poi-card sb-eat--{% cycle 'menu' 'receipt' 'chalk' %}{% if item.is_expandable %} plan-poi-card--expandable{% endif %}" data-card-index="{{ item.card_index }}"{% if item.is_expandable %} onclick="togglePoiCard(event, this)"{% endif %}>
         <div class="plan-poi-body">
           {% if item.page %}
             {% if item.page.path|slice:":6" == "~pois/" %}
             <span class="plan-poi-title plan-poi-title--draft">{{ item.page.title }}</span>
             {% else %}
-            <a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.page.title }}</a>
+            {% if item.is_expandable %}<button type="button" class="plan-poi-title plan-poi-title--open" aria-expanded="false">{{ item.page.title }}</button>{% else %}<a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.page.title }}</a>{% endif %}
             {% endif %}
             {% if item.is_expandable %}
               {% if item.page.meta.snippet %}<p class="plan-poi-tagline">{{ item.page.meta.snippet }}</p>{% endif %}
@@ -238,36 +236,50 @@
         </form>
       </div>
       {% endfor %}
+      </div>
       {% endif %}
 
       {% if items_drink %}
       <h3 class="plan-section-label">Drink</h3>
+      {% comment %}Drinks as beer mats: each one a different shape, cycling through the set{% endcomment %}
+      <div class="sb-coasters">
       {% for item in items_drink %}
-      <div class="plan-poi-card{% if item.is_expandable %} plan-poi-card--expandable{% endif %}" data-card-index="{{ forloop.counter0 }}"{% if item.is_expandable %} onclick="togglePoiCard(event, this)"{% endif %}>
-        <div class="plan-poi-body">
+      <div class="sb-coaster sb-coaster--{% cycle 'round' 'square' 'burst' 'octagon' 'stained' %}" data-card-index="{{ item.card_index }}">
+        <div class="sb-coaster-face">
+          <span class="sb-coaster-kicker">{% cycle '★ cheers ★' 'on tap' '★ ★ ★' 'last round' 'bar' %}</span>
           {% if item.page %}
             {% if item.page.path|slice:":6" == "~pois/" %}
-            <span class="plan-poi-title plan-poi-title--draft">{{ item.page.title }}</span>
+            <span class="sb-coaster-title">{{ item.page.title }}</span>
             {% else %}
-            <a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.page.title }}</a>
+            {% if item.page.body or item.image_url %}<button type="button" class="sb-coaster-title sb-coaster-open">{{ item.page.title }}</button>{% else %}<a class="sb-coaster-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener">{{ item.page.title }}</a>{% endif %}
             {% endif %}
-            {% if item.is_expandable %}
-              {% if item.page.meta.snippet %}<p class="plan-poi-tagline">{{ item.page.meta.snippet }}</p>{% endif %}
-              <div class="plan-poi-full" hidden>
-                {% if item.image_url %}<div class="plan-poi-full-image" style="background-image:url('{{ item.image_url }}')"></div>{% endif %}
-                <p class="plan-poi-full-body">{{ item.page.body }}</p>
-              </div>
+            {% if item.page.meta.snippet %}<span class="sb-coaster-note">{{ item.page.meta.snippet }}</span>{% endif %}
+            {% if item.page.body or item.image_url %}
+            <button type="button" class="sb-coaster-more" aria-expanded="false">read more</button>
+            <template class="sb-coaster-detail">
+              {% if item.image_url %}<div class="plan-poi-full-image" style="background-image:url('{{ item.image_url }}')"></div>{% endif %}
+              <h4 class="sb-detail-title">{{ item.page.title }}</h4>
+              <p class="plan-poi-full-body">{{ item.page.body }}</p>
+              {% if not item.page.path|slice:":6" == "~pois/" %}<a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener">Open in world66 ↗</a>{% endif %}
+            </template>
             {% endif %}
+          {% else %}
+            <span class="sb-coaster-title">{{ item.text }}</span>
           {% endif %}
         </div>
-        <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/remove/" class="plan-remove-form">
+        <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/remove/" class="plan-remove-form sb-coaster-remove">
           {% csrf_token %}
           <input type="hidden" name="poi_path" value="{{ item.text }}">
           <input type="hidden" name="next" value="{{ request.path }}">
-          <button type="submit" class="plan-remove-btn" title="Remove from plan" onclick="event.stopPropagation()">−</button>
+          <button type="submit" class="plan-remove-btn" title="Remove from plan">−</button>
         </form>
       </div>
       {% endfor %}
+      </div>
+      <div class="sb-detail" id="sb-drink-detail" hidden>
+        <button type="button" class="sb-detail-close" aria-label="Close">×</button>
+        <div class="sb-detail-content plan-poi-full"></div>
+      </div>
       {% endif %}
 
       {% endif %}{# end grouped/ungrouped #}
@@ -300,81 +312,90 @@
            hidden>
       </div>
 
-      <div class="plan-suggestions">
-        {% if suggestion_groups %}
-        <div class="plan-suggestions-search-row">
-          <input type="text" id="suggestion-search" class="plan-suggestions-search" placeholder="Search or add anything…" autocomplete="off">
+    </div>
+
+  </div>
+
+  {% comment %}Adding spans the full width, under the map and the list{% endcomment %}
+  <div class="plan-suggestions">
+    {% if suggestion_groups %}
+    <div class="plan-suggestions-search-row">
+      <input type="text" id="suggestion-search" class="plan-suggestions-search" placeholder="Search or add anything…" autocomplete="off">
+    </div>
+    {% endif %}
+    <div id="suggestion-no-results" class="plan-suggestions-no-results"{% if suggestion_groups %} hidden{% endif %}>
+      <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/add/" class="plan-custom-spot-form">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <div class="plan-custom-spot-fields">
+          <input type="text" name="custom_title" id="add-custom-title" class="plan-custom-spot-input" placeholder="Name of the spot" autocomplete="off">
+          <input type="text" name="custom_desc" id="add-custom-desc" class="plan-custom-spot-input" placeholder="Notes (optional)" autocomplete="off">
+          <input type="text" name="custom_url" id="add-custom-url" class="plan-custom-spot-input" placeholder="Link (optional, e.g. booking page)" autocomplete="off">
         </div>
-        {% endif %}
-        <div id="suggestion-no-results" class="plan-suggestions-no-results"{% if suggestion_groups %} hidden{% endif %}>
-          <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/add/" class="plan-custom-spot-form">
-            {% csrf_token %}
-            <input type="hidden" name="next" value="{{ request.path }}">
-            <div class="plan-custom-spot-fields">
-              <input type="text" name="custom_title" id="add-custom-title" class="plan-custom-spot-input" placeholder="Name of the spot" autocomplete="off">
-              <input type="text" name="custom_desc" id="add-custom-desc" class="plan-custom-spot-input" placeholder="Notes (optional)" autocomplete="off">
-              <input type="text" name="custom_url" id="add-custom-url" class="plan-custom-spot-input" placeholder="Link (optional, e.g. booking page)" autocomplete="off">
+        <button type="submit" class="plan-custom-spot-btn">＋ Add to plan</button>
+      </form>
+      {% if not stop.is_daytrip %}
+      <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/add-daytrip/" class="plan-custom-daytrip-form">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.path }}">
+        <input type="hidden" name="city" id="add-daytrip-city">
+        <button type="submit" class="plan-custom-daytrip-btn">🗺️ Add <span id="add-daytrip-label">it</span> as a day trip from {{ stop.city }}</button>
+      </form>
+      {% endif %}
+    </div>
+    {% if suggestion_groups %}
+    <div class="sb-tabs" role="tablist" aria-label="What to add">
+      {% for group in suggestion_groups %}
+      <button type="button" class="sb-tab sb-tab--{{ group.key }}" role="tab" data-cat="{{ group.key }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">{{ group.icon }} {{ group.label }} <span class="sb-tab-count">{{ group.items|length }}</span></button>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% for group in suggestion_groups %}
+    <div class="plan-suggestions-heading" data-cat="{{ group.key }}">
+      <span class="plan-suggestions-chip plan-suggestions-chip--{{ group.key }}">{{ group.icon }} {{ group.label }}</span>
+    </div>
+    <div class="plan-suggestions-strip-wrap" data-cat="{{ group.key }}" role="tabpanel"{% if not forloop.first %} style="display:none"{% endif %}>
+      <button type="button" class="plan-suggestions-arrow plan-suggestions-arrow--prev" aria-label="Scroll left" hidden>‹</button>
+      <div class="plan-suggestions-strip">
+        {% for s in group.items %}
+        <div class="plan-suggestion-tile plan-suggestion-tile--{{ group.key }}{% if s.note_match %} plan-suggestion-tile--match{% endif %}" data-title="{{ s.page.title|lower }}">
+          <div class="plan-suggestion-tile-top">
+            {% if s.image_url %}
+            <div class="plan-suggestion-tile-img" style="background-image:url('{{ s.image_url }}')"></div>
+            {% else %}
+            <div class="plan-suggestion-tile-img plan-suggestion-tile-img--placeholder" style="background:{{ s.placeholder_bg }}">
+              <span class="plan-suggestion-tile-emoji">{{ s.placeholder_emoji }}</span>
             </div>
-            <button type="submit" class="plan-custom-spot-btn">＋ Add to plan</button>
-          </form>
-          {% if not stop.is_daytrip %}
-          <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/add-daytrip/" class="plan-custom-daytrip-form">
+            {% endif %}
+            {% if s.liked_match %}<span class="plan-suggestion-liked" title="In your passport">♥</span>{% endif %}
+          </div>
+          <div class="plan-suggestion-tile-body">
+            <a class="plan-suggestion-title" href="{{ WORLD66_SITE_URL }}/{{ s.page.path }}" target="_blank" rel="noopener">{{ s.page.title }}</a>
+            {% if s.distance_km is not None %}<span class="plan-suggestion-distance">{{ s.distance_km }} km from {{ stop.city }}</span>{% endif %}
+            {% if s.page.meta.snippet %}<p class="plan-suggestion-snippet">{{ s.page.meta.snippet }}</p>{% endif %}
+          </div>
+          {% if group.key == "daytrip" %}
+          <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/add-daytrip/" class="plan-suggestion-add">
             {% csrf_token %}
+            <input type="hidden" name="city" value="{{ s.page.title }}">
+            <input type="hidden" name="city_path" value="{{ s.page.path }}">
             <input type="hidden" name="next" value="{{ request.path }}">
-            <input type="hidden" name="city" id="add-daytrip-city">
-            <button type="submit" class="plan-custom-daytrip-btn">🗺️ Add <span id="add-daytrip-label">it</span> as a day trip from {{ stop.city }}</button>
+            <button type="submit" class="plan-suggestion-btn" title="Add as a day trip">+</button>
+          </form>
+          {% else %}
+          <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/add/" class="plan-suggestion-add">
+            {% csrf_token %}
+            <input type="hidden" name="poi_path" value="{{ s.page.path }}">
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <button type="submit" class="plan-suggestion-btn" title="Add to plan">+</button>
           </form>
           {% endif %}
         </div>
-        {% for group in suggestion_groups %}
-        <div class="plan-suggestions-heading" data-cat="{{ group.key }}">
-          <span class="plan-suggestions-chip plan-suggestions-chip--{{ group.key }}">{{ group.icon }} {{ group.label }}</span>
-        </div>
-        <div class="plan-suggestions-strip-wrap" data-cat="{{ group.key }}">
-          <button type="button" class="plan-suggestions-arrow plan-suggestions-arrow--prev" aria-label="Scroll left" hidden>‹</button>
-          <div class="plan-suggestions-strip">
-            {% for s in group.items %}
-            <div class="plan-suggestion-tile plan-suggestion-tile--{{ group.key }}{% if s.note_match %} plan-suggestion-tile--match{% endif %}" data-title="{{ s.page.title|lower }}">
-              <div class="plan-suggestion-tile-top">
-                {% if s.image_url %}
-                <div class="plan-suggestion-tile-img" style="background-image:url('{{ s.image_url }}')"></div>
-                {% else %}
-                <div class="plan-suggestion-tile-img plan-suggestion-tile-img--placeholder" style="background:{{ s.placeholder_bg }}">
-                  <span class="plan-suggestion-tile-emoji">{{ s.placeholder_emoji }}</span>
-                </div>
-                {% endif %}
-                {% if s.liked_match %}<span class="plan-suggestion-liked" title="In your passport">♥</span>{% endif %}
-              </div>
-              <div class="plan-suggestion-tile-body">
-                <a class="plan-suggestion-title" href="{{ WORLD66_SITE_URL }}/{{ s.page.path }}" target="_blank" rel="noopener">{{ s.page.title }}</a>
-                {% if s.distance_km is not None %}<span class="plan-suggestion-distance">{{ s.distance_km }} km from {{ stop.city }}</span>{% endif %}
-                {% if s.page.meta.snippet %}<p class="plan-suggestion-snippet">{{ s.page.meta.snippet }}</p>{% endif %}
-              </div>
-              {% if group.key == "daytrip" %}
-              <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/add-daytrip/" class="plan-suggestion-add">
-                {% csrf_token %}
-                <input type="hidden" name="city" value="{{ s.page.title }}">
-                <input type="hidden" name="city_path" value="{{ s.page.path }}">
-                <input type="hidden" name="next" value="{{ request.path }}">
-                <button type="submit" class="plan-suggestion-btn" title="Add as a day trip">+</button>
-              </form>
-              {% else %}
-              <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/add/" class="plan-suggestion-add">
-                {% csrf_token %}
-                <input type="hidden" name="poi_path" value="{{ s.page.path }}">
-                <input type="hidden" name="next" value="{{ request.path }}">
-                <button type="submit" class="plan-suggestion-btn" title="Add to plan">+</button>
-              </form>
-              {% endif %}
-            </div>
-            {% endfor %}
-          </div>
-          <button type="button" class="plan-suggestions-arrow plan-suggestions-arrow--next" aria-label="Scroll right" hidden>›</button>
-        </div>
         {% endfor %}
       </div>
+      <button type="button" class="plan-suggestions-arrow plan-suggestions-arrow--next" aria-label="Scroll right" hidden>›</button>
     </div>
-
+    {% endfor %}
   </div>
 
 
@@ -388,18 +409,21 @@
   const markers = {{ markers }};
   const cityCenter = {{ city_center }};
   const map = L.map('plan-stop-map', {scrollWheelZoom: false, zoomControl: true});
+  window.tabbiStopMap = map;
 
   const tiles = tabbiTileLayers();
   const tileDark = tiles.dark;
   const tileLight = tiles.light;
-  var mapDark = localStorage.getItem('tabbi_map_dark') !== 'false';
+  var mapEl = document.getElementById('plan-stop-map');
+  var mapDark = tabbiMapIsDark();
+  tabbiSetMapDark(mapDark, mapEl);
   (mapDark ? tileDark : tileLight).addTo(map);
   var toggleBtn = document.getElementById('plan-map-toggle');
   if (toggleBtn) {
     toggleBtn.textContent = mapDark ? '☀️' : '🌙';
     toggleBtn.addEventListener('click', function() {
       mapDark = !mapDark;
-      localStorage.setItem('tabbi_map_dark', mapDark);
+      tabbiSetMapDark(mapDark, mapEl);
       map.removeLayer(mapDark ? tileLight : tileDark);
       (mapDark ? tileDark : tileLight).addTo(map);
       toggleBtn.textContent = mapDark ? '☀️' : '🌙';
@@ -430,7 +454,7 @@
       iconAnchor: [0, 0],
     });
     if (dtOrigin) {
-      L.polyline([dtOrigin, [d.lat, d.lng]], {color: '#e7a328', weight: 2, opacity: 0.5, dashArray: '2,6'}).addTo(map);
+      L.polyline([dtOrigin, [d.lat, d.lng]], {color: '#16A34A', weight: 2, opacity: 0.8, dashArray: '3,5', className: 'sb-daytrip-line'}).addTo(map);
     }
     L.marker([d.lat, d.lng], {icon: icon})
       .bindTooltip('Day trip: ' + d.title, {direction: 'top'})
@@ -555,11 +579,43 @@ function scrollToCard(index) {
   setTimeout(function() { card.classList.remove('plan-poi-card--highlight'); }, 1200);
 }
 
+// Desktop: the map floats left and is exactly as tall as the "Do" heading plus the
+// first two rows of cards next to it, so everything after that runs full width.
+function fitStopMap() {
+  var mapEl = document.getElementById('plan-stop-map');
+  var wrap = mapEl && mapEl.closest('.plan-map-wrap');
+  if (!wrap) return;
+  var cards = document.querySelectorAll('.plan-poi-list .sb-cards > .plan-poi-card');
+  var height = '';
+  if (window.matchMedia('(min-width: 769px)').matches && cards.length) {
+    var docTop = function(el) { var t = 0; for (; el; el = el.offsetParent) t += el.offsetTop; return t; };
+    var rows = [], bottom = 0;
+    cards.forEach(function(c) {
+      var top = docTop(c);
+      if (rows.indexOf(top) === -1) rows.push(top);
+      if (rows.indexOf(top) < 2) bottom = Math.max(bottom, top + c.offsetHeight);
+    });
+    height = Math.max(360, bottom - docTop(mapEl) - 26) + 'px';  // ends a little above row 2, leaving air under the map
+  }
+  if (mapEl.style.height !== height) {
+    mapEl.style.height = height;
+    if (window.tabbiStopMap) window.tabbiStopMap.invalidateSize();
+  }
+}
+window.addEventListener('load', fitStopMap);
+window.addEventListener('resize', fitStopMap);
+document.addEventListener('DOMContentLoaded', fitStopMap);
+if (document.fonts) document.fonts.ready.then(fitStopMap);
+
 function togglePoiCard(event, card) {
-  if (event.target.closest('form, a, button')) return;
+  // the name opens the card; other links, buttons and forms do their own thing
+  if (event.target.closest('form, a, button:not(.plan-poi-title--open)')) return;
   var full = card.querySelector('.plan-poi-full');
   if (!full) return;
   var expanded = card.classList.toggle('plan-poi-card--expanded');
+  var name = card.querySelector('.plan-poi-title--open');
+  if (name) name.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  fitStopMap();
   if (expanded) full.removeAttribute('hidden');
   else full.setAttribute('hidden', '');
 }
@@ -578,6 +634,34 @@ function toggleConciergeForm(btn) {
   var customPath = document.getElementById('add-custom-path');
   var customLabel = document.getElementById('add-custom-label');
 
+  // Tabs: one category's strip at a time. Search filters every category; the
+  // counts follow, and if the open tab has nothing left we jump to one that has.
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.sb-tab'));
+  var active = tabs.length ? tabs[0].dataset.cat : null;
+  var counts = {};
+  tabs.forEach(function(t) { counts[t.dataset.cat] = parseInt(t.querySelector('.sb-tab-count').textContent, 10) || 0; });
+  function applyTabs() {
+    if (!counts[active]) {
+      var other = tabs.filter(function(t) { return counts[t.dataset.cat] > 0; })[0];
+      if (other) active = other.dataset.cat;
+    }
+    tabs.forEach(function(t) {
+      var cat = t.dataset.cat;
+      t.setAttribute('aria-selected', cat === active ? 'true' : 'false');
+      t.classList.toggle('sb-tab--empty', !counts[cat]);
+      t.querySelector('.sb-tab-count').textContent = counts[cat];
+    });
+    document.querySelectorAll('.plan-suggestions-strip-wrap').forEach(function(wrap) {
+      wrap.style.display = (wrap.dataset.cat === active && counts[wrap.dataset.cat] > 0) ? '' : 'none';
+    });
+    var tabbar = document.querySelector('.sb-tabs');
+    if (tabbar) tabbar.hidden = !tabs.some(function(t) { return counts[t.dataset.cat] > 0; });
+    if (window.refreshSuggestionArrows) window.refreshSuggestionArrows();
+  }
+  tabs.forEach(function(t) {
+    t.addEventListener('click', function() { active = t.dataset.cat; applyTabs(); });
+  });
+
   searchInput.addEventListener('input', function() {
     var q = searchInput.value.trim().toLowerCase();
     var totalVisible = 0;
@@ -594,10 +678,9 @@ function toggleConciergeForm(btn) {
         tile.style.display = show ? '' : 'none';
         if (show) { catVisible++; totalVisible++; }
       });
-      var showCat = catVisible > 0;
-      if (heading) heading.style.display = showCat ? '' : 'none';
-      wrap.style.display = showCat ? '' : 'none';
+      counts[cat] = catVisible;
     });
+    applyTabs();
 
     if (q && totalVisible === 0) {
       var titleInput = document.getElementById('add-custom-title');
@@ -834,12 +917,48 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
         tile.querySelector('.plan-inspo-img').style.backgroundImage = "url('" + url + "')";
         tile.hidden = false;
       });
-      if (strip.querySelector('.plan-inspo-tile:not([hidden])')) strip.hidden = false;
+      document.querySelectorAll('.sb-card-photo[data-photo-for]').forEach(function(el) {
+        var url = photos[el.dataset.photoFor];
+        if (url) el.style.backgroundImage = "url('" + url + "')";
+        else el.remove();
+      });
     })
     .catch(function() {});
 })();
 </script>
 {% endif %}
+<script>
+// Drinks: a beer mat's "read more" opens its story in the clipping under the mats
+(function () {
+  var panel = document.getElementById('sb-drink-detail');
+  if (!panel) return;
+  var content = panel.querySelector('.sb-detail-content');
+  var current = null;
+  function close() {
+    panel.hidden = true;
+    if (current) { current.classList.remove('sb-coaster--open'); current.querySelector('.sb-coaster-more').setAttribute('aria-expanded', 'false'); }
+    current = null;
+  }
+  document.querySelectorAll('.sb-coaster').forEach(function(mat) {
+    var btn = mat.querySelector('.sb-coaster-more');
+    if (!btn) return;
+    var name = mat.querySelector('.sb-coaster-open');
+    if (name) name.addEventListener('click', function() { btn.click(); });
+    btn.addEventListener('click', function() {
+      if (current === mat) return close();
+      close();
+      content.innerHTML = '';
+      content.appendChild(mat.querySelector('.sb-coaster-detail').content.cloneNode(true));
+      panel.hidden = false;
+      current = mat;
+      mat.classList.add('sb-coaster--open');
+      btn.setAttribute('aria-expanded', 'true');
+      panel.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+    });
+  });
+  panel.querySelector('.sb-detail-close').addEventListener('click', close);
+})();
+</script>
 <script>
 // Inspo strip: click a photo to see it large, then swipe / arrow through all of them
 (function () {
@@ -863,7 +982,18 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
   function show(i) {
     index = (i + tiles.length) % tiles.length;
     var tile = tiles[index], small = photoUrl(tile), large = largeUrl(small);
-    img.onerror = large !== small ? function() { img.onerror = null; img.src = small; } : null;
+    var fig = box.querySelector('.plan-lightbox-figure');
+    // keep the polaroid hidden until the new photo is in, so the old one never flashes by
+    fig.classList.add('sb-loading');
+    fig.classList.remove('sb-drop');
+    var shown = index;
+    img.onload = function() {
+      if (shown !== index) return;
+      fig.classList.remove('sb-loading');
+      void fig.offsetWidth;
+      fig.classList.add('sb-drop');
+    };
+    img.onerror = large !== small ? function() { img.onerror = img.onload; img.src = small; } : img.onload;
     img.src = large;
     var label = tile.querySelector('.plan-inspo-label');
     title.textContent = tile.dataset.title || (label ? label.textContent : '');
@@ -871,6 +1001,8 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
     gotoBtn.hidden = !tile.dataset.card && !tile.dataset.href;
     gotoBtn.textContent = tile.dataset.href ? 'Open day trip ›' : 'Show in plan ›';
     box.classList.toggle('plan-lightbox--single', tiles.length < 2);
+    // each photo lands as a polaroid at its own slight angle
+    fig.style.setProperty('--tilt', ((index % 2 ? 1 : -1) * (0.8 + (index * 7 % 3) * 0.6)) + 'deg');
   }
   function open(tile) {
     tiles = Array.prototype.filter.call(strip.querySelectorAll('.plan-inspo-tile'), function(t) { return !t.hidden && photoUrl(t); });
@@ -889,6 +1021,11 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
     var tile = e.target.closest('.plan-inspo-tile');
     if (tile) open(tile);
   });
+  // the gallery itself isn't shown any more: cards open the slideshow at their photo
+  window.tabbiOpenPhoto = function(card) {
+    var tile = strip.querySelector('.plan-inspo-tile[data-card="' + card + '"]');
+    if (tile) { tile.hidden = false; open(tile); }
+  };
   box.querySelector('.plan-lightbox-prev').addEventListener('click', function() { show(index - 1); });
   box.querySelector('.plan-lightbox-next').addEventListener('click', function() { show(index + 1); });
   box.querySelector('.plan-lightbox-close').addEventListener('click', close);
