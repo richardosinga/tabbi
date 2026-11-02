@@ -267,3 +267,130 @@ body:has(.tabbi-page) {
 .tabbi-page .plan-traveler-avatar,
 .tabbi-page .plan-inspo-strip--hero .plan-inspo-badge { font-family: 'Lexend Exa', sans-serif; }
 .plan-traveler--off .plan-traveler-main { text-decoration: none; }
+
+/* ── Drink: beer mats, a different shape each ─────────────────────────────── */
+
+.sb-coasters { display: flex; flex-wrap: wrap; gap: 26px 22px; padding: 10px 4px 18px; }
+.sb-coaster {
+  position: relative; width: 190px; height: 190px; flex: 0 0 auto;
+  /* outline + hard shadow drawn around whatever shape the face is clipped to */
+  filter: drop-shadow(1.5px 0 0 #180A0A) drop-shadow(-1.5px 0 0 #180A0A) drop-shadow(0 1.5px 0 #180A0A) drop-shadow(0 -1.5px 0 #180A0A) drop-shadow(4px 4px 0 #180A0A);
+  transform: rotate(-6deg); transition: transform .15s ease;
+}
+.sb-coaster:nth-child(even) { transform: rotate(7deg); }
+.sb-coaster:nth-child(3n) { transform: rotate(-2deg); }
+.sb-coaster:hover { transform: rotate(0) translateY(-3px); }
+.sb-coaster-face {
+  width: 100%; height: 100%; box-sizing: border-box; padding: 30px 26px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  text-align: center; background: #BFDBFE; overflow: hidden;
+}
+.tabbi-page .sb-coaster-kicker { font-size: 0.55rem; font-weight: 800; letter-spacing: 0.22em; text-transform: uppercase; color: rgba(24,10,10,0.7); }
+.tabbi-page .sb-coaster-title {
+  font-size: 0.92rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.12; color: #180A0A; text-decoration: none;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.tabbi-page a.sb-coaster-title:hover { text-decoration: underline; }
+.tabbi-page .sb-coaster-note {
+  font-family: 'Caveat', cursive; font-size: 1.05rem; line-height: 1.05; color: #3A2E2A;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.sb-coaster-remove { position: absolute; top: 6px; right: 6px; z-index: 2; opacity: 0; transition: opacity .12s; }
+.sb-coaster:hover .sb-coaster-remove, .sb-coaster:focus-within .sb-coaster-remove { opacity: 1; }
+.sb-coaster-remove .plan-remove-btn { background: #fff; }
+
+/* round pub mat with a printed ring */
+.sb-coaster--round .sb-coaster-face {
+  border-radius: 50%; background: #BFDBFE;
+  box-shadow: inset 0 0 0 10px #BFDBFE, inset 0 0 0 12px rgba(24,10,10,0.55);
+}
+/* square board mat, rounded corners, double frame */
+.sb-coaster--square .sb-coaster-face {
+  border-radius: 18px; background: #FFF3D6;
+  box-shadow: inset 0 0 0 9px #FFF3D6, inset 0 0 0 11px #C2410C, inset 0 0 0 14px #FFF3D6, inset 0 0 0 15.5px #C2410C;
+}
+.sb-coaster--square .sb-coaster-kicker { color: #C2410C; }
+/* sunburst / scalloped */
+.sb-coaster--burst .sb-coaster-face {
+  background: radial-gradient(circle, #FED7AA 0 60%, rgba(24,10,10,0.5) 60.5% 61.5%, #FDBA74 62%);
+  clip-path: polygon(50% 0%, 57% 8%, 67% 3%, 71% 13%, 82% 12%, 82% 22%, 93% 25%, 89% 35%, 98% 42%, 92% 50%, 98% 58%, 89% 65%, 93% 75%, 82% 78%, 82% 88%, 71% 87%, 67% 97%, 57% 92%, 50% 100%, 43% 92%, 33% 97%, 29% 87%, 18% 88%, 18% 78%, 7% 75%, 11% 65%, 2% 58%, 8% 50%, 2% 42%, 11% 35%, 7% 25%, 18% 22%, 18% 12%, 29% 13%, 33% 3%, 43% 8%);
+  padding: 38px 34px;
+}
+/* octagon, two-tone */
+.sb-coaster--octagon .sb-coaster-face {
+  background: linear-gradient(#BBF7D0 0 50%, #86EFAC 50%);
+  clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%);
+}
+.sb-coaster--octagon .sb-coaster-kicker { color: #14532D; }
+/* plain white round mat that has seen a few glasses */
+.sb-coaster--stained .sb-coaster-face {
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 62% 64%, transparent 0 34%, rgba(150,95,30,0.28) 35% 37%, transparent 38.5%),
+    radial-gradient(circle at 40% 38%, transparent 0 30%, rgba(150,95,30,0.16) 31% 32.5%, transparent 34%),
+    #FFFDF7;
+}
+@media (max-width: 600px) {
+  .sb-coaster { width: 160px; height: 160px; }
+  .sb-coaster-face { padding: 24px 20px; }
+}
+
+/* ── Photo slideshow: the photo as a big polaroid on a dark desk ──────────── */
+
+.plan-lightbox {
+  background-color: rgba(30, 20, 14, 0.93);
+  background-image: radial-gradient(rgba(251,247,238,0.07) 1.2px, transparent 1.3px);
+  background-size: 22px 22px;
+}
+.plan-lightbox-figure {
+  position: relative; --tilt: -1.5deg;
+  max-width: min(88vw, 1100px);
+  background: #fff; padding: 16px 16px 0;
+  border: 2px solid #180A0A; box-shadow: 10px 10px 0 #180A0A;
+  transform: rotate(var(--tilt));
+}
+.plan-lightbox-figure::before {
+  content: ""; position: absolute; top: -16px; left: 50%; z-index: 2;
+  width: 130px; height: 34px; margin-left: -65px;
+  background: rgba(231,163,40,0.78); transform: rotate(-4deg);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+.plan-lightbox-figure.sb-drop { animation: sb-drop .32s cubic-bezier(.2,.9,.3,1.2); }
+@keyframes sb-drop {
+  from { opacity: 0; transform: rotate(calc(var(--tilt) * -2)) scale(1.06) translateY(-14px); }
+  to   { opacity: 1; transform: rotate(var(--tilt)) scale(1) translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) { .plan-lightbox-figure.sb-drop { animation: none; } }
+.plan-lightbox-img { max-height: 68vh; border: 0; border-radius: 0; background: #F6ECD6; }
+.plan-lightbox-caption {
+  width: 100%; margin: 0; padding: 14px 6px 20px;
+  justify-content: space-between; gap: 10px 16px; color: #180A0A;
+}
+.tabbi-page .plan-lightbox-title, .plan-lightbox-title {
+  font-family: 'Caveat', cursive; font-size: 2.1rem; font-weight: 700; line-height: 1; text-align: left;
+}
+.plan-lightbox-count {
+  padding: 3px 10px; border: 2px solid #C2410C; border-radius: 8px; color: #C2410C;
+  font-size: 0.7rem; font-weight: 800; letter-spacing: 0.1em; transform: rotate(-4deg);
+}
+.plan-lightbox-goto {
+  margin-left: auto; padding: 8px 16px;
+  background: #e7a328; color: #180A0A; border: 2.5px solid #180A0A; border-radius: 999px;
+  box-shadow: 3px 3px 0 #180A0A; font-size: 0.75rem; font-weight: 800;
+}
+.plan-lightbox-goto:hover { background: #c8891a; color: #180A0A; transform: translate(-1px, -1px); box-shadow: 4px 4px 0 #180A0A; }
+/* close and arrows: round stickers */
+.plan-lightbox-close, .plan-lightbox-nav {
+  width: 52px; height: 52px; padding: 0; border-radius: 50%; opacity: 1;
+  display: flex; align-items: center; justify-content: center;
+  background: #e7a328; color: #180A0A; border: 2.5px solid #180A0A; box-shadow: 3px 3px 0 #180A0A;
+  font-size: 1.8rem; font-weight: 800; z-index: 3;
+}
+.plan-lightbox-close:hover, .plan-lightbox-nav:hover { color: #180A0A; background: #c8891a; }
+.plan-lightbox-close { top: 18px; right: 18px; background: #fff; transform: rotate(6deg); }
+.plan-lightbox-prev { left: 20px; transform: translateY(-50%) rotate(-6deg); }
+.plan-lightbox-next { right: 20px; transform: translateY(-50%) rotate(6deg); }
+@media (max-width: 600px) {
+  .plan-lightbox-figure { padding: 10px 10px 0; box-shadow: 6px 6px 0 #180A0A; }
+  .plan-lightbox-img { max-height: 62vh; }
+}

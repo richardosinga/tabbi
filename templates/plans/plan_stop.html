@@ -233,32 +233,32 @@
 
       {% if items_drink %}
       <h3 class="plan-section-label">Drink</h3>
+      {% comment %}Drinks as beer mats: each one a different shape, cycling through the set{% endcomment %}
+      <div class="sb-coasters">
       {% for item in items_drink %}
-      <div class="plan-poi-card{% if item.is_expandable %} plan-poi-card--expandable{% endif %}" data-card-index="{{ forloop.counter0 }}"{% if item.is_expandable %} onclick="togglePoiCard(event, this)"{% endif %}>
-        <div class="plan-poi-body">
+      <div class="sb-coaster sb-coaster--{% cycle 'round' 'square' 'burst' 'octagon' 'stained' %}" data-card-index="{{ forloop.counter0 }}">
+        <div class="sb-coaster-face">
+          <span class="sb-coaster-kicker">{% cycle '★ cheers ★' 'on tap' '★ ★ ★' 'last round' 'bar' %}</span>
           {% if item.page %}
             {% if item.page.path|slice:":6" == "~pois/" %}
-            <span class="plan-poi-title plan-poi-title--draft">{{ item.page.title }}</span>
+            <span class="sb-coaster-title">{{ item.page.title }}</span>
             {% else %}
-            <a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.page.title }}</a>
+            <a class="sb-coaster-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener">{{ item.page.title }}</a>
             {% endif %}
-            {% if item.is_expandable %}
-              {% if item.page.meta.snippet %}<p class="plan-poi-tagline">{{ item.page.meta.snippet }}</p>{% endif %}
-              <div class="plan-poi-full" hidden>
-                {% if item.image_url %}<div class="plan-poi-full-image" style="background-image:url('{{ item.image_url }}')"></div>{% endif %}
-                <p class="plan-poi-full-body">{{ item.page.body }}</p>
-              </div>
-            {% endif %}
+            {% if item.page.meta.snippet %}<span class="sb-coaster-note">{{ item.page.meta.snippet }}</span>{% endif %}
+          {% else %}
+            <span class="sb-coaster-title">{{ item.text }}</span>
           {% endif %}
         </div>
-        <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/remove/" class="plan-remove-form">
+        <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/remove/" class="plan-remove-form sb-coaster-remove">
           {% csrf_token %}
           <input type="hidden" name="poi_path" value="{{ item.text }}">
           <input type="hidden" name="next" value="{{ request.path }}">
-          <button type="submit" class="plan-remove-btn" title="Remove from plan" onclick="event.stopPropagation()">−</button>
+          <button type="submit" class="plan-remove-btn" title="Remove from plan">−</button>
         </form>
       </div>
       {% endfor %}
+      </div>
       {% endif %}
 
       {% endif %}{# end grouped/ungrouped #}
@@ -864,6 +864,12 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
     gotoBtn.hidden = !tile.dataset.card && !tile.dataset.href;
     gotoBtn.textContent = tile.dataset.href ? 'Open day trip ›' : 'Show in plan ›';
     box.classList.toggle('plan-lightbox--single', tiles.length < 2);
+    // each photo lands as a polaroid at its own slight angle
+    var fig = box.querySelector('.plan-lightbox-figure');
+    fig.style.setProperty('--tilt', ((index % 2 ? 1 : -1) * (0.8 + (index * 7 % 3) * 0.6)) + 'deg');
+    fig.classList.remove('sb-drop');
+    void fig.offsetWidth;
+    fig.classList.add('sb-drop');
   }
   function open(tile) {
     tiles = Array.prototype.filter.call(strip.querySelectorAll('.plan-inspo-tile'), function(t) { return !t.hidden && photoUrl(t); });
