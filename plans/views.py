@@ -1946,6 +1946,7 @@ def api_plan_open(request):
             "city_path":  s.get("city_path") or "",
             "city_slug":  s["city_slug"],
             "day_trip_from": s.get("parent_slug", ""),
+            "without":    s["absent"],
         }
         for s in _all_stops(plan)
     ]
@@ -1954,6 +1955,7 @@ def api_plan_open(request):
         "slug":       slug,
         "title":      plan["title"],
         "passphrase": passphrase,
+        "travelers":  [t["name"] for t in plan["travelers"]],
         "cities":     cities,
     })
 
