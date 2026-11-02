@@ -133,6 +133,7 @@
 
       {% if items_do %}
       <h3 class="plan-section-label">Do</h3>
+      <div class="sb-cards">
       {% for item in items_do %}
       <div class="plan-poi-card{% if not item.page and not item.external_url %} plan-poi-card-note{% endif %}{% if item.is_expandable %} plan-poi-card--expandable{% endif %}" data-card-index="{{ forloop.counter0 }}"{% if item.is_expandable %} onclick="togglePoiCard(event, this)"{% endif %}>
         <div class="plan-poi-body">
@@ -199,6 +200,7 @@
         </form>
       </div>
       {% endfor %}
+      </div>
       {% endif %}
 
       {% if items_eat %}
@@ -856,7 +858,18 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
   function show(i) {
     index = (i + tiles.length) % tiles.length;
     var tile = tiles[index], small = photoUrl(tile), large = largeUrl(small);
-    img.onerror = large !== small ? function() { img.onerror = null; img.src = small; } : null;
+    var fig = box.querySelector('.plan-lightbox-figure');
+    // keep the polaroid hidden until the new photo is in, so the old one never flashes by
+    fig.classList.add('sb-loading');
+    fig.classList.remove('sb-drop');
+    var shown = index;
+    img.onload = function() {
+      if (shown !== index) return;
+      fig.classList.remove('sb-loading');
+      void fig.offsetWidth;
+      fig.classList.add('sb-drop');
+    };
+    img.onerror = large !== small ? function() { img.onerror = img.onload; img.src = small; } : img.onload;
     img.src = large;
     var label = tile.querySelector('.plan-inspo-label');
     title.textContent = tile.dataset.title || (label ? label.textContent : '');
@@ -865,11 +878,7 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
     gotoBtn.textContent = tile.dataset.href ? 'Open day trip ›' : 'Show in plan ›';
     box.classList.toggle('plan-lightbox--single', tiles.length < 2);
     // each photo lands as a polaroid at its own slight angle
-    var fig = box.querySelector('.plan-lightbox-figure');
     fig.style.setProperty('--tilt', ((index % 2 ? 1 : -1) * (0.8 + (index * 7 % 3) * 0.6)) + 'deg');
-    fig.classList.remove('sb-drop');
-    void fig.offsetWidth;
-    fig.classList.add('sb-drop');
   }
   function open(tile) {
     tiles = Array.prototype.filter.call(strip.querySelectorAll('.plan-inspo-tile'), function(t) { return !t.hidden && photoUrl(t); });

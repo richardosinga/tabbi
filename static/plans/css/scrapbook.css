@@ -394,3 +394,113 @@ body:has(.tabbi-page) {
   .plan-lightbox-figure { padding: 10px 10px 0; box-shadow: 6px 6px 0 #180A0A; }
   .plan-lightbox-img { max-height: 62vh; }
 }
+
+/* ── Do: square index cards in a grid; opened card = a full-width clipping ── */
+
+.sb-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); grid-auto-flow: row dense; gap: 22px 20px; padding: 8px 4px 16px; align-items: start; }
+.sb-cards .plan-poi-card { min-height: 200px; margin: 0; padding: 22px 16px 14px 24px; align-items: flex-start; }
+.sb-cards .plan-poi-card:nth-child(3n+2) { transform: rotate(0.9deg); }
+.sb-cards .plan-poi-card:nth-child(3n) { transform: rotate(-1.1deg); }
+.sb-cards .plan-poi-card:hover { transform: rotate(0) translate(-1px, -2px); }
+.sb-cards .plan-poi-card--expandable::before { top: 24px; transform: none; }
+.sb-cards .plan-poi-title { font-size: 0.88rem; line-height: 1.25; padding-right: 22px; }
+.sb-cards .plan-poi-tagline, .sb-cards .plan-poi-snippet {
+  margin-top: 6px; font-size: 1.2rem; line-height: 28px; color: #3A2E2A;
+  -webkit-line-clamp: 5; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden;
+}
+.sb-cards .plan-remove-form { position: absolute; top: 14px; right: 10px; }
+
+/* opened: spans the row, photo taped to the card, body on the ruled lines */
+.sb-cards .plan-poi-card--expanded {
+  grid-column: 1 / -1; transform: rotate(-0.3deg); min-height: 0;
+  padding: 26px 26px 20px 30px; box-shadow: 6px 6px 0 #180A0A; z-index: 2;
+}
+.sb-cards .plan-poi-card--expanded:hover { transform: rotate(-0.3deg); }
+.sb-cards .plan-poi-card--expanded .plan-poi-tagline { display: none; }
+.sb-cards .plan-poi-card--expanded .plan-poi-title { font-size: 1.15rem; }
+.plan-poi-card--expanded .plan-poi-full { border-top: 0; margin-top: 4px; padding-top: 0; display: flow-root; }
+.plan-poi-card--expanded .plan-poi-full-image {
+  float: right; width: min(42%, 320px); height: auto; aspect-ratio: 4 / 3;
+  margin: 2px 0 16px 22px; border: 8px solid #fff; border-bottom-width: 26px; border-radius: 0;
+  outline: 2px solid #180A0A; box-shadow: 5px 5px 0 #180A0A; transform: rotate(2deg); position: relative;
+}
+.plan-poi-card--expanded .plan-poi-full-image::before {
+  content: ""; position: absolute; top: -22px; left: 50%; width: 84px; height: 24px; margin-left: -42px;
+  background: rgba(191,219,254,0.9); transform: rotate(-5deg);
+}
+.plan-poi-card--expanded .plan-poi-full-body { font-size: 0.86rem; line-height: 28px; color: #2B211D; margin: 0 0 10px; }
+.plan-poi-card--expanded .plan-poi-full-link {
+  display: inline-block; padding: 6px 14px; border: 2px solid #180A0A; border-radius: 999px;
+  background: #fffdf7; box-shadow: 2px 2px 0 #180A0A; color: #180A0A; font-size: 0.72rem; font-weight: 800;
+}
+.plan-poi-card--expanded .plan-poi-full-link:hover { background: #e7a328; }
+@media (max-width: 600px) {
+  .plan-poi-card--expanded .plan-poi-full-image { float: none; width: 100%; margin: 6px 0 18px; }
+}
+
+/* ── Adding: search strip, folder tabs, suggestions as little polaroids ───── */
+
+.plan-suggestions { border-top: 0; padding-top: 8px; margin-top: 36px; }
+.plan-suggestions::before {
+  content: "add more"; display: block; margin-bottom: 10px;
+  font-family: 'Caveat', cursive; font-size: 2rem; font-weight: 700; color: #180A0A;
+}
+.tabbi-page .plan-suggestions-search {
+  font-family: 'Caveat', cursive; font-size: 1.6rem; font-weight: 700;
+  padding: 12px 18px; border: 2px solid #180A0A; border-radius: 3px; background: #fff;
+  box-shadow: 4px 4px 0 #180A0A; transform: rotate(-0.4deg);
+}
+.plan-suggestions-search:focus { border-color: #180A0A; box-shadow: 4px 4px 0 #e7a328; }
+
+/* category = folder tab on top of its strip */
+.plan-suggestions-heading { margin: 26px 0 0 14px; position: relative; z-index: 1; }
+.plan-suggestions-chip {
+  border: 2px solid #180A0A !important; border-bottom: 0 !important; border-radius: 10px 10px 0 0;
+  padding: 7px 16px 8px; box-shadow: none; color: #180A0A !important; transform: none;
+}
+.plan-suggestions-strip-wrap {
+  margin-top: -2px; border: 2px solid #180A0A; background: rgba(255,253,247,0.75);
+  box-shadow: 4px 4px 0 #180A0A; border-radius: 0 6px 6px 6px;
+}
+.plan-suggestions-strip { gap: 18px; padding: 22px 16px 18px; }
+.plan-suggestion-tile {
+  width: 170px; border: 2px solid #180A0A; border-radius: 2px; padding: 8px 8px 10px; overflow: visible;
+  box-shadow: 3px 3px 0 #180A0A; transform: rotate(-1.4deg); position: relative;
+}
+.plan-suggestion-tile:nth-child(even) { transform: rotate(1.2deg); }
+.plan-suggestion-tile:hover { transform: rotate(0) translateY(-3px); box-shadow: 5px 6px 0 #180A0A; }
+.plan-suggestion-tile--todo, .plan-suggestion-tile--food, .plan-suggestion-tile--drinks, .plan-suggestion-tile--daytrip { border-top-color: #180A0A; }
+.plan-suggestion-tile--match { box-shadow: 3px 3px 0 #e7a328; border-color: #180A0A; }
+.plan-suggestion-tile-img { height: 108px; border: 0; }
+.plan-suggestion-tile-body { padding: 8px 2px 2px; gap: 2px; }
+.plan-suggestion-title { font-size: 0.78rem; }
+.tabbi-page .plan-suggestion-snippet {
+  font-family: 'Caveat', cursive; font-size: 1.05rem; line-height: 1.1; color: #3A2E2A; margin: 2px 0 0;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.tabbi-page .plan-suggestion-distance { font-family: 'Caveat', cursive; font-size: 1rem; color: #16A34A; }
+/* "+" = a sticker in the corner */
+.plan-suggestion-add { position: absolute; top: -12px; right: -12px; margin: 0; padding: 0; z-index: 2; }
+.plan-suggestion-btn {
+  width: 38px; height: 38px; border-radius: 50%; padding: 0; font-size: 1.3rem;
+  box-shadow: 2px 3px 0 #180A0A; transform: rotate(10deg);
+}
+.plan-suggestion-btn:hover { transform: rotate(0) scale(1.08); }
+.plan-suggestions-arrow { top: 50%; margin-top: -19px; width: 38px; height: 38px; background: #e7a328; box-shadow: 2px 3px 0 #180A0A; }
+
+/* nothing found: a sticky note to write it down yourself */
+.plan-custom-spot-form, .plan-custom-daytrip-form {
+  background: #FCE7A6; border: 0; border-radius: 0; padding: 22px 20px 18px;
+  box-shadow: 3px 8px 14px rgba(24,10,10,0.18); transform: rotate(-0.8deg); position: relative;
+}
+.plan-custom-spot-form::before {
+  content: ""; position: absolute; top: -11px; left: 50%; width: 84px; height: 24px; margin-left: -42px;
+  background: rgba(255,255,255,0.65); border: 1px solid rgba(24,10,10,0.1); transform: rotate(3deg);
+}
+.tabbi-page .plan-custom-spot-input {
+  font-family: 'Caveat', cursive; font-size: 1.45rem; font-weight: 700;
+  background: transparent; border: 0; border-bottom: 2px dashed rgba(24,10,10,0.55); border-radius: 0; padding: 6px 2px;
+}
+.plan-custom-spot-input:focus { border-bottom-color: #180A0A; }
+.plan-custom-daytrip-form { margin-top: 16px; background: #E8F7EC; transform: rotate(0.6deg); }
+.plan-lightbox-figure.sb-loading { opacity: 0; }
