@@ -1,0 +1,129 @@
+{% comment %}
+Who's going. On the trip page: the trip's travelers (click copies their invite link).
+On a stop page (pass `stop`): click toggles whether they're at this stop.
+{% endcomment %}
+<div class="plan-travelers" id="plan-travelers" data-slug="{{ plan.slug }}" data-stop="{{ stop.city_slug|default:'' }}" data-csrf="{{ csrf_token }}">
+  <span class="plan-travelers-label">Who's going{% if stop %} here{% endif %}</span>
+  {% if stop %}
+    {% for t in stop.travelers %}
+    <span class="plan-traveler{% if not t.here %} plan-traveler--off{% endif %}" data-id="{{ t.id }}">
+      <button type="button" class="plan-traveler-main" data-action="toggle" data-here="{{ t.here|yesno:'1,0' }}"
+              {% if t.via_parent %}disabled title="Not in {{ stop.parent_city }}"{% else %}title="{% if t.here %}Not joining {{ stop.city }}? Click to turn off{% else %}Click to add {{ t.name }} back to {{ stop.city }}{% endif %}"{% endif %}>
+        <span class="plan-traveler-avatar">{{ t.initial }}</span>{{ t.name }}
+      </button>
+      <button type="button" class="plan-traveler-x" data-action="remove" title="Remove {{ t.name }} from the trip">×</button>
+    </span>
+    {% endfor %}
+  {% else %}
+    {% for t in plan.travelers %}
+    <span class="plan-traveler" data-id="{{ t.id }}">
+      <button type="button" class="plan-traveler-main" data-action="copy" data-url="{{ t.invite_url }}" title="Copy {{ t.name }}'s invite link">
+        <span class="plan-traveler-avatar">{{ t.name|first|upper }}</span>{{ t.name }}{% if t.email %} <span class="plan-traveler-mail" title="{{ t.email }}">✉</span>{% endif %}
+      </button>
+      <button type="button" class="plan-traveler-x" data-action="remove" title="Remove {{ t.name }} from the trip">×</button>
+    </span>
+    {% endfor %}
+  {% endif %}
+  <span class="plan-traveler-add-wrap">
+    <button type="button" class="plan-traveler-add" id="plan-traveler-add" title="Add someone to the trip" aria-expanded="false">+</button>
+    <form class="plan-traveler-pop" id="plan-traveler-pop" hidden>
+      <input type="text" name="name" placeholder="Name" maxlength="60" required autocomplete="off">
+      <input type="email" name="email" placeholder="Email (optional)" maxlength="200" autocomplete="off">
+      <label class="plan-traveler-invite"><input type="checkbox" name="invite" checked> Invite</label>
+      <div class="plan-traveler-pop-error" hidden></div>
+      <button type="submit" class="tabbi-btn tabbi-btn--sm">Add</button>
+    </form>
+  </span>
+  <span class="plan-traveler-toast" id="plan-traveler-toast" hidden></span>
+</div>
+<script>
+(function() {
+  var box = document.getElementById('plan-travelers');
+  if (!box) return;
+  var base = '/plans/' + box.dataset.slug + '/travelers/';
+  var stop = box.dataset.stop;
+  var pop = document.getElementById('plan-traveler-pop');
+  var addBtn = document.getElementById('plan-traveler-add');
+  var toast = document.getElementById('plan-traveler-toast');
+  var err = pop.querySelector('.plan-traveler-pop-error');
+
+  function post(url, body) {
+    return fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': box.dataset.csrf},
+      body: JSON.stringify(body || {}),
+    }).then(function(r) {
+      return r.json().then(function(d) { if (!r.ok) throw new Error(d.error || 'Something went wrong'); return d; });
+    });
+  }
+  function say(msg) {
+    toast.textContent = msg;
+    toast.hidden = false;
+    clearTimeout(say.t);
+    say.t = setTimeout(function() { toast.hidden = true; }, 3500);
+  }
+  function copy(url) {
+    return navigator.clipboard ? navigator.clipboard.writeText(url).then(function() { return true; }, function() { return false; })
+                               : Promise.resolve(false);
+  }
+  // Show messages from before a reload (after adding someone)
+  try {
+    var pending = sessionStorage.getItem('tabbi-traveler-msg');
+    if (pending) { sessionStorage.removeItem('tabbi-traveler-msg'); say(pending); }
+  } catch (e) {}
+
+  function openPop(open) {
+    pop.hidden = !open;
+    addBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) { err.hidden = true; pop.elements['name'].focus(); }
+  }
+  addBtn.addEventListener('click', function() { openPop(pop.hidden); });
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && !pop.hidden) openPop(false); });
+  document.addEventListener('click', function(e) {
+    if (!pop.hidden && !e.target.closest('.plan-traveler-add-wrap')) openPop(false);
+  });
+
+  pop.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var invite = pop.invite.checked, email = pop.email.value.trim();
+    post(base + 'add/', {name: pop.elements['name'].value.trim(), email: email, invite: invite}).then(function(d) {
+      var name = d.traveler.name;
+      var done = function(msg) {
+        try { sessionStorage.setItem('tabbi-traveler-msg', msg); } catch (e) {}
+        location.reload();
+      };
+      if (d.invited) return done('Invite sent to ' + email);
+      if (!invite) return done(name + ' added');
+      // No email (or sending failed): hand over the link instead
+      copy(d.traveler.invite_url).then(function(ok) {
+        done(ok ? name + ' added — invite link copied, share it with them'
+                : name + ' added — copy their invite link from the trip page');
+      });
+    }).catch(function(e2) { err.textContent = e2.message; err.hidden = false; });
+  });
+
+  box.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-action]');
+    if (!btn || btn.disabled) return;
+    var chip = btn.closest('.plan-traveler');
+    var id = chip && chip.dataset.id;
+    var action = btn.dataset.action;
+    if (action === 'copy') {
+      copy(btn.dataset.url).then(function(ok) { say(ok ? 'Invite link copied' : btn.dataset.url); });
+    } else if (action === 'toggle') {
+      var here = btn.dataset.here !== '1';
+      post(base + id + '/' + stop + '/', {here: here}).then(function() {
+        btn.dataset.here = here ? '1' : '0';
+        chip.classList.toggle('plan-traveler--off', !here);
+        btn.title = here ? 'Click to turn off for this stop' : 'Click to add back to this stop';
+      })
+        .catch(function(e2) { say(e2.message); });
+    } else if (action === 'remove') {
+      var name = btn.title.replace(/^Remove | from the trip$/g, '');
+      if (!confirm('Remove ' + name + ' from the whole trip?')) return;
+      post(base + id + '/remove/').then(function() { chip.remove(); })
+        .catch(function(e2) { say(e2.message); });
+    }
+  });
+})();
+</script>

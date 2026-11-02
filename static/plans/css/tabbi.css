@@ -2289,3 +2289,32 @@ span.plan-poi-title--draft::after { content: none; }
   .plan-inspo-strip--hero .plan-inspo-tile { width: 200px; }
   .plan-inspo-strip--hero .plan-inspo-img { width: 200px; height: 140px; }
 }
+
+/* ── Travelers (who's going) ─────────────────────────────────────────────── */
+.plan-travelers { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: -8px 0 20px; position: relative; }
+.plan-travelers-label { font-size: 0.75rem; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.04em; margin-right: 2px; }
+.plan-traveler { display: inline-flex; align-items: center; background: #fffdf7; border: 2px solid #180A0A; border-radius: 999px; box-shadow: 2px 2px 0 #180A0A; transition: opacity .12s; }
+.plan-traveler-main { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 3px 4px 3px 3px; font: inherit; font-size: 0.8rem; font-weight: 600; color: #180A0A; cursor: pointer; }
+.plan-traveler-main:disabled { cursor: not-allowed; }
+.plan-traveler-avatar { width: 22px; height: 22px; border-radius: 50%; background: #e7a328; color: #180A0A; display: inline-flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 800; }
+.plan-traveler-mail { font-size: 0.75rem; color: #888; }
+.plan-traveler-x { border: 0; background: none; padding: 0 8px 0 2px; font-size: 1rem; line-height: 1; color: #A6A6A6; cursor: pointer; }
+.plan-traveler-x:hover { color: #c0392b; }
+.plan-traveler--off { opacity: 0.45; box-shadow: none; border-style: dashed; }
+.plan-traveler--off .plan-traveler-main { text-decoration: line-through; }
+.plan-traveler--off .plan-traveler-avatar { background: #ddd; }
+.plan-traveler-add-wrap { position: relative; }
+.plan-traveler-add { width: 30px; height: 30px; border-radius: 50%; border: 2px dashed #180A0A; background: #fff; font-size: 1.1rem; font-weight: 700; line-height: 1; color: #180A0A; cursor: pointer; }
+.plan-traveler-add:hover, .plan-traveler-add[aria-expanded="true"] { background: #e7a328; border-style: solid; }
+.plan-traveler-pop { position: absolute; top: calc(100% + 8px); left: 0; z-index: 1500; width: 240px; display: flex; flex-direction: column; gap: 8px; padding: 14px; background: #fff; border: 2.5px solid #180A0A; border-radius: 14px; box-shadow: 4px 4px 0 #180A0A; }
+.plan-traveler-pop[hidden] { display: none; }
+.plan-traveler-pop input[type=text], .plan-traveler-pop input[type=email] { font: inherit; font-size: 0.85rem; padding: 8px 10px; border: 2px solid #180A0A; border-radius: 10px; background: #fffdf7; outline: none; }
+.plan-traveler-pop input:focus { border-color: #e7a328; }
+.plan-traveler-invite { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #535050; cursor: pointer; }
+.plan-traveler-pop-error { font-size: 0.75rem; color: #c0392b; }
+.plan-traveler-pop .tabbi-btn { align-self: flex-start; }
+.plan-traveler-toast { font-size: 0.78rem; color: #14532D; background: #BBF7D0; border: 1.5px solid #16A34A; border-radius: 999px; padding: 3px 10px; }
+.plan-dest-tile-absent { font-size: 0.72rem; opacity: 0.85; font-style: italic; }
+@media (max-width: 600px) {
+  .plan-traveler-pop { position: fixed; left: 16px; right: 16px; top: auto; width: auto; }
+}

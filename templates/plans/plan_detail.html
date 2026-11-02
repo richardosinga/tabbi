@@ -16,6 +16,7 @@
     <a href="/plans/{{ plan.slug }}/edit/" class="plan-edit-link">Edit</a>
   </div>
   {% if plan.description %}<p class="plan-description">{{ plan.description }}</p>{% endif %}
+  {% include "plans/_travelers.html" %}
 
   <!-- Passport link indicator -->
   <style>
@@ -121,6 +122,7 @@
             <div class="plan-dest-tile-city">{{ stop.city }}</div>
             {% if stop.dates %}<div class="plan-dest-tile-dates">{{ stop.dates }}</div>{% endif %}
             <div class="plan-dest-tile-count">{{ stop.items|length }} place{% if stop.items|length != 1 %}s{% endif %}</div>
+            {% if stop.absent %}<div class="plan-dest-tile-absent">without {{ stop.absent|join:", " }}</div>{% endif %}
             {% if stop.daytrips %}<div class="plan-dest-tile-daytrips">+ day trip{{ stop.daytrips|length|pluralize }}: {% for dt in stop.daytrips %}<a href="{{ dt.url }}" onclick="event.stopPropagation()">{{ dt.city }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}
           </div>
           {% if stop.destination_url %}
