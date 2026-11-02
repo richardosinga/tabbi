@@ -15,7 +15,7 @@
     {% endif %}<span>{{ stop.city }}</span>
   </nav>
   <div class="plan-header">
-    <h1>{{ stop.city }}</h1>
+    <h1><span class="sb-highlight">{{ stop.city }}</span></h1>
     {% if parent_stop %}<div class="plan-daytrip-from">Day trip from <a href="{{ parent_stop.url }}">{{ parent_stop.city }}</a></div>{% endif %}
     {% if stop.dates %}<div class="plan-stop-dates-large">{{ stop.dates }}</div>{% endif %}
     <a href="/plans/{{ plan.slug }}/edit/" class="plan-edit-link">Edit</a>
@@ -392,14 +392,16 @@
   const tiles = tabbiTileLayers();
   const tileDark = tiles.dark;
   const tileLight = tiles.light;
-  var mapDark = localStorage.getItem('tabbi_map_dark') !== 'false';
+  var mapEl = document.getElementById('plan-stop-map');
+  var mapDark = tabbiMapIsDark();
+  tabbiSetMapDark(mapDark, mapEl);
   (mapDark ? tileDark : tileLight).addTo(map);
   var toggleBtn = document.getElementById('plan-map-toggle');
   if (toggleBtn) {
     toggleBtn.textContent = mapDark ? '☀️' : '🌙';
     toggleBtn.addEventListener('click', function() {
       mapDark = !mapDark;
-      localStorage.setItem('tabbi_map_dark', mapDark);
+      tabbiSetMapDark(mapDark, mapEl);
       map.removeLayer(mapDark ? tileLight : tileDark);
       (mapDark ? tileDark : tileLight).addTo(map);
       toggleBtn.textContent = mapDark ? '☀️' : '🌙';
@@ -430,7 +432,7 @@
       iconAnchor: [0, 0],
     });
     if (dtOrigin) {
-      L.polyline([dtOrigin, [d.lat, d.lng]], {color: '#e7a328', weight: 2, opacity: 0.5, dashArray: '2,6'}).addTo(map);
+      L.polyline([dtOrigin, [d.lat, d.lng]], {color: '#16A34A', weight: 2, opacity: 0.8, dashArray: '3,5', className: 'sb-daytrip-line'}).addTo(map);
     }
     L.marker([d.lat, d.lng], {icon: icon})
       .bindTooltip('Day trip: ' + d.title, {direction: 'top'})

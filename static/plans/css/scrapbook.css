@@ -1,0 +1,269 @@
+/*
+ * Tab.bi — scrapbook layer (loaded after tabbi.css)
+ *
+ * Same ink (#180A0A) and mustard (#e7a328), but the trip looks pinned down by hand:
+ * dotted journal paper, polaroids with washi tape, a paper map with a red route string,
+ * ticket stubs for day trips, index cards for places, stamps for dates.
+ *
+ *   Paper       #FBF7EE   page ground (with dot grid)
+ *   Map paper   #F6ECD6
+ *   Route red   #D7263D   the string between stops
+ *   Stamp rust  #C2410C   dates
+ *   Day trip    #16A34A
+ *   Sticky      #FCE7A6
+ *   Hand        Caveat         names, headings, captions
+ *   Receipt     Courier Prime  budget
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Courier+Prime:wght@400;700&display=swap');
+
+/* ── Paper ground ─────────────────────────────────────────────────────────── */
+
+body:has(.tabbi-page) {
+  background-color: #FBF7EE;
+  background-image: radial-gradient(rgba(24,10,10,0.09) 1.2px, transparent 1.3px);
+  background-size: 22px 22px;
+}
+
+/* ── Headings: highlighter + handwriting ──────────────────────────────────── */
+
+.sb-highlight {
+  background: linear-gradient(transparent 58%, rgba(231,163,40,0.85) 58%, rgba(231,163,40,0.85) 92%, transparent 92%);
+  padding: 0 6px;
+  margin-left: -6px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.plan-breadcrumb { font-family: 'Caveat', cursive; font-size: 1.35rem; font-weight: 700; }
+.plan-breadcrumb a { color: #6B5E55; }
+.plan-section-label {
+  font-family: 'Caveat', cursive; font-size: 2rem; font-weight: 700;
+  text-transform: none; letter-spacing: 0; color: #180A0A; margin: 18px 0 6px;
+}
+.plan-description, .plan-daytrip-from { font-family: 'Caveat', cursive; font-size: 1.5rem; color: #3A2E2A; }
+
+/* Dates as a passport stamp */
+.plan-stop-dates-large, .sb-stamp {
+  display: inline-block; padding: 4px 12px;
+  border: 2.5px solid #C2410C; border-radius: 10px; color: #C2410C;
+  font-size: 0.72rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+  transform: rotate(-3deg); background: none;
+}
+
+/* ── Washi tape ───────────────────────────────────────────────────────────── */
+
+.sb-tape {
+  position: absolute; top: -13px; left: 50%; z-index: 3;
+  width: 92px; height: 26px; margin-left: -46px;
+  background: rgba(231,163,40,0.72); transform: rotate(-5deg);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.12); pointer-events: none;
+}
+
+/* ── Trip overview: polaroids ─────────────────────────────────────────────── */
+
+.plan-dest-grid { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 44px 28px; padding: 18px 8px 8px; align-items: start; }
+
+.plan-dest-tile.sb-polaroid {
+  position: relative; display: block; height: auto; min-height: 0; aspect-ratio: auto;
+  background: #fff; background-image: none !important;
+  padding: 10px 10px 12px; border: 2px solid #180A0A; border-radius: 2px;
+  box-shadow: 5px 5px 0 #180A0A; cursor: pointer; overflow: visible;
+  transform: rotate(-1.8deg); transition: transform .15s ease, box-shadow .15s ease;
+}
+.plan-dest-grid > .sb-polaroid:nth-child(4n+2) { transform: rotate(1.6deg); }
+.plan-dest-grid > .sb-polaroid:nth-child(4n+3) { transform: rotate(-0.8deg); }
+.plan-dest-grid > .sb-polaroid:nth-child(4n+4) { transform: rotate(2.2deg); }
+.plan-dest-grid > .sb-polaroid:nth-child(4n+2) .sb-tape { background: rgba(191,219,254,0.9); transform: rotate(4deg); }
+.plan-dest-grid > .sb-polaroid:nth-child(4n+3) .sb-tape { background: rgba(187,247,208,0.9); transform: rotate(-3deg); }
+.plan-dest-grid > .sb-polaroid:nth-child(4n+4) .sb-tape { background: rgba(254,215,170,0.95); transform: rotate(6deg); }
+.plan-dest-tile.sb-polaroid:hover { transform: rotate(0deg) translateY(-3px); box-shadow: 7px 8px 0 #180A0A; }
+
+.sb-polaroid .plan-dest-tile-num {
+  position: absolute; top: -12px; left: -12px; z-index: 4;
+  width: 34px; height: 34px; border-radius: 50%;
+  background: #e7a328; border: 2.5px solid #180A0A; color: #180A0A;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 0.85rem; box-shadow: 1px 2px 0 rgba(24,10,10,0.35);
+}
+.sb-photo {
+  aspect-ratio: 1 / 0.9; background: #F6ECD6 center / cover no-repeat;
+  filter: saturate(0.92) contrast(1.03);
+}
+.sb-caption { padding-top: 8px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.sb-caption-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; width: 100%; }
+.sb-city { font-family: 'Caveat', cursive; font-size: 2rem; font-weight: 700; line-height: 1; color: #180A0A; text-decoration: none; }
+.sb-count { font-size: 0.68rem; font-weight: 700; color: #6B5E55; white-space: nowrap; }
+.sb-absent { font-family: 'Caveat', cursive; font-size: 1.25rem; font-weight: 700; color: #2563EB; line-height: 1; }
+.sb-explore { font-size: 0.68rem; font-weight: 700; color: #6B5E55; text-decoration: none; }
+.sb-explore:hover { color: #180A0A; text-decoration: underline; }
+
+/* Day trips: ticket stubs under the polaroid */
+.sb-tickets { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px -4px -2px; }
+.sb-ticket {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px 3px 7px; background: #E8F7EC;
+  border: 2px solid #180A0A; border-left: 2px dashed #16A34A; border-radius: 3px;
+  font-size: 0.68rem; font-weight: 700; color: #180A0A; text-decoration: none;
+}
+.sb-ticket::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #16A34A; }
+.sb-ticket:nth-child(even) { transform: rotate(2deg); }
+.sb-ticket:nth-child(odd) { transform: rotate(-1.5deg); }
+.sb-ticket:hover { background: #BBF7D0; }
+
+/* ── Paper map ────────────────────────────────────────────────────────────── */
+
+/* The real tiles, aged: warmer, softer, a bit faded… */
+.sb-paper-map .leaflet-tile-pane { filter: sepia(0.38) saturate(0.8) hue-rotate(-6deg) contrast(0.96) brightness(1.03); }
+.sb-paper-map { background: #F6ECD6; }
+/* …then paper on top: grain, two fold creases, worn edges. Sits above the tiles
+   (z 200) and below routes (400) and pins (600), and never catches the mouse. */
+.sb-paper-map::after {
+  content: ""; position: absolute; inset: 0; z-index: 350; pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent calc(33.3% - 1px), rgba(24,10,10,0.10) 33.3%, rgba(255,255,255,0.35) calc(33.3% + 1px), transparent calc(33.3% + 3px)),
+    linear-gradient(90deg, transparent calc(66.6% - 1px), rgba(24,10,10,0.10) 66.6%, rgba(255,255,255,0.35) calc(66.6% + 1px), transparent calc(66.6% + 3px)),
+    linear-gradient(0deg, transparent calc(50% - 1px), rgba(24,10,10,0.08) 50%, rgba(255,255,255,0.3) calc(50% + 1px), transparent calc(50% + 3px)),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.35 0 0 0 0 0.25 0 0 0 0 0.12 0 0 0 0.10 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  box-shadow: inset 0 0 60px rgba(120,84,30,0.22);
+  mix-blend-mode: multiply;
+}
+/* the frame is the brand: ink border, hard shadow; tape holds it down */
+.plan-map-wrap { position: relative; z-index: 1; } /* own stacking context: tiles, pins and tape stay under the sticky nav */
+.plan-map-wrap::before, .plan-map-wrap::after {
+  content: ""; position: absolute; top: -12px; z-index: 1001; width: 110px; height: 28px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.12); pointer-events: none;
+}
+.plan-map-wrap::before { left: 28px; background: rgba(231,163,40,0.72); transform: rotate(-6deg); }
+.plan-map-wrap::after { right: 36px; background: rgba(191,219,254,0.9); transform: rotate(5deg); }
+
+/* pins: push-pin heads */
+.sb-paper-map .plan-stop-marker {
+  border: 2.5px solid #180A0A !important;
+  box-shadow: 2px 3px 0 rgba(24,10,10,0.35) !important;
+  background: radial-gradient(circle at 34% 30%, #FFE7B0 0 3px, #e7a328 4px) !important;
+}
+.sb-paper-map .plan-daytrip-dot { background: #16A34A !important; border: 2px solid #180A0A !important; box-shadow: 1px 2px 0 rgba(24,10,10,0.3) !important; }
+.sb-paper-map .plan-daytrip-marker span {
+  border: 2px solid #180A0A; background: #E8F7EC; box-shadow: 2px 2px 0 rgba(24,10,10,0.35);
+  font-family: 'Caveat', cursive; font-size: 17px; border-radius: 3px; border-left: 2px dashed #16A34A;
+}
+.sb-paper-map .sb-route { filter: drop-shadow(1px 2px 0 rgba(24,10,10,0.25)); }
+
+/* handwritten city labels next to the pins */
+.leaflet-tooltip.sb-map-label {
+  background: none; border: 0; box-shadow: none; padding: 0;
+  font-family: 'Caveat', cursive; font-size: 21px; font-weight: 700; color: #180A0A;
+  text-shadow: 0 0 3px #FBF7EE, 0 0 3px #FBF7EE, 0 0 6px #FBF7EE;
+}
+.leaflet-tooltip.sb-map-label::before { display: none; }
+#plan-overview-map:not(.sb-paper-map) .sb-map-label { color: #fff; text-shadow: 0 0 4px #000, 0 0 4px #000; }
+
+/* light controls on paper */
+.sb-paper-map .leaflet-control-zoom a { background: #fffdf7 !important; color: #180A0A !important; border-color: #180A0A !important; }
+.sb-paper-map .leaflet-control-zoom a:hover { background: #e7a328 !important; }
+.sb-paper-map .leaflet-control-attribution { background: rgba(251,247,238,0.8) !important; color: #6B5E55 !important; }
+.sb-paper-map .leaflet-control-attribution a { color: #6B5E55 !important; }
+
+/* ── Stop page ────────────────────────────────────────────────────────────── */
+
+/* Gallery: polaroids with tape */
+.plan-inspo-strip--hero { gap: 26px; padding: 22px 10px 18px; margin-bottom: 28px; }
+.plan-inspo-strip--hero .plan-inspo-tile {
+  width: 260px; flex: 0 0 auto; background: #fff; padding: 10px 10px 12px;
+  border: 2px solid #180A0A; box-shadow: 5px 5px 0 #180A0A; transform: rotate(-2deg);
+}
+.plan-inspo-strip--hero .plan-inspo-tile:nth-child(even) { transform: rotate(1.8deg); margin-top: 14px; }
+.plan-inspo-strip--hero .plan-inspo-tile:nth-child(3n) { transform: rotate(-0.6deg); }
+.plan-inspo-strip--hero .plan-inspo-tile::before {
+  content: ""; position: absolute; top: -12px; left: 50%; width: 80px; height: 24px; margin-left: -40px; z-index: 2;
+  background: rgba(231,163,40,0.72); transform: rotate(-4deg);
+}
+.plan-inspo-strip--hero .plan-inspo-tile:nth-child(even)::before { background: rgba(191,219,254,0.9); transform: rotate(5deg); }
+.plan-inspo-strip--hero .plan-inspo-img { width: 100%; height: 200px; border: 0; border-radius: 0; box-shadow: none; }
+.plan-inspo-strip--hero .plan-inspo-img::after { display: none; }
+.plan-inspo-strip--hero .plan-inspo-label {
+  position: static; display: block; max-width: none; margin-top: 8px; padding: 0;
+  background: none; color: #180A0A; text-shadow: none;
+  font-family: 'Caveat', cursive; font-size: 1.6rem; font-weight: 700; line-height: 1.05;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.plan-inspo-strip--hero .plan-inspo-badge {
+  display: table; margin-bottom: 4px; padding: 1px 8px;
+  background: #BBF7D0; border: 2px solid #16A34A; border-radius: 999px; color: #14532D;
+  font-family: 'Lexend Exa', sans-serif; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.plan-inspo-tile--daytrip .plan-inspo-img { border: 0; box-shadow: none; }
+@media (max-width: 600px) {
+  .plan-inspo-strip--hero .plan-inspo-tile { width: 200px; }
+  .plan-inspo-strip--hero .plan-inspo-img { width: 100%; height: 150px; }
+}
+
+/* Places: index cards (ruled lines, red margin rule), notes: sticky notes */
+.plan-poi-card {
+  border-radius: 2px; border-width: 2px;
+  background-color: #fff;
+  background-image: repeating-linear-gradient(transparent 0 27px, rgba(37,99,235,0.12) 27px 28px);
+  box-shadow: 4px 4px 0 #180A0A;
+  transform: rotate(-0.5deg);
+}
+.plan-poi-card:nth-of-type(even) { transform: rotate(0.6deg); }
+.plan-poi-card:hover { transform: rotate(0) translate(-1px, -2px); }
+.plan-poi-card::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 10px; height: 2px; background: #D7263D; opacity: 0.45; pointer-events: none;
+}
+.plan-poi-card.plan-poi-card-note {
+  background: #FCE7A6; background-image: none; border: 0; box-shadow: 3px 7px 12px rgba(24,10,10,0.16);
+  transform: rotate(-1.5deg);
+}
+.plan-poi-card.plan-poi-card-note::after { display: none; }
+.plan-poi-card-note .plan-note-text { font-family: 'Caveat', cursive; font-size: 1.45rem; font-weight: 700; line-height: 1.15; color: #180A0A; }
+.plan-poi-tagline, .plan-poi-snippet { font-family: 'Caveat', cursive; font-size: 1.3rem; line-height: 1.2; color: #3A2E2A; }
+
+/* Day trips: train tickets */
+.plan-daytrip-card {
+  border-radius: 3px; border-width: 2px; padding: 0; gap: 0; align-items: stretch; overflow: hidden;
+  box-shadow: 4px 4px 0 #180A0A;
+}
+.plan-daytrip-card:nth-child(odd) { transform: rotate(-0.8deg); }
+.plan-daytrip-card:nth-child(even) { transform: rotate(0.7deg); }
+.plan-daytrip-card:hover { transform: rotate(0) translate(-1px, -2px); }
+.plan-daytrip-card .plan-daytrip-img { flex: 0 0 64px; height: auto; min-height: 60px; border-radius: 0; border-right: 2px solid #180A0A; }
+.plan-daytrip-card .plan-daytrip-info { padding: 8px 12px; }
+.plan-daytrip-card .plan-daytrip-name { font-family: 'Caveat', cursive; font-size: 1.7rem; font-weight: 700; line-height: 1; }
+.plan-daytrip-card .plan-daytrip-arrow {
+  display: flex; align-items: center; justify-content: center; width: 46px;
+  border-left: 2.5px dashed #180A0A; background: #E8F7EC; color: #16A34A; font-weight: 800;
+}
+
+/* ── Who's going: stickers ────────────────────────────────────────────────── */
+
+.plan-travelers { gap: 10px 14px; }
+.plan-travelers-label { font-family: 'Caveat', cursive; font-size: 1.4rem; text-transform: none; letter-spacing: 0; color: #6B5E55; }
+.plan-traveler { background: none; border: 0; box-shadow: none; transform: rotate(-4deg); }
+.plan-traveler:nth-of-type(even) { transform: rotate(3deg); }
+.plan-traveler-main { font-family: 'Caveat', cursive; font-size: 1.35rem; font-weight: 700; gap: 6px; }
+.plan-traveler-avatar {
+  width: 36px; height: 36px; font-family: 'Lexend Exa', sans-serif; font-size: 0.8rem;
+  border: 2.5px solid #180A0A; box-shadow: 2px 2px 0 #180A0A;
+}
+.plan-traveler:nth-of-type(4n+2) .plan-traveler-avatar { background: #BFDBFE; }
+.plan-traveler:nth-of-type(4n+3) .plan-traveler-avatar { background: #BBF7D0; }
+.plan-traveler:nth-of-type(4n+4) .plan-traveler-avatar { background: #FED7AA; }
+.plan-traveler--off { border: 0; }
+.plan-traveler--off .plan-traveler-avatar { background: #fff !important; border-style: dashed; box-shadow: none; }
+.plan-traveler-add { width: 36px; height: 36px; font-family: 'Caveat', cursive; font-size: 1.6rem; transform: rotate(8deg); }
+
+/* tabbi.css sets Lexend on every element under .tabbi-page and on headings/buttons with a
+   stronger selector; the handwritten bits need the extra .tabbi-page to win. */
+.tabbi-page .plan-breadcrumb, .tabbi-page .plan-breadcrumb *,
+.tabbi-page .plan-section-label,
+.tabbi-page .plan-description, .tabbi-page .plan-daytrip-from, .tabbi-page .plan-daytrip-from a,
+.tabbi-page .sb-city, .tabbi-page .sb-absent,
+.tabbi-page .plan-travelers-label, .tabbi-page .plan-traveler-main, .tabbi-page .plan-traveler-add,
+.tabbi-page .plan-inspo-strip--hero .plan-inspo-label,
+.tabbi-page .plan-poi-card-note .plan-note-text,
+.tabbi-page .plan-poi-tagline, .tabbi-page .plan-poi-snippet,
+.tabbi-page .plan-daytrip-card .plan-daytrip-name { font-family: 'Caveat', cursive; }
+.tabbi-page .plan-traveler-avatar,
+.tabbi-page .plan-inspo-strip--hero .plan-inspo-badge { font-family: 'Lexend Exa', sans-serif; }
+.plan-traveler--off .plan-traveler-main { text-decoration: none; }
