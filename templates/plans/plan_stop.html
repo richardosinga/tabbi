@@ -45,15 +45,6 @@
     </div>
 
     <div class="plan-poi-list">
-      {% if city_intro or city_snippet %}
-      <div class="plan-city-intro">
-        <div>
-          <p class="plan-city-intro-text">{{ city_intro|default:city_snippet }}</p>
-          {% if stop.destination_url %}<a href="{{ stop.destination_url }}" class="plan-city-explore" target="_blank" rel="noopener">Read more on world66</a>{% endif %}
-        </div>
-      </div>
-      {% endif %}
-
       <div class="plan-lightbox" id="plan-lightbox" hidden>
         <button type="button" class="plan-lightbox-close" aria-label="Close">×</button>
         <button type="button" class="plan-lightbox-nav plan-lightbox-prev" aria-label="Previous photo">‹</button>
