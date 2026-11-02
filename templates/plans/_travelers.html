@@ -1,6 +1,7 @@
 {% comment %}
 Who's going. On the trip page: the trip's travelers (click copies their invite link).
-On a stop page (pass `stop`): click toggles whether they're at this stop.
+On a stop page (pass `stop`): click or × toggles whether they're at this stop; only a
+single-stop trip (no trip page to go to) removes people from the trip from here.
 {% endcomment %}
 <div class="plan-travelers" id="plan-travelers" data-slug="{{ plan.slug }}" data-stop="{{ stop.city_slug|default:'' }}" data-csrf="{{ csrf_token }}">
   <span class="plan-travelers-label">Who's going{% if stop %} here{% endif %}</span>
@@ -11,7 +12,11 @@ On a stop page (pass `stop`): click toggles whether they're at this stop.
               {% if t.via_parent %}disabled title="Not in {{ stop.parent_city }}"{% else %}title="{% if t.here %}Not joining {{ stop.city }}? Click to turn off{% else %}Click to add {{ t.name }} back to {{ stop.city }}{% endif %}"{% endif %}>
         <span class="plan-traveler-avatar">{{ t.initial }}</span>{{ t.name }}
       </button>
+      {% if plan.stops|length == 1 and not stop.is_daytrip %}
       <button type="button" class="plan-traveler-x" data-action="remove" title="Remove {{ t.name }} from the trip">×</button>
+      {% elif not t.via_parent %}
+      <button type="button" class="plan-traveler-x" data-action="toggle" title="{{ t.name }} isn't joining {{ stop.city }}">×</button>
+      {% endif %}
     </span>
     {% endfor %}
   {% else %}
@@ -111,11 +116,12 @@ On a stop page (pass `stop`): click toggles whether they're at this stop.
     if (action === 'copy') {
       copy(btn.dataset.url).then(function(ok) { say(ok ? 'Invite link copied' : btn.dataset.url); });
     } else if (action === 'toggle') {
-      var here = btn.dataset.here !== '1';
+      var main = chip.querySelector('.plan-traveler-main');
+      var here = main.dataset.here !== '1';
       post(base + id + '/' + stop + '/', {here: here}).then(function() {
-        btn.dataset.here = here ? '1' : '0';
+        main.dataset.here = here ? '1' : '0';
         chip.classList.toggle('plan-traveler--off', !here);
-        btn.title = here ? 'Click to turn off for this stop' : 'Click to add back to this stop';
+        main.title = here ? 'Click to turn off for this stop' : 'Click to add back to this stop';
       })
         .catch(function(e2) { say(e2.message); });
     } else if (action === 'remove') {

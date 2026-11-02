@@ -2318,3 +2318,5 @@ span.plan-poi-title--draft::after { content: none; }
 @media (max-width: 600px) {
   .plan-traveler-pop { position: fixed; left: 16px; right: 16px; top: auto; width: auto; }
 }
+.plan-traveler--off .plan-traveler-x[data-action="toggle"] { display: none; }
+.plan-traveler--off .plan-traveler-main { padding-right: 10px; }
