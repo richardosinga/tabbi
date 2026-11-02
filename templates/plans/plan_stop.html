@@ -76,7 +76,7 @@
             {% elif item.page.path|slice:":6" == "~pois/" or item.page.meta.tabbi_only %}
             <span class="plan-poi-title plan-poi-title--draft">{{ item.page.title }}</span>
             {% else %}
-            <a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.page.title }}</a>
+            {% if item.is_expandable %}<button type="button" class="plan-poi-title plan-poi-title--open" aria-expanded="false">{{ item.page.title }}</button>{% else %}<a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.page.title }}</a>{% endif %}
             {% endif %}
             {% if item.is_expandable %}
               {% if item.page.meta.snippet %}
@@ -88,7 +88,7 @@
                 {% endif %}
                 <p class="plan-poi-full-body">{{ item.page.body }}</p>
                 {% if not item.page.path|slice:":6" == "~pois/" and not item.page.meta.provider_category and not item.page.meta.provider and not item.page.meta.tabbi_only %}
-                <a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Read more on world66</a>
+                <a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Open in world66 ↗</a>
                 {% endif %}
               </div>
             {% else %}
@@ -146,14 +146,14 @@
             {% elif item.page.path|slice:":6" == "~pois/" or item.page.meta.tabbi_only %}
             <span class="plan-poi-title plan-poi-title--draft">{{ item.page.title }}</span>
             {% else %}
-            <a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.page.title }}</a>
+            {% if item.is_expandable %}<button type="button" class="plan-poi-title plan-poi-title--open" aria-expanded="false">{{ item.page.title }}</button>{% else %}<a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.page.title }}</a>{% endif %}
             {% endif %}
             {% if item.is_expandable %}
               {% if item.page.meta.snippet %}<p class="plan-poi-tagline">{{ item.page.meta.snippet }}</p>{% endif %}
               <div class="plan-poi-full" hidden>
                 {% if item.image_url %}<div class="plan-poi-full-image" style="background-image:url('{{ item.image_url }}')"></div>{% endif %}
                 <p class="plan-poi-full-body">{{ item.page.body }}</p>
-                {% if not item.page.path|slice:":6" == "~pois/" and not item.page.meta.provider_category and not item.page.meta.provider and not item.page.meta.tabbi_only %}<a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Read more on world66</a>{% endif %}
+                {% if not item.page.path|slice:":6" == "~pois/" and not item.page.meta.provider_category and not item.page.meta.provider and not item.page.meta.tabbi_only %}<a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Open in world66 ↗</a>{% endif %}
               </div>
             {% else %}
               {% if item.page.meta.snippet %}<p class="plan-poi-snippet">{{ item.page.meta.snippet }}</p>{% endif %}
@@ -217,7 +217,7 @@
             {% if item.page.path|slice:":6" == "~pois/" %}
             <span class="plan-poi-title plan-poi-title--draft">{{ item.page.title }}</span>
             {% else %}
-            <a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.page.title }}</a>
+            {% if item.is_expandable %}<button type="button" class="plan-poi-title plan-poi-title--open" aria-expanded="false">{{ item.page.title }}</button>{% else %}<a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.page.title }}</a>{% endif %}
             {% endif %}
             {% if item.is_expandable %}
               {% if item.page.meta.snippet %}<p class="plan-poi-tagline">{{ item.page.meta.snippet }}</p>{% endif %}
@@ -251,7 +251,7 @@
             {% if item.page.path|slice:":6" == "~pois/" %}
             <span class="sb-coaster-title">{{ item.page.title }}</span>
             {% else %}
-            <a class="sb-coaster-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener">{{ item.page.title }}</a>
+            {% if item.page.body or item.image_url %}<button type="button" class="sb-coaster-title sb-coaster-open">{{ item.page.title }}</button>{% else %}<a class="sb-coaster-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener">{{ item.page.title }}</a>{% endif %}
             {% endif %}
             {% if item.page.meta.snippet %}<span class="sb-coaster-note">{{ item.page.meta.snippet }}</span>{% endif %}
             {% if item.page.body or item.image_url %}
@@ -260,7 +260,7 @@
               {% if item.image_url %}<div class="plan-poi-full-image" style="background-image:url('{{ item.image_url }}')"></div>{% endif %}
               <h4 class="sb-detail-title">{{ item.page.title }}</h4>
               <p class="plan-poi-full-body">{{ item.page.body }}</p>
-              {% if not item.page.path|slice:":6" == "~pois/" %}<a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener">Read more on world66</a>{% endif %}
+              {% if not item.page.path|slice:":6" == "~pois/" %}<a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener">Open in world66 ↗</a>{% endif %}
             </template>
             {% endif %}
           {% else %}
@@ -572,10 +572,13 @@ function scrollToCard(index) {
 }
 
 function togglePoiCard(event, card) {
-  if (event.target.closest('form, a, button')) return;
+  // the name opens the card; other links, buttons and forms do their own thing
+  if (event.target.closest('form, a, button:not(.plan-poi-title--open)')) return;
   var full = card.querySelector('.plan-poi-full');
   if (!full) return;
   var expanded = card.classList.toggle('plan-poi-card--expanded');
+  var name = card.querySelector('.plan-poi-title--open');
+  if (name) name.setAttribute('aria-expanded', expanded ? 'true' : 'false');
   if (expanded) full.removeAttribute('hidden');
   else full.setAttribute('hidden', '');
 }
@@ -875,6 +878,8 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
   document.querySelectorAll('.sb-coaster').forEach(function(mat) {
     var btn = mat.querySelector('.sb-coaster-more');
     if (!btn) return;
+    var name = mat.querySelector('.sb-coaster-open');
+    if (name) name.addEventListener('click', function() { btn.click(); });
     btn.addEventListener('click', function() {
       if (current === mat) return close();
       close();

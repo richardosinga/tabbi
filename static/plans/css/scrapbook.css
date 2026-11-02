@@ -603,3 +603,14 @@ body:has(.tabbi-page) {
 }
 .sb-photo-cards .plan-poi-card--expanded:has(.sb-card-photo)::after { display: block; }
 .sb-photo-cards .plan-poi-card--expanded:has(.sb-card-photo)::before { top: 24px; bottom: auto; }
+
+/* names that open their card (instead of jumping to world66) */
+button.plan-poi-title, button.sb-coaster-title {
+  background: none; border: 0; padding: 0; margin: 0; text-align: inherit; cursor: pointer;
+  font-size: inherit; color: #180A0A;
+}
+.tabbi-page button.plan-poi-title { font-weight: 700; font-size: 0.9rem; letter-spacing: -0.01em; text-align: left; }
+.tabbi-page .sb-cards button.plan-poi-title { font-size: 0.88rem; }
+.plan-poi-title--open::after { content: none; }
+.plan-poi-title--open:hover, button.sb-coaster-title:hover { color: #180A0A; text-decoration: underline; text-decoration-color: #e7a328; text-decoration-thickness: 3px; text-underline-offset: 3px; }
+.tabbi-page .sb-cards .plan-poi-card--expanded button.plan-poi-title { font-size: 1.15rem; }
