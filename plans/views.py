@@ -1291,6 +1291,8 @@ def plan_stop(request, slug, city_slug):
             return "eat"
         return "do"
 
+    for idx, item in enumerate(stop["items"]):
+        item["card_index"] = idx  # matches the gallery's "card", so photo ⇄ card links line up
     items_do    = [i for i in stop["items"] if _item_group(i) == "do"]
     items_eat   = [i for i in stop["items"] if _item_group(i) == "eat"]
     items_drink = [i for i in stop["items"] if _item_group(i) == "drink"]
@@ -1330,6 +1332,7 @@ def plan_stop(request, slug, city_slug):
         for idx, item in enumerate(items):
             page = item["page"]
             pending = bool(page and not item["image_url"] and page.path not in photo_cache)
+            item["photo_pending"] = pending
             if not item["image_url"] and not pending:
                 continue
             gallery.append({

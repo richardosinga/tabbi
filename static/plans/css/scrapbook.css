@@ -572,3 +572,34 @@ body:has(.tabbi-page) {
 }
 .sb-detail-close:hover { background: #e7a328; }
 @media (max-width: 600px) { .sb-detail .plan-poi-full-image { float: none; width: 100%; margin: 6px 0 18px; } }
+
+/* ── Do: photo cards (the photo strip is gone; it only feeds the slideshow) ─ */
+
+#plan-inspo-strip { display: none !important; }
+.sb-card-photo {
+  display: block; width: calc(100% + 8px); margin: -8px -4px 10px -10px; padding: 0;
+  aspect-ratio: 4 / 3; border: 0; border-radius: 0; cursor: zoom-in;
+  background: #F6ECD6 center / cover no-repeat;
+  filter: saturate(0.92) contrast(1.03);
+}
+.sb-card-photo:hover { filter: none; }
+.sb-card-photo:focus-visible { outline: 3px solid #e7a328; outline-offset: 2px; }
+/* a card with a photo is a polaroid: white, no ruling, handwritten caption */
+.sb-photo-cards .plan-poi-card:has(.sb-card-photo) { background-image: none; min-height: 0; padding: 14px 14px 16px 20px; }
+.sb-photo-cards .plan-poi-card:has(.sb-card-photo)::after { display: none; }
+.sb-photo-cards .plan-poi-card:has(.sb-card-photo):not(.plan-poi-card--expanded) .plan-poi-tagline,
+.sb-photo-cards .plan-poi-card:has(.sb-card-photo):not(.plan-poi-card--expanded) .plan-poi-snippet { display: none; }
+.tabbi-page .sb-photo-cards .plan-poi-card:has(.sb-card-photo):not(.plan-poi-card--expanded) .plan-poi-title {
+  font-family: 'Caveat', cursive; font-size: 1.6rem; font-weight: 700; line-height: 1.05; letter-spacing: 0;
+}
+.sb-photo-cards .plan-poi-card:has(.sb-card-photo):not(.plan-poi-card--expanded) .plan-poi-title::after { content: none; }
+.sb-photo-cards .plan-poi-card:has(.sb-card-photo)::before { top: auto; bottom: 20px; }
+.sb-photo-cards .plan-poi-card:has(.sb-card-photo) .plan-remove-form { top: 22px; right: 18px; }
+.sb-photo-cards .plan-poi-card:has(.sb-card-photo) .plan-remove-btn { background: #fff; }
+/* opened: the clipping already shows the photo, so drop the card's own */
+.sb-photo-cards .plan-poi-card--expanded .sb-card-photo { display: none; }
+.sb-photo-cards .plan-poi-card--expanded:has(.sb-card-photo) {
+  background-image: repeating-linear-gradient(transparent 0 27px, rgba(37,99,235,0.12) 27px 28px); padding: 26px 26px 20px 30px;
+}
+.sb-photo-cards .plan-poi-card--expanded:has(.sb-card-photo)::after { display: block; }
+.sb-photo-cards .plan-poi-card--expanded:has(.sb-card-photo)::before { top: 24px; bottom: auto; }

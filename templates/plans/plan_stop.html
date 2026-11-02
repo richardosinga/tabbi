@@ -23,7 +23,7 @@
   {% include "plans/_travelers.html" with stop=stop %}
 
   {% comment %}Full-width photo gallery: this stop's photos, then its day trips'{% endcomment %}
-  <div class="plan-inspo-strip plan-inspo-strip--hero" id="plan-inspo-strip"{% if not gallery %} hidden{% endif %}>
+  <div class="plan-inspo-strip plan-inspo-strip--hero" id="plan-inspo-strip" hidden>
     {% for g in gallery %}
     <div class="plan-inspo-tile{% if g.daytrip %} plan-inspo-tile--daytrip{% endif %}"
          {% if g.card is not None and g.card != "" %}data-card="{{ g.card }}"{% endif %}
@@ -133,11 +133,14 @@
 
       {% if items_do %}
       <h3 class="plan-section-label">Do</h3>
-      <div class="sb-cards">
+      <div class="sb-cards sb-photo-cards">
       {% for item in items_do %}
-      <div class="plan-poi-card{% if not item.page and not item.external_url %} plan-poi-card-note{% endif %}{% if item.is_expandable %} plan-poi-card--expandable{% endif %}" data-card-index="{{ forloop.counter0 }}"{% if item.is_expandable %} onclick="togglePoiCard(event, this)"{% endif %}>
+      <div class="plan-poi-card{% if not item.page and not item.external_url %} plan-poi-card-note{% endif %}{% if item.is_expandable %} plan-poi-card--expandable{% endif %}" data-card-index="{{ item.card_index }}"{% if item.is_expandable %} onclick="togglePoiCard(event, this)"{% endif %}>
         <div class="plan-poi-body">
           {% if item.page %}
+            {% if item.image_url or item.photo_pending %}
+            <button type="button" class="sb-card-photo" data-card="{{ item.card_index }}"{% if item.image_url %} style="background-image:url('{{ item.image_url }}')"{% endif %}{% if item.photo_pending %} data-photo-for="{{ item.text }}"{% endif %} aria-label="Photo of {{ item.page.title }}" onclick="event.stopPropagation(); tabbiOpenPhoto(this.dataset.card)"></button>
+            {% endif %}
             {% if item.page.meta.external_url or item.page.meta.source_url %}
             <a class="plan-poi-title plan-poi-title--draft" href="{{ item.page.meta.external_url|default:item.page.meta.source_url }}" target="_blank" rel="noopener">{{ item.page.title }}</a>
             {% elif item.page.path|slice:":6" == "~pois/" or item.page.meta.tabbi_only %}
@@ -208,7 +211,7 @@
       {% comment %}Restaurants as menu card / receipt / chalkboard, cycling{% endcomment %}
       <div class="sb-cards sb-eat">
       {% for item in items_eat %}
-      <div class="plan-poi-card sb-eat--{% cycle 'menu' 'receipt' 'chalk' %}{% if item.is_expandable %} plan-poi-card--expandable{% endif %}" data-card-index="{{ forloop.counter0 }}"{% if item.is_expandable %} onclick="togglePoiCard(event, this)"{% endif %}>
+      <div class="plan-poi-card sb-eat--{% cycle 'menu' 'receipt' 'chalk' %}{% if item.is_expandable %} plan-poi-card--expandable{% endif %}" data-card-index="{{ item.card_index }}"{% if item.is_expandable %} onclick="togglePoiCard(event, this)"{% endif %}>
         <div class="plan-poi-body">
           {% if item.page %}
             {% if item.page.path|slice:":6" == "~pois/" %}
@@ -241,7 +244,7 @@
       {% comment %}Drinks as beer mats: each one a different shape, cycling through the set{% endcomment %}
       <div class="sb-coasters">
       {% for item in items_drink %}
-      <div class="sb-coaster sb-coaster--{% cycle 'round' 'square' 'burst' 'octagon' 'stained' %}" data-card-index="{{ forloop.counter0 }}">
+      <div class="sb-coaster sb-coaster--{% cycle 'round' 'square' 'burst' 'octagon' 'stained' %}" data-card-index="{{ item.card_index }}">
         <div class="sb-coaster-face">
           <span class="sb-coaster-kicker">{% cycle '★ cheers ★' 'on tap' '★ ★ ★' 'last round' 'bar' %}</span>
           {% if item.page %}
@@ -847,7 +850,11 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
         tile.querySelector('.plan-inspo-img').style.backgroundImage = "url('" + url + "')";
         tile.hidden = false;
       });
-      if (strip.querySelector('.plan-inspo-tile:not([hidden])')) strip.hidden = false;
+      document.querySelectorAll('.sb-card-photo[data-photo-for]').forEach(function(el) {
+        var url = photos[el.dataset.photoFor];
+        if (url) el.style.backgroundImage = "url('" + url + "')";
+        else el.remove();
+      });
     })
     .catch(function() {});
 })();
@@ -945,6 +952,11 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
     var tile = e.target.closest('.plan-inspo-tile');
     if (tile) open(tile);
   });
+  // the gallery itself isn't shown any more: cards open the slideshow at their photo
+  window.tabbiOpenPhoto = function(card) {
+    var tile = strip.querySelector('.plan-inspo-tile[data-card="' + card + '"]');
+    if (tile) { tile.hidden = false; open(tile); }
+  };
   box.querySelector('.plan-lightbox-prev').addEventListener('click', function() { show(index - 1); });
   box.querySelector('.plan-lightbox-next').addEventListener('click', function() { show(index + 1); });
   box.querySelector('.plan-lightbox-close').addEventListener('click', close);
