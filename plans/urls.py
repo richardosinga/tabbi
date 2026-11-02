@@ -8,6 +8,12 @@ urlpatterns = [
     path("join/", views.plan_join, name="plan_join"),
     path("<slug:slug>/created/", views.plan_created, name="plan_created"),
     path("<slug:slug>/edit/", views.plan_edit, name="plan_edit"),
+    # Before the <slug>/<city_slug>/… routes, which would capture "travelers" as a city.
+    path("<slug:slug>/travelers/add/", views.plan_traveler_add, name="plan_traveler_add"),
+    path("<slug:slug>/travelers/<str:traveler_id>/remove/", views.plan_traveler_remove, name="plan_traveler_remove"),
+    path("<slug:slug>/travelers/<str:traveler_id>/invite/", views.plan_traveler_invite, name="plan_traveler_invite"),
+    path("<slug:slug>/travelers/<str:traveler_id>/<slug:city_slug>/", views.plan_traveler_toggle, name="plan_traveler_toggle"),
+    path("<slug:slug>/join/<str:token>/", views.plan_traveler_join, name="plan_traveler_join"),
     path("<slug:slug>/add-stop/", views.api_plan_add_stop, name="api_plan_add_stop"),
     path("<slug:slug>/add/", views.plan_poi_add, name="plan_poi_add"),
     path("<slug:slug>/<slug:city_slug>/add/", views.plan_poi_add, name="plan_poi_add_city"),

@@ -503,9 +503,11 @@ def tool_open_plan(passphrase: str) -> str:
     lines = [
         f"**Opened plan: {result['title']}**", "",
         f"**Plan URL:** {result['url']}",
-        f"**Passphrase:** `{result['passphrase']}`", "",
-        "Here are the stops and what's already in the plan:",
+        f"**Passphrase:** `{result['passphrase']}`",
     ]
+    if result.get("travelers"):
+        lines.append(f"**Travelers:** {', '.join(result['travelers'])} (everyone joins every stop unless noted)")
+    lines += ["", "Here are the stops and what's already in the plan:"]
     for city in result.get("cities", []):
         city_slug = city["city_slug"]
         existing = plan_items.get(city_slug, [])
@@ -516,6 +518,8 @@ def tool_open_plan(passphrase: str) -> str:
             f"\n- **{city['city_title']}**{day_trip}: city_path={city['city_path']!r}, "
             f"city_slug={city_slug!r} — {guide_note}"
         )
+        if city.get("without"):
+            lines.append(f"  Not joining: {', '.join(city['without'])}")
         if existing:
             lines.append(f"  Already in plan ({len(existing)}): {', '.join(existing)}")
         else:

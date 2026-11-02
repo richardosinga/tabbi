@@ -20,6 +20,7 @@
     {% if stop.dates %}<div class="plan-stop-dates-large">{{ stop.dates }}</div>{% endif %}
     <a href="/plans/{{ plan.slug }}/edit/" class="plan-edit-link">Edit</a>
   </div>
+  {% include "plans/_travelers.html" with stop=stop %}
 
   {% comment %}Full-width photo gallery: this stop's photos, then its day trips'{% endcomment %}
   <div class="plan-inspo-strip plan-inspo-strip--hero" id="plan-inspo-strip"{% if not gallery %} hidden{% endif %}>

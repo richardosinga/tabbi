@@ -298,7 +298,30 @@ def _parse_plan(path):
             break
     description = post.metadata.get("description", "") or ""
     passport_slug = post.metadata.get("passport", "") or ""
-    return {"slug": slug, "title": title, "description": description, "passport_slug": passport_slug, "body": post.content, "stops": stops, "keywords": keywords, "budget": budget}
+    travelers = _travelers(post.metadata)
+    for stop in _all_stops({"stops": stops}):
+        stop["travelers"] = [_traveler_at(t, stop) for t in travelers]
+        stop["absent"] = [t["name"] for t in stop["travelers"] if not t["here"]]
+    return {"slug": slug, "title": title, "description": description, "passport_slug": passport_slug, "body": post.content, "stops": stops, "keywords": keywords, "budget": budget, "travelers": travelers}
+
+
+def _travelers(metadata):
+    """Trip companions from the plan frontmatter. Each has id, name, optional email,
+    an invite token, and `skip`: the stop/day-trip slugs they're not at."""
+    return [t for t in (metadata.get("travelers") or []) if isinstance(t, dict) and t.get("id")]
+
+
+def _traveler_at(traveler, stop):
+    """The traveler as seen from one stop: here unless skipped there (or, for a day trip,
+    at its parent stop — you can't join a day trip from a city you're not in)."""
+    skip = set(traveler.get("skip") or [])
+    via_parent = stop.get("is_daytrip") and stop.get("parent_slug") in skip
+    return {
+        "id": traveler["id"], "name": traveler["name"], "email": traveler.get("email", ""),
+        "initial": traveler["name"][:1].upper(),
+        "here": stop["city_slug"] not in skip and not via_parent,
+        "via_parent": bool(via_parent),
+    }
 
 
 def _parse_stops(body, plan_slug):
@@ -752,6 +775,9 @@ def plan_detail(request, slug):
     if len(plan["stops"]) == 1:
         return HttpResponseRedirect(plan["stops"][0]["url"])
 
+    for t in plan["travelers"]:
+        t["invite_url"] = _invite_url(request, slug, t)
+
     import frontmatter as _fmb
     _plan_meta = _fmb.load(str(PLANS_DIR / f"{slug}.md")).metadata
     all_budgets = _plan_meta.get("budgets") or {}
@@ -804,6 +830,132 @@ def plan_set_passport(request, slug):
         post.metadata.pop("passport", None)
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(_fmb.dumps(post))
+    return HttpResponseRedirect(f"/plans/{slug}/")
+
+
+# ── Travelers ────────────────────────────────────────────────────────────────
+
+def _edit_travelers(slug, fn):
+    """Load the plan's travelers, let fn mutate the list, save. Returns fn's result."""
+    import frontmatter as fm
+    path = PLANS_DIR / f"{slug}.md"
+    post = fm.load(path)
+    travelers = _travelers(post.metadata)
+    result = fn(travelers)
+    if travelers:
+        post.metadata["travelers"] = travelers
+    else:
+        post.metadata.pop("travelers", None)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(fm.dumps(post))
+    return result
+
+
+def _invite_url(request, slug, traveler):
+    return request.build_absolute_uri(f"/plans/{slug}/join/{traveler['token']}/")
+
+
+def _send_invite(request, slug, traveler):
+    from django.core.mail import send_mail
+    title = _plan_title(slug)
+    body = (
+        f"Hi {traveler['name']},\n\n"
+        f"You're invited to the trip \"{title}\" on Tabbi. Open the plan here:\n\n"
+        f"{_invite_url(request, slug, traveler)}\n\n"
+        "See you on the road!\n"
+    )
+    try:
+        send_mail(f"You're invited: {title}", body, settings.DEFAULT_FROM_EMAIL, [traveler["email"]])
+        return True
+    except Exception:
+        return False
+
+
+def _traveler_json(request, slug, traveler):
+    return {
+        "id": traveler["id"], "name": traveler["name"], "email": traveler.get("email", ""),
+        "initial": traveler["name"][:1].upper(), "invite_url": _invite_url(request, slug, traveler),
+    }
+
+
+@_require_plan_auth
+@require_POST
+def plan_traveler_add(request, slug):
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "invalid JSON"}, status=400)
+    name = (data.get("name") or "").strip()[:60]
+    email = (data.get("email") or "").strip()[:200]
+    if not name:
+        return JsonResponse({"error": "name required"}, status=400)
+    if email and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        return JsonResponse({"error": "That email address doesn't look right"}, status=400)
+    traveler = {"id": secrets.token_hex(3), "name": name, "token": secrets.token_urlsafe(16)}
+    if email:
+        traveler["email"] = email
+    _edit_travelers(slug, lambda ts: ts.append(traveler))
+    sent = bool(data.get("invite") and email and _send_invite(request, slug, traveler))
+    return JsonResponse({"ok": True, "traveler": _traveler_json(request, slug, traveler), "invited": sent})
+
+
+@_require_plan_auth
+@require_POST
+def plan_traveler_remove(request, slug, traveler_id):
+    def remove(ts):
+        ts[:] = [t for t in ts if t["id"] != traveler_id]
+    _edit_travelers(slug, remove)
+    return JsonResponse({"ok": True})
+
+
+@_require_plan_auth
+@require_POST
+def plan_traveler_toggle(request, slug, traveler_id, city_slug):
+    """Mark a traveler as (not) joining one stop or day trip. Body: {"here": bool}."""
+    try:
+        here = bool(json.loads(request.body).get("here"))
+    except (json.JSONDecodeError, UnicodeDecodeError, AttributeError):
+        return JsonResponse({"error": "invalid JSON"}, status=400)
+
+    def toggle(ts):
+        t = next((t for t in ts if t["id"] == traveler_id), None)
+        if not t:
+            return False
+        skip = [s for s in (t.get("skip") or []) if s != city_slug]
+        if not here:
+            skip.append(city_slug)
+        if skip:
+            t["skip"] = skip
+        else:
+            t.pop("skip", None)
+        return True
+    if not _edit_travelers(slug, toggle):
+        return JsonResponse({"error": "traveler not found"}, status=404)
+    return JsonResponse({"ok": True, "here": here})
+
+
+@_require_plan_auth
+@require_POST
+def plan_traveler_invite(request, slug, traveler_id):
+    """(Re)send the invite email; always returns the invite link to share by hand."""
+    import frontmatter as fm
+    travelers = _travelers(fm.load(PLANS_DIR / f"{slug}.md").metadata)
+    t = next((t for t in travelers if t["id"] == traveler_id), None)
+    if not t:
+        return JsonResponse({"error": "traveler not found"}, status=404)
+    sent = bool(t.get("email") and _send_invite(request, slug, t))
+    return JsonResponse({"ok": True, "traveler": _traveler_json(request, slug, t), "invited": sent})
+
+
+def plan_traveler_join(request, slug, token):
+    """Invite link: opens the plan without the passphrase."""
+    import frontmatter as fm
+    path = PLANS_DIR / f"{slug}.md"
+    if not path.is_file():
+        raise Http404
+    if not any(secrets.compare_digest(str(t.get("token", "")), token) for t in _travelers(fm.load(path).metadata)):
+        return HttpResponseRedirect(f"/auth/login/{slug}/?next=/plans/{slug}/")
+    _mark_plan_authenticated(request, slug)
     return HttpResponseRedirect(f"/plans/{slug}/")
 
 
@@ -1797,6 +1949,7 @@ def api_plan_open(request):
             "city_path":  s.get("city_path") or "",
             "city_slug":  s["city_slug"],
             "day_trip_from": s.get("parent_slug", ""),
+            "without":    s["absent"],
         }
         for s in _all_stops(plan)
     ]
@@ -1805,6 +1958,7 @@ def api_plan_open(request):
         "slug":       slug,
         "title":      plan["title"],
         "passphrase": passphrase,
+        "travelers":  [t["name"] for t in plan["travelers"]],
         "cities":     cities,
     })
 
