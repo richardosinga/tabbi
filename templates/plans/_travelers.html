@@ -91,6 +91,11 @@ single-stop trip (no trip page to go to) removes people from the trip from here.
   pop.addEventListener('submit', function(e) {
     e.preventDefault();
     var invite = pop.invite.checked, email = pop.email.value.trim();
+    var submit = pop.querySelector('button[type=submit]');
+    if (submit.disabled) return;
+    submit.disabled = true;
+    submit.innerHTML = '<span class="tabbi-spinner"></span> ' + (invite && email ? 'Sending invite…' : 'Adding…');
+    err.hidden = true;
     post(base + 'add/', {name: pop.elements['name'].value.trim(), email: email, invite: invite}).then(function(d) {
       var name = d.traveler.name;
       var done = function(msg) {
@@ -104,7 +109,10 @@ single-stop trip (no trip page to go to) removes people from the trip from here.
         done(ok ? name + ' added — invite link copied, share it with them'
                 : name + ' added — copy their invite link from the trip page');
       });
-    }).catch(function(e2) { err.textContent = e2.message; err.hidden = false; });
+    }).catch(function(e2) {
+      err.textContent = e2.message; err.hidden = false;
+      submit.disabled = false; submit.textContent = 'Add';
+    });
   });
 
   box.addEventListener('click', function(e) {

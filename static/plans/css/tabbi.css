@@ -2301,7 +2301,6 @@ span.plan-poi-title--draft::after { content: none; }
 .plan-traveler-x { border: 0; background: none; padding: 0 8px 0 2px; font-size: 1rem; line-height: 1; color: #A6A6A6; cursor: pointer; }
 .plan-traveler-x:hover { color: #c0392b; }
 .plan-traveler--off { opacity: 0.45; box-shadow: none; border-style: dashed; }
-.plan-traveler--off .plan-traveler-main { text-decoration: line-through; }
 .plan-traveler--off .plan-traveler-avatar { background: #ddd; }
 .plan-traveler-add-wrap { position: relative; }
 .plan-traveler-add { width: 30px; height: 30px; border-radius: 50%; border: 2px dashed #180A0A; background: #fff; font-size: 1.1rem; font-weight: 700; line-height: 1; color: #180A0A; cursor: pointer; }
@@ -2320,3 +2319,5 @@ span.plan-poi-title--draft::after { content: none; }
 }
 .plan-traveler--off .plan-traveler-x[data-action="toggle"] { display: none; }
 .plan-traveler--off .plan-traveler-main { padding-right: 10px; }
+.plan-traveler-pop .tabbi-btn { gap: 8px; }
+.plan-traveler-pop .tabbi-btn:disabled { cursor: progress; opacity: 0.85; transform: none; }
