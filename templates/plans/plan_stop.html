@@ -205,8 +205,10 @@
 
       {% if items_eat %}
       <h3 class="plan-section-label">Eat</h3>
+      {% comment %}Restaurants as menu card / receipt / chalkboard, cycling{% endcomment %}
+      <div class="sb-cards sb-eat">
       {% for item in items_eat %}
-      <div class="plan-poi-card{% if item.is_expandable %} plan-poi-card--expandable{% endif %}" data-card-index="{{ forloop.counter0 }}"{% if item.is_expandable %} onclick="togglePoiCard(event, this)"{% endif %}>
+      <div class="plan-poi-card sb-eat--{% cycle 'menu' 'receipt' 'chalk' %}{% if item.is_expandable %} plan-poi-card--expandable{% endif %}" data-card-index="{{ forloop.counter0 }}"{% if item.is_expandable %} onclick="togglePoiCard(event, this)"{% endif %}>
         <div class="plan-poi-body">
           {% if item.page %}
             {% if item.page.path|slice:":6" == "~pois/" %}
@@ -231,6 +233,7 @@
         </form>
       </div>
       {% endfor %}
+      </div>
       {% endif %}
 
       {% if items_drink %}
@@ -248,6 +251,15 @@
             <a class="sb-coaster-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener">{{ item.page.title }}</a>
             {% endif %}
             {% if item.page.meta.snippet %}<span class="sb-coaster-note">{{ item.page.meta.snippet }}</span>{% endif %}
+            {% if item.page.body or item.image_url %}
+            <button type="button" class="sb-coaster-more" aria-expanded="false">read more</button>
+            <template class="sb-coaster-detail">
+              {% if item.image_url %}<div class="plan-poi-full-image" style="background-image:url('{{ item.image_url }}')"></div>{% endif %}
+              <h4 class="sb-detail-title">{{ item.page.title }}</h4>
+              <p class="plan-poi-full-body">{{ item.page.body }}</p>
+              {% if not item.page.path|slice:":6" == "~pois/" %}<a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener">Read more on world66</a>{% endif %}
+            </template>
+            {% endif %}
           {% else %}
             <span class="sb-coaster-title">{{ item.text }}</span>
           {% endif %}
@@ -260,6 +272,10 @@
         </form>
       </div>
       {% endfor %}
+      </div>
+      <div class="sb-detail" id="sb-drink-detail" hidden>
+        <button type="button" class="sb-detail-close" aria-label="Close">×</button>
+        <div class="sb-detail-content plan-poi-full"></div>
       </div>
       {% endif %}
 
@@ -837,6 +853,36 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
 })();
 </script>
 {% endif %}
+<script>
+// Drinks: a beer mat's "read more" opens its story in the clipping under the mats
+(function () {
+  var panel = document.getElementById('sb-drink-detail');
+  if (!panel) return;
+  var content = panel.querySelector('.sb-detail-content');
+  var current = null;
+  function close() {
+    panel.hidden = true;
+    if (current) { current.classList.remove('sb-coaster--open'); current.querySelector('.sb-coaster-more').setAttribute('aria-expanded', 'false'); }
+    current = null;
+  }
+  document.querySelectorAll('.sb-coaster').forEach(function(mat) {
+    var btn = mat.querySelector('.sb-coaster-more');
+    if (!btn) return;
+    btn.addEventListener('click', function() {
+      if (current === mat) return close();
+      close();
+      content.innerHTML = '';
+      content.appendChild(mat.querySelector('.sb-coaster-detail').content.cloneNode(true));
+      panel.hidden = false;
+      current = mat;
+      mat.classList.add('sb-coaster--open');
+      btn.setAttribute('aria-expanded', 'true');
+      panel.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+    });
+  });
+  panel.querySelector('.sb-detail-close').addEventListener('click', close);
+})();
+</script>
 <script>
 // Inspo strip: click a photo to see it large, then swipe / arrow through all of them
 (function () {
