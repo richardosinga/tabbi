@@ -641,3 +641,78 @@ button.plan-poi-title, button.sb-coaster-title {
   .sb-cards > .plan-poi-card--expanded { display: flex; width: auto; margin-right: 4px; }
   .sb-coasters > .sb-coaster { display: inline-block; vertical-align: top; font-size: 1rem; margin: 0 22px 26px 0; }
 }
+
+/* ── Add: real tabs (folder tabs) over one strip ──────────────────────────── */
+
+.plan-suggestions-heading { display: none; }
+.sb-tabs { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 4px; margin: 24px 0 0 14px; position: relative; z-index: 1; }
+.sb-tabs[hidden] { display: none; }
+.tabbi-page .sb-tab {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 7px 16px 8px; margin-bottom: -2px;
+  border: 2px solid #180A0A; border-bottom: 0; border-radius: 10px 10px 0 0;
+  background: #EFE6D2; color: #3A2E2A; font-size: 0.8rem; font-weight: 800; cursor: pointer;
+  transform: translateY(4px); transition: transform .12s ease;
+}
+.sb-tab:hover { transform: translateY(1px); }
+.tabbi-page .sb-tab[aria-selected="true"] { transform: none; padding-bottom: 12px; color: #180A0A; }
+.sb-tab--todo[aria-selected="true"]    { background: #e7a328; }
+.sb-tab--food[aria-selected="true"]    { background: #FED7AA; }
+.sb-tab--drinks[aria-selected="true"]  { background: #BFDBFE; }
+.sb-tab--daytrip[aria-selected="true"] { background: #BBF7D0; }
+.sb-tab-count {
+  min-width: 20px; padding: 1px 6px; border-radius: 999px; background: #fff; border: 1.5px solid #180A0A;
+  font-size: 0.65rem; line-height: 1.3; text-align: center;
+}
+.sb-tab--empty { opacity: 0.45; }
+/* the open folder: matches the active tab's colour along the top edge */
+.plan-suggestions-strip-wrap { margin-top: 0; border-radius: 0 6px 6px 6px; }
+.plan-suggestions-strip-wrap[data-cat="todo"] { box-shadow: inset 0 6px 0 #e7a328, 4px 4px 0 #180A0A; }
+.plan-suggestions-strip-wrap[data-cat="food"] { box-shadow: inset 0 6px 0 #FED7AA, 4px 4px 0 #180A0A; }
+.plan-suggestions-strip-wrap[data-cat="drinks"] { box-shadow: inset 0 6px 0 #BFDBFE, 4px 4px 0 #180A0A; }
+.plan-suggestions-strip-wrap[data-cat="daytrip"] { box-shadow: inset 0 6px 0 #BBF7D0, 4px 4px 0 #180A0A; }
+
+/* ── Budget: a till receipt (stop budget and the trip total) ─────────────── */
+
+.tabbi-page .plan-budget-toggle-btn {
+  font-family: 'Caveat', cursive; font-size: 1.35rem; font-weight: 700; color: #180A0A;
+  background: #fff; border: 2px dashed #180A0A; border-radius: 999px; padding: 2px 16px; transform: rotate(-2deg);
+}
+.tabbi-page .plan-budget-toggle-btn:hover, .tabbi-page .plan-budget-toggle-btn--open { background: #FCE7A6; border-style: solid; }
+
+.plan-budget-section, .plan-total-budget {
+  position: relative; max-width: 360px; margin: 16px 0 26px; padding: 22px 22px 14px;
+  background: #fff; border: 2px solid #180A0A; border-bottom: 0; border-radius: 0; box-shadow: none;
+  filter: drop-shadow(4px 4px 0 #180A0A); transform: rotate(1deg);
+}
+/* torn zig-zag bottom edge (the drop-shadow follows the teeth) */
+.plan-budget-section::after, .plan-total-budget::after {
+  content: ""; position: absolute; left: -2px; right: -2px; bottom: -10px; height: 10px;
+  background:
+    linear-gradient(135deg, #fff 0 50%, transparent 50%) 0 0 / 14px 10px repeat-x,
+    linear-gradient(-135deg, #fff 0 50%, transparent 50%) 0 0 / 14px 10px repeat-x;
+}
+.tabbi-page .plan-budget-section, .tabbi-page .plan-budget-section *,
+.tabbi-page .plan-total-budget, .tabbi-page .plan-total-budget * { font-family: 'Courier Prime', monospace; }
+.plan-budget-heading {
+  text-align: center; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.18em; margin-bottom: 14px;
+  padding-bottom: 10px; border-bottom: 2px dashed #180A0A;
+}
+.plan-budget-heading::before { content: "*** "; }
+.plan-budget-heading::after { content: " ***"; }
+.plan-budget-label { color: #180A0A; font-size: 0.88rem; width: auto; text-transform: uppercase; }
+.plan-budget-row .plan-budget-value, .plan-budget-row .plan-budget-value-static { text-align: right; font-size: 0.95rem; }
+.plan-budget-row .plan-budget-label, .plan-budget-row .plan-budget-value, .plan-budget-row .plan-budget-value-static { border-bottom: 1px dotted rgba(24,10,10,0.3); padding: 6px 0; }
+.plan-budget-value:hover { border-bottom: 1px dotted #e7a328; background: #FFF7E0; }
+.plan-budget-empty { color: #B8AFA6; }
+.plan-budget-empty::before { content: "___"; }
+.plan-budget-empty { font-size: 0; }
+.plan-budget-empty::before { font-size: 0.95rem; }
+.plan-budget-input { text-align: right; border-bottom: 2px dashed #180A0A; font-family: 'Courier Prime', monospace; }
+.plan-budget-total-row .plan-budget-label, .plan-budget-total-row .plan-budget-total {
+  border-top: 2px dashed #180A0A; border-bottom: 0; padding-top: 12px; font-weight: 700; font-size: 1.05rem;
+}
+.plan-budget-total { text-align: right; }
+
+/* day-trip tickets: two columns when there's room, so they don't stretch */
+.plan-daytrip-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px 22px; }

@@ -343,11 +343,18 @@
       </form>
       {% endif %}
     </div>
+    {% if suggestion_groups %}
+    <div class="sb-tabs" role="tablist" aria-label="What to add">
+      {% for group in suggestion_groups %}
+      <button type="button" class="sb-tab sb-tab--{{ group.key }}" role="tab" data-cat="{{ group.key }}" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">{{ group.icon }} {{ group.label }} <span class="sb-tab-count">{{ group.items|length }}</span></button>
+      {% endfor %}
+    </div>
+    {% endif %}
     {% for group in suggestion_groups %}
     <div class="plan-suggestions-heading" data-cat="{{ group.key }}">
       <span class="plan-suggestions-chip plan-suggestions-chip--{{ group.key }}">{{ group.icon }} {{ group.label }}</span>
     </div>
-    <div class="plan-suggestions-strip-wrap" data-cat="{{ group.key }}">
+    <div class="plan-suggestions-strip-wrap" data-cat="{{ group.key }}" role="tabpanel"{% if not forloop.first %} style="display:none"{% endif %}>
       <button type="button" class="plan-suggestions-arrow plan-suggestions-arrow--prev" aria-label="Scroll left" hidden>‹</button>
       <div class="plan-suggestions-strip">
         {% for s in group.items %}
@@ -597,6 +604,34 @@ function toggleConciergeForm(btn) {
   var customPath = document.getElementById('add-custom-path');
   var customLabel = document.getElementById('add-custom-label');
 
+  // Tabs: one category's strip at a time. Search filters every category; the
+  // counts follow, and if the open tab has nothing left we jump to one that has.
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.sb-tab'));
+  var active = tabs.length ? tabs[0].dataset.cat : null;
+  var counts = {};
+  tabs.forEach(function(t) { counts[t.dataset.cat] = parseInt(t.querySelector('.sb-tab-count').textContent, 10) || 0; });
+  function applyTabs() {
+    if (!counts[active]) {
+      var other = tabs.filter(function(t) { return counts[t.dataset.cat] > 0; })[0];
+      if (other) active = other.dataset.cat;
+    }
+    tabs.forEach(function(t) {
+      var cat = t.dataset.cat;
+      t.setAttribute('aria-selected', cat === active ? 'true' : 'false');
+      t.classList.toggle('sb-tab--empty', !counts[cat]);
+      t.querySelector('.sb-tab-count').textContent = counts[cat];
+    });
+    document.querySelectorAll('.plan-suggestions-strip-wrap').forEach(function(wrap) {
+      wrap.style.display = (wrap.dataset.cat === active && counts[wrap.dataset.cat] > 0) ? '' : 'none';
+    });
+    var tabbar = document.querySelector('.sb-tabs');
+    if (tabbar) tabbar.hidden = !tabs.some(function(t) { return counts[t.dataset.cat] > 0; });
+    if (window.refreshSuggestionArrows) window.refreshSuggestionArrows();
+  }
+  tabs.forEach(function(t) {
+    t.addEventListener('click', function() { active = t.dataset.cat; applyTabs(); });
+  });
+
   searchInput.addEventListener('input', function() {
     var q = searchInput.value.trim().toLowerCase();
     var totalVisible = 0;
@@ -613,10 +648,9 @@ function toggleConciergeForm(btn) {
         tile.style.display = show ? '' : 'none';
         if (show) { catVisible++; totalVisible++; }
       });
-      var showCat = catVisible > 0;
-      if (heading) heading.style.display = showCat ? '' : 'none';
-      wrap.style.display = showCat ? '' : 'none';
+      counts[cat] = catVisible;
     });
+    applyTabs();
 
     if (q && totalVisible === 0) {
       var titleInput = document.getElementById('add-custom-title');
