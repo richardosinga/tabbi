@@ -614,3 +614,30 @@ button.plan-poi-title, button.sb-coaster-title {
 .plan-poi-title--open::after { content: none; }
 .plan-poi-title--open:hover, button.sb-coaster-title:hover { color: #180A0A; text-decoration: underline; text-decoration-color: #e7a328; text-decoration-thickness: 3px; text-underline-offset: 3px; }
 .tabbi-page .sb-cards .plan-poi-card--expanded button.plan-poi-title { font-size: 1.15rem; }
+
+/* ── Stop page: map on the left, the list flows next to it and then
+   continues full width underneath (desktop) ─────────────────────────────── */
+
+@media (min-width: 769px) {
+  .plan-stop-layout { display: block; }
+  .plan-stop-layout::after { content: ""; display: block; clear: both; }
+  .plan-stop-layout > .plan-map-wrap {
+    float: left; width: calc(50% - 14px); margin: 0 28px 28px 0;
+    position: relative; top: auto; /* a float can't stay sticky without covering what flows under it */
+  }
+  .plan-poi-list { display: block; }
+  .plan-poi-list > * + * { margin-top: 12px; }
+  /* boxes with a background must not run underneath the map */
+  .plan-budget-section, .sb-detail, .plan-pending, .plan-budget-toggle-row { display: flow-root; }
+  .sb-detail[hidden], .plan-budget-section[hidden] { display: none; }
+
+  /* card grids become rows of inline cards: two beside the map, four below it */
+  .sb-cards, .sb-coasters { display: block; font-size: 0; padding: 8px 0 4px 4px; }
+  .sb-cards > .plan-poi-card {
+    display: inline-flex; vertical-align: top; font-size: 1rem;
+    width: calc(25% - 28px); margin: 0 20px 22px 0; box-sizing: border-box;
+  }
+  /* an opened card takes the full row (beside the map: what's left of it) */
+  .sb-cards > .plan-poi-card--expanded { display: flex; width: auto; margin-right: 4px; }
+  .sb-coasters > .sb-coaster { display: inline-block; vertical-align: top; font-size: 1rem; margin: 0 22px 26px 0; }
+}
