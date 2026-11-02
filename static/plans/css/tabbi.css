@@ -2320,3 +2320,5 @@ span.plan-poi-title--draft::after { content: none; }
 }
 .plan-traveler--off .plan-traveler-x[data-action="toggle"] { display: none; }
 .plan-traveler--off .plan-traveler-main { padding-right: 10px; }
+.plan-traveler-pop .tabbi-btn { gap: 8px; }
+.plan-traveler-pop .tabbi-btn:disabled { cursor: progress; opacity: 0.85; transform: none; }
