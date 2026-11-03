@@ -39,12 +39,13 @@ def _w66_url(path):
 #
 #   - [Conwy Castle](europe/unitedkingdom/wales/conwy/conwy_castle){cat=do price=14} book online
 #   - [Mum's favourite café](){cat=eat}
-#   - [Ferry tickets](https://www.stenaline.co.uk){cat=do price=180}
+#   - [Hotel Castle](https://www.booking.com/hotel/gb/castle-conwy.html){cat=hotel price=240 date="10/7 - 12/7"}
+#   - [Ferry Holyhead–Dublin](https://www.stenaline.co.uk){cat=transport price=180 date=12/7}
 #
 # The content URL is a world66 path, a ~pois/ draft, an external URL, or empty.
 
 _RICH_BULLET_RE = re.compile(r"^\[(?P<name>[^\]]*)\]\((?P<url>[^)\s]*)\)(?:\{(?P<attrs>[^}]*)\})?\s*(?P<note>.*)$")
-ITEM_CATEGORIES = ("do", "eat", "drink", "note")
+ITEM_CATEGORIES = ("do", "eat", "drink", "hotel", "transport", "note")
 EAT_SIGNALS = {"restaurant", "eating_out", "food", "cafe", "café"}
 DRINK_SIGNALS = {"bar", "bars_and_cafes", "pub", "nightlife", "drink"}
 
@@ -108,7 +109,7 @@ def _bullet_key(text):
 
 
 def _item_group(item):
-    """do / eat / drink / note for a parsed plan item."""
+    """do / eat / drink / hotel / transport / note for a parsed plan item."""
     if item.get("category"):
         return item["category"]
     page = item.get("page")
@@ -885,20 +886,7 @@ def plan_detail(request, slug):
 
     import frontmatter as _fmb
     _plan_meta = _fmb.load(str(PLANS_DIR / f"{slug}.md")).metadata
-    all_budgets = _plan_meta.get("budgets") or {}
-    total_budget: dict = {"hotel": 0.0, "food": 0.0, "activities": 0.0, "travel": 0.0}
-    currency = ""
-    for b in all_budgets.values():
-        for k in ("hotel", "food", "activities", "travel"):
-            try:
-                total_budget[k] += float(b.get(k) or 0)
-            except (ValueError, TypeError):
-                pass
-        if not currency and b.get("currency"):
-            currency = b["currency"]
-    total_budget["currency"] = currency
-    total_budget["places"] = sum(i["price"] for st in _all_stops(plan) for i in st["items"] if i.get("price"))
-    total_budget["total"] = sum(total_budget[k] for k in ("hotel", "food", "activities", "travel", "places"))
+    total_budget = _budget_summary(_all_stops(plan), _plan_meta.get("budgets") or {})
 
     from passport.views import _load_passport as _lp
     linked_passport = None
@@ -1068,8 +1056,8 @@ def plan_traveler_join(request, slug, token):
 # ── Sheet: the whole trip as one editable table ─────────────────────────────
 #
 # One flat list of rows in file order. Each row has a type: "stop" and "daytrip"
-# rows are the ## / ### headings (name, dates, notes); "do" / "eat" / "drink" rows
-# are places and belong to the stop or day trip above them.
+# rows are the ## / ### headings (name, dates, notes); "do" / "eat" / "drink" /
+# "hotel" / "transport" rows are places and belong to the stop or day trip above them.
 
 SHEET_STOP_TYPES = ("stop", "daytrip")
 _NOTE_SEP = " · "
@@ -1201,7 +1189,7 @@ def _write_sheet(slug, plan, rows):
                 name, url = (row.get("name") or "").strip(), (row.get("url") or "").strip()
                 if not name and not url:
                     continue
-                category = kind if kind in ("do", "eat", "drink") else ""
+                category = kind if kind in ITEM_CATEGORIES and kind != "note" else ""
                 text = _rich_bullet(name, url, category, row.get("price"), row.get("note"), row.get("date"))
             else:
                 text = row["orig"]
@@ -1551,6 +1539,8 @@ def plan_stop(request, slug, city_slug):
     items_do    = [i for i in stop["items"] if _item_group(i) in ("do", "note")]
     items_eat   = [i for i in stop["items"] if _item_group(i) == "eat"]
     items_drink = [i for i in stop["items"] if _item_group(i) == "drink"]
+    items_hotel = [i for i in stop["items"] if _item_group(i) == "hotel"]
+    items_transport = [i for i in stop["items"] if _item_group(i) == "transport"]
     ungrouped   = False
 
     geocache = _load_geocache()
@@ -1623,11 +1613,13 @@ def plan_stop(request, slug, city_slug):
         "city_image_url": city_image_url,
         "suggestion_groups": suggestion_groups,
         "budget_json": json.dumps(stop_budget),
-        "places_total": sum(i["price"] for i in stop["items"] if i.get("price")),
+        "sheet_budget": json.dumps(_budget_summary([stop] + stop.get("daytrips", []), {})),
         "pinned_providers": pinned_providers,
         "items_do": items_do,
         "items_eat": items_eat,
         "items_drink": items_drink,
+        "items_hotel": items_hotel,
+        "items_transport": items_transport,
         "ungrouped": ungrouped,
         "gallery": gallery,
         "photos_pending": photos_pending,
@@ -1653,76 +1645,39 @@ def plan_pin_provider(request, slug, city_slug):
     return JsonResponse({"ok": True})
 
 
+# ── Budget: a summary of the prices in the sheet, plus one free "other" amount ──
+
+BUDGET_LINES = (("hotel", "🛏️ Sleep"), ("transport", "🎫 Transport"), ("do", "🎒 Do"), ("eat", "🍜 Eat"), ("drink", "🍻 Drink"))
+
+
+def _budget_summary(stops, budgets):
+    """Per type the sum of the sheet's prices in these stops, the stops' "other"
+    amounts, the total and the currency. `budgets` is {city_slug: {...}}."""
+    stops = list(stops)  # _all_stops is a generator; it is walked twice
+    sums = dict.fromkeys(dict(BUDGET_LINES), 0.0)
+    for stop in stops:
+        for item in stop["items"]:
+            if item.get("price"):
+                group = _item_group(item)
+                sums[group if group in sums else "do"] += item["price"]
+    other, currency = 0.0, ""
+    for city_slug in {s["city_slug"] for s in stops}:
+        b = budgets.get(city_slug) or {}
+        try:
+            other += float(str(b.get("other") or 0).replace(",", "."))
+        except ValueError:
+            pass
+        currency = currency or b.get("currency") or ""
+    lines = [{"key": k, "label": label, "amount": sums[k]} for k, label in BUDGET_LINES if sums[k]]
+    return {"lines": lines, "other": other, "total": sum(sums.values()) + other, "currency": currency}
+
+
 def _plan_save_budget(slug, city_slug, budget_data):
     import frontmatter as fm
     path = PLANS_DIR / f"{slug}.md"
     post = fm.load(path)
     budgets = dict(post.metadata.get("budgets") or {})
     budgets[city_slug] = {k: v for k, v in budget_data.items() if v is not None}
-    post.metadata["budgets"] = budgets
-    with open(path, "w", encoding="utf-8") as fh:
-        fh.write(fm.dumps(post))
-
-
-def _parse_poi_price(poi_path):
-    """Return the numeric price of a POI, or None if it has no parseable price."""
-    page = load_page(poi_path)
-    if not page:
-        return None
-    raw = str(page.meta.get("price", "") or "")
-    m = re.search(r"\d+(?:[.,]\d+)?", raw.replace(",", "."))
-    if not m:
-        return None
-    return float(m.group().replace(",", "."))
-
-
-def _budget_add_poi_price(slug, city_slug, poi_path):
-    """If the POI has a parseable numeric price, add it to the stop's activities budget."""
-    amount = _parse_poi_price(poi_path)
-    if amount is None:
-        return
-    import frontmatter as fm
-    path = PLANS_DIR / f"{slug}.md"
-    if not path.is_file():
-        return
-    post = fm.load(path)
-    budgets = dict(post.metadata.get("budgets") or {})
-    stop_budget = dict(budgets.get(city_slug) or {})
-    current = 0.0
-    try:
-        current = float(stop_budget.get("activities") or 0)
-    except (ValueError, TypeError):
-        pass
-    stop_budget["activities"] = round(current + amount, 2)
-    budgets[city_slug] = stop_budget
-    post.metadata["budgets"] = budgets
-    with open(path, "w", encoding="utf-8") as fh:
-        fh.write(fm.dumps(post))
-
-
-def _budget_remove_poi_price(slug, city_slug, poi_path):
-    """If the POI has a parseable numeric price, subtract it from the stop's activities budget."""
-    amount = _parse_poi_price(poi_path)
-    if amount is None:
-        return
-    import frontmatter as fm
-    path = PLANS_DIR / f"{slug}.md"
-    if not path.is_file():
-        return
-    post = fm.load(path)
-    budgets = dict(post.metadata.get("budgets") or {})
-    stop_budget = dict(budgets.get(city_slug) or {})
-    current = 0.0
-    try:
-        current = float(stop_budget.get("activities") or 0)
-    except (ValueError, TypeError):
-        pass
-    new_val = round(max(0.0, current - amount), 2)
-    if new_val == 0:
-        stop_budget.pop("activities", None)
-    else:
-        stop_budget["activities"] = new_val
-    budgets[city_slug] = stop_budget
     post.metadata["budgets"] = budgets
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(fm.dumps(post))
@@ -1737,11 +1692,10 @@ def plan_budget_save(request, slug, city_slug):
         data = json.loads(request.body)
     except (json.JSONDecodeError, UnicodeDecodeError):
         return JsonResponse({"error": "invalid JSON"}, status=400)
-    allowed = {"hotel", "food", "activities", "travel", "currency", "notes"}
+    allowed = {"other", "currency", "notes"}
     budget = {k: data[k] for k in allowed if k in data}
     _plan_save_budget(slug, city_slug, budget)
-    total = sum(float(budget.get(k, 0) or 0) for k in ("hotel", "food", "activities", "travel"))
-    return JsonResponse({"ok": True, "total": total})
+    return JsonResponse({"ok": True})
 
 
 @_require_plan_auth
@@ -2017,7 +1971,6 @@ def plan_poi_add(request, slug, city_slug=None):
                             break
         if city_slug:
             _plan_file_add(slug, city_slug, poi_path)
-            _budget_add_poi_price(slug, city_slug, poi_path)
     return HttpResponseRedirect(request.POST.get("next", f"/plans/{slug}/"))
 
 
@@ -2026,7 +1979,7 @@ def plan_note_edit(request, slug, city_slug):
     if request.method != "POST":
         raise Http404
     old_text = request.POST.get("old_text", "").strip()
-    new_text = request.POST.get("new_text", "").strip()
+    new_text = re.sub(r"\s+", " ", request.POST.get("new_text", "")).strip()  # a note is one bullet line
     if old_text and new_text and old_text != new_text:
         import frontmatter as fm
         path = PLANS_DIR / f"{slug}.md"
@@ -2049,7 +2002,6 @@ def plan_poi_remove(request, slug, city_slug):
     poi_path = request.POST.get("poi_path", "").strip()
     if poi_path:
         _plan_file_remove(slug, poi_path)
-        _budget_remove_poi_price(slug, city_slug, poi_path)
     return HttpResponseRedirect(request.POST.get("next", f"/plans/{slug}/{city_slug}/"))
 
 

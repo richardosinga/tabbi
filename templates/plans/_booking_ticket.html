@@ -1,0 +1,15 @@
+{% comment %}A sleep (hotel) or transport row from the sheet, as a small tag on the map: icon, name (linked when it has a link), its note, date and price.{% endcomment %}
+<li class="sb-booking sb-booking--{{ kind }}"{% if item.note %} title="{{ item.note }}"{% endif %}>
+  <span class="sb-booking-icon" aria-hidden="true">{% if kind == "hotel" %}🛏️{% else %}🎫{% endif %}</span>
+  <span class="sb-booking-main">
+    {% if item.external_url %}
+    <a class="sb-booking-title" href="{{ item.external_url }}" target="_blank" rel="noopener">{{ item.label|default:item.display_label }}</a>
+    {% elif item.page and item.page.path|slice:":6" != "~pois/" %}
+    <a class="sb-booking-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener">{{ item.label|default:item.page.title }}</a>
+    {% else %}
+    <span class="sb-booking-title">{{ item.label|default:item.text }}</span>
+    {% endif %}
+    {% if item.note %}<span class="sb-booking-note">{{ item.note }}</span>{% endif %}
+    {% if item.date or item.price %}<span class="sb-booking-meta">{{ item.date }}{% if item.date and item.price %} · {% endif %}{% if item.price %}{{ item.price|floatformat:"-2" }}{% endif %}</span>{% endif %}
+  </span>
+</li>

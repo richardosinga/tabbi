@@ -16,7 +16,8 @@
   </div>
   <p class="sb-sheet-help">
     One row per stop, day trip and place — a place belongs to the stop or day trip above it.
-    <strong>Content</strong> is a link (world66 or any site) or your own text. Drag <span aria-hidden="true">⠿</span> (or Alt+↑/↓) to move a row. Changes save by themselves.
+    <strong>Content</strong> is a link (world66 or any site) or your own text. Where you sleep and how you travel (a ferry, a train) are rows too, with their price.
+    Download the sheet to edit it in Excel or Numbers, then upload it again. Drag <span aria-hidden="true">⠿</span> (or Alt+↑/↓) to move a row. Changes save by themselves.
   </p>
 
   <div class="sb-sheet-wrap">
@@ -37,6 +38,11 @@
   </div>
   <div class="sb-sheet-foot">
     <button type="button" class="sb-sheet-addstop" id="add-stop">+ add a stop</button>
+    <span class="sb-sheet-io">
+      <button type="button" id="sheet-download">↓ Download (CSV)</button>
+      <button type="button" id="sheet-upload">↑ Upload</button>
+      <input type="file" id="sheet-file" accept=".csv,.tsv,.txt,text/csv" hidden>
+    </span>
     <span class="sb-sheet-total" id="sheet-total"></span>
   </div>
 </div>
@@ -48,7 +54,7 @@
   var body = document.getElementById('sheet-body');
   var status = document.getElementById('sheet-status');
   var totalEl = document.getElementById('sheet-total');
-  var TYPES = [['stop', 'Stop'], ['daytrip', 'Day trip'], ['do', 'Do'], ['eat', 'Eat'], ['drink', 'Drink']];
+  var TYPES = [['stop', 'Stop'], ['daytrip', 'Day trip'], ['do', 'Do'], ['eat', 'Eat'], ['drink', 'Drink'], ['hotel', 'Sleep'], ['transport', 'Transport']];
   var isHead = function(t) { return t === 'stop' || t === 'daytrip'; };
 
   // Content is one cell: a link becomes the content URL, anything else the note
@@ -73,6 +79,7 @@
   function makeRow(r) {
     var tr = el('tr', {'class': 'sb-row'});
     tr.dataset.orig = r.orig || '';
+    if (r.dirty) tr.dataset.dirty = '1';
     tr.dataset.note = r.url ? (r.note || '') : '';  // a place with a link and a note shows the link; the note rides along
 
     var handle = el('span', {'class': 'sb-drag', draggable: 'true', title: 'Drag to move', text: '⠿'});
@@ -263,6 +270,100 @@
     dragging.classList.remove('is-dragging');
     dragging = null;
     changed();
+  });
+
+  // ── download / upload as CSV: Type, Date, Name, Content, Price, Note ──
+  var COLS = ['Type', 'Date', 'Name', 'Content', 'Price', 'Note'];
+  function typeLabel(t) { return (TYPES.filter(function(x) { return x[0] === t; })[0] || [t, t])[1]; }
+  function typeKey(v) {
+    v = String(v || '').trim().toLowerCase();
+    var hit = TYPES.filter(function(x) { return x[0] === v || x[1].toLowerCase() === v || x[0] === v.replace(/\s+/g, ''); })[0];
+    return hit ? hit[0] : null;
+  }
+  function csvCell(v) {
+    v = v == null ? '' : String(v);
+    return /[",;\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  }
+  function parseCsv(text) {
+    text = text.replace(/^\ufeff/, '');
+    var first = text.split(/\r?\n/)[0];
+    var count = function(c) { return first.split(c).length; };
+    var sep = [',', ';', '\t'].sort(function(a, b) { return count(b) - count(a); })[0];
+    var rows = [], row = [], cell = '', quoted = false;
+    for (var i = 0; i < text.length; i++) {
+      var ch = text[i];
+      if (quoted) {
+        if (ch === '"' && text[i + 1] === '"') { cell += '"'; i++; }
+        else if (ch === '"') quoted = false;
+        else cell += ch;
+      } else if (ch === '"') quoted = true;
+      else if (ch === sep) { row.push(cell); cell = ''; }
+      else if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && text[i + 1] === '\n') i++;
+        row.push(cell); rows.push(row); row = []; cell = '';
+      } else cell += ch;
+    }
+    if (cell || row.length) { row.push(cell); rows.push(row); }
+    return rows.filter(function(r) { return r.some(function(c) { return c.trim(); }); });
+  }
+
+  document.getElementById('sheet-download').addEventListener('click', function() {
+    var lines = [COLS.join(',')];
+    collect().forEach(function(r) {
+      var head = isHead(r.type);
+      lines.push([typeLabel(r.type), r.date, r.name, r.url || r.note, head || r.price == null ? '' : r.price,
+                  r.url ? r.note : ''].map(csvCell).join(','));
+    });
+    var blob = new Blob(['\ufeff' + lines.join('\r\n') + '\r\n'], {type: 'text/csv;charset=utf-8'});
+    var a = el('a', {href: URL.createObjectURL(blob), download: '{{ plan.slug }}.csv'});
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function() { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  });
+
+  var fileInput = document.getElementById('sheet-file');
+  document.getElementById('sheet-upload').addEventListener('click', function() { fileInput.click(); });
+  fileInput.addEventListener('change', function() {
+    var file = fileInput.files[0];
+    fileInput.value = '';
+    if (!file) return;
+    file.text().then(function(text) {
+      var table = parseCsv(text);
+      var header = (table.shift() || []).map(function(h) { return h.trim().toLowerCase(); });
+      var at = {};
+      COLS.forEach(function(c) { at[c] = header.indexOf(c.toLowerCase()); });
+      if (at.Type < 0 || at.Name < 0) { status.textContent = '⚠ the file needs at least a Type and a Name column'; return; }
+      var cell = function(r, c) { return at[c] < 0 ? '' : String(r[at[c]] == null ? '' : r[at[c]]).trim(); };
+
+      // rows that didn't change keep their original line in the plan
+      var known = {};
+      var key = function(r) { return [r.type, r.date, r.name, r.url, r.note, r.price == null ? '' : r.price].join('\u0001'); };
+      collect().forEach(function(r) {
+        if (isHead(r.type)) { r.price = null; known['h' + r.type + '\u0001' + r.name] = r.orig; }
+        known[key(r)] = r.orig;
+      });
+
+      var rows = [], bad = [];
+      table.forEach(function(line, n) {
+        var t = typeKey(cell(line, 'Type'));
+        if (!t) { bad.push(n + 2); return; }
+        var c = cell(line, 'Content'), p = cell(line, 'Price').replace(/\s/g, '').replace(',', '.');
+        var r = {type: t, date: cell(line, 'Date'), name: cell(line, 'Name')};
+        if (!isHead(t) && isLink(c)) { r.url = c; r.note = cell(line, 'Note'); } else { r.url = ''; r.note = c; }
+        r.price = isHead(t) || p === '' || isNaN(parseFloat(p)) ? null : parseFloat(p);
+        var orig = known[key(r)];
+        if (orig === undefined && isHead(t)) orig = known['h' + t + '\u0001' + r.name];
+        r.orig = orig || '';
+        r.dirty = !isHead(t) && orig === undefined;
+        rows.push(r);
+      });
+      if (!rows.length) { status.textContent = '⚠ no rows found in ' + file.name; return; }
+      if (rows[0].type !== 'stop') { status.textContent = '⚠ the first row in the file must be a stop'; return; }
+      if (!confirm('Replace the sheet with the ' + rows.length + ' rows from ' + file.name + '?' +
+                   (bad.length ? '\n\nSkipped line(s) ' + bad.join(', ') + ': unknown type.' : ''))) return;
+      render(rows);
+      changed();
+    }).catch(function(e) { status.textContent = '⚠ ' + e.message; });
   });
 
   render(data.rows);

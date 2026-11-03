@@ -814,6 +814,9 @@ span.plan-poi-title--draft::after { content: none; }
   width: 100%;
   outline: none;
   padding: 2px 0;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.3;
 }
 
 /* ── Remove button ────────────────────────────────────────────────────────── */
