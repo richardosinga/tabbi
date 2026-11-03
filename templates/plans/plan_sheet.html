@@ -1,0 +1,214 @@
+{% extends "plans/base.html" %}
+{% block title %}Sheet — {{ plan.title }} — Tab.bi{% endblock %}
+
+{% block content %}
+<div class="tabbi-page plan-page sb-sheet-page">
+  <nav class="plan-breadcrumb">
+    <a href="/plans/">Trips</a>
+    <span class="plan-breadcrumb-sep">›</span>
+    <a href="/plans/{{ plan.slug }}/">{{ plan.title }}</a>
+    <span class="plan-breadcrumb-sep">›</span>
+    <span>sheet</span>
+  </nav>
+  <div class="plan-header">
+    <h1><span class="sb-highlight">{{ plan.title }}</span></h1>
+    <span class="sb-sheet-status" id="sheet-status" aria-live="polite"></span>
+  </div>
+  <p class="sb-sheet-help">Every place in the trip, one row each. Changes save by themselves. <strong>Content URL</strong> is a world66 page, any other link, or empty.</p>
+
+  <div class="sb-sheet-wrap">
+    <table class="sb-sheet" id="sheet">
+      <colgroup>
+        <col class="c-stop"><col class="c-name"><col class="c-url"><col class="c-cat"><col class="c-price"><col class="c-note"><col class="c-del">
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col">Stop</th><th scope="col">Name</th><th scope="col">Content URL</th>
+          <th scope="col">Category</th><th scope="col" class="num">Price</th><th scope="col">Note</th><th scope="col"><span class="sb-visually-hidden">Remove</span></th>
+        </tr>
+      </thead>
+    </table>
+  </div>
+  <div class="sb-sheet-total" id="sheet-total"></div>
+</div>
+
+{{ sheet|json_script:"sheet-data" }}
+<script>
+(function () {
+  var data = JSON.parse(document.getElementById('sheet-data').textContent);
+  var table = document.getElementById('sheet');
+  var status = document.getElementById('sheet-status');
+  var totalEl = document.getElementById('sheet-total');
+  var CATS = [['do', 'Do'], ['eat', 'Eat'], ['drink', 'Drink'], ['note', 'Note']];
+  var FIELDS = ['stop', 'name', 'url', 'category', 'price', 'note'];
+  var stopsBySlug = {};
+  data.stops.forEach(function(s) { stopsBySlug[s.slug] = s; });
+
+  function el(tag, attrs, kids) {
+    var e = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function(k) {
+      if (k === 'text') e.textContent = attrs[k]; else e.setAttribute(k, attrs[k]);
+    });
+    (kids || []).forEach(function(k) { e.appendChild(k); });
+    return e;
+  }
+  function money(n) { return (Math.round(n * 100) / 100).toLocaleString(undefined, {maximumFractionDigits: 2}); }
+
+  // one <tbody> per stop: a header row, its places, and an "add" row
+  var bodies = {};
+  data.stops.forEach(function(s) {
+    var tb = el('tbody', {'data-stop': s.slug, 'class': s.daytrip ? 'is-daytrip' : ''});
+    var head = el('tr', {'class': 'sb-sheet-stop'});
+    var th = el('th', {colspan: '4', scope: 'rowgroup'});
+    th.appendChild(el('a', {href: s.url, text: s.city}));
+    if (s.daytrip) th.appendChild(el('span', {'class': 'sb-sheet-dt', text: 'day trip'}));
+    if (s.dates) th.appendChild(el('span', {'class': 'sb-sheet-dates', text: s.dates}));
+    head.appendChild(th);
+    head.appendChild(el('td', {'class': 'num sb-sheet-sub'}));
+    head.appendChild(el('td', {colspan: '2'}));
+    tb.appendChild(head);
+    var add = el('tr', {'class': 'sb-sheet-add'});
+    var addTd = el('td', {colspan: '7'});
+    var addBtn = el('button', {type: 'button', text: '+ add a row to ' + s.city});
+    addBtn.addEventListener('click', function() {
+      var tr = makeRow({stop: s.slug, name: '', url: '', category: 'do', price: null, note: '', orig: ''});
+      tr.dataset.dirty = '1';
+      tb.insertBefore(tr, add);
+      tr.querySelector('[data-f="name"]').focus();
+    });
+    addTd.appendChild(addBtn);
+    add.appendChild(addTd);
+    tb.appendChild(add);
+    table.appendChild(tb);
+    bodies[s.slug] = tb;
+  });
+
+  function makeRow(r) {
+    var tr = el('tr', {'class': 'sb-sheet-row'});
+    tr.dataset.orig = r.orig || '';
+    var stopSel = el('select', {'data-f': 'stop', 'aria-label': 'Stop'});
+    data.stops.forEach(function(s) {
+      var o = el('option', {value: s.slug, text: (s.daytrip ? '↳ ' : '') + s.city});
+      if (s.slug === r.stop) o.selected = true;
+      stopSel.appendChild(o);
+    });
+    var catSel = el('select', {'data-f': 'category', 'aria-label': 'Category'});
+    CATS.forEach(function(c) {
+      var o = el('option', {value: c[0], text: c[1]});
+      if (c[0] === r.category) o.selected = true;
+      catSel.appendChild(o);
+    });
+    var urlInput = el('input', {type: 'text', 'data-f': 'url', 'aria-label': 'Content URL', placeholder: '—', spellcheck: 'false'});
+    urlInput.value = r.url || '';
+    var open = el('a', {'class': 'sb-sheet-open', target: '_blank', rel: 'noopener', title: 'Open', text: '↗'});
+    function syncOpen() {
+      var v = urlInput.value.trim();
+      var href = /^https?:\/\//.test(v) ? v : (v && !/^~pois\//.test(v) ? data.w66 + '/' + v.replace(/^\//, '') : '');
+      if (href) { open.href = href; open.hidden = false; } else { open.removeAttribute('href'); open.hidden = true; }
+    }
+    syncOpen();
+    urlInput.addEventListener('input', syncOpen);
+    var name = el('input', {type: 'text', 'data-f': 'name', 'aria-label': 'Name'}); name.value = r.name || '';
+    var price = el('input', {type: 'text', inputmode: 'decimal', 'data-f': 'price', 'aria-label': 'Price', 'class': 'num'});
+    price.value = r.price == null ? '' : r.price;
+    var note = el('input', {type: 'text', 'data-f': 'note', 'aria-label': 'Note'}); note.value = r.note || '';
+    var del = el('button', {type: 'button', 'class': 'sb-sheet-del', 'aria-label': 'Remove row', title: 'Remove row', text: '×'});
+    del.addEventListener('click', function() { tr.remove(); changed(); });
+    var urlTd = el('td', {'class': 'sb-sheet-url'}, [urlInput, open]);
+    [el('td', {}, [stopSel]), el('td', {}, [name]), urlTd, el('td', {}, [catSel]),
+     el('td', {}, [price]), el('td', {}, [note]), el('td', {}, [del])].forEach(function(td) { tr.appendChild(td); });
+    tr.addEventListener('input', function() { tr.dataset.dirty = '1'; changed(); });
+    stopSel.addEventListener('change', function() {
+      var tb = bodies[stopSel.value];
+      tb.insertBefore(tr, tb.querySelector('.sb-sheet-add'));
+      stopSel.focus();
+    });
+    return tr;
+  }
+
+  function render(rows) {
+    table.querySelectorAll('.sb-sheet-row').forEach(function(tr) { tr.remove(); });
+    rows.forEach(function(r) {
+      var tb = bodies[r.stop];
+      if (tb) tb.insertBefore(makeRow(r), tb.querySelector('.sb-sheet-add'));
+    });
+    totals();
+  }
+
+  function collect() {
+    var rows = [];
+    table.querySelectorAll('.sb-sheet-row').forEach(function(tr) {
+      var r = {orig: tr.dataset.orig, dirty: tr.dataset.dirty === '1'};
+      FIELDS.forEach(function(f) { r[f] = tr.querySelector('[data-f="' + f + '"]').value; });
+      r.price = r.price.trim() === '' ? null : parseFloat(r.price.replace(',', '.'));
+      if (r.price !== null && isNaN(r.price)) r.price = null;
+      rows.push(r);
+    });
+    return rows;
+  }
+
+  function totals() {
+    var all = 0;
+    Object.keys(bodies).forEach(function(slug) {
+      var sum = 0;
+      bodies[slug].querySelectorAll('[data-f="price"]').forEach(function(i) {
+        var v = parseFloat((i.value || '').replace(',', '.'));
+        if (!isNaN(v)) sum += v;
+      });
+      bodies[slug].querySelector('.sb-sheet-sub').textContent = sum ? money(sum) : '';
+      all += sum;
+    });
+    totalEl.textContent = all ? 'Total of all prices: ' + money(all) : '';
+  }
+
+  var timer = null, saving = false, pending = false;
+  function changed() {
+    totals();
+    pending = true;
+    status.textContent = 'unsaved…';
+    clearTimeout(timer);
+    timer = setTimeout(save, 700);
+  }
+  function save() {
+    if (saving) { timer = setTimeout(save, 300); return; }
+    saving = true;
+    pending = false;
+    status.textContent = 'saving…';
+    fetch('/plans/{{ plan.slug }}/sheet/save/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+      body: JSON.stringify({rows: collect()}),
+    }).then(function(r) {
+      return r.json().then(function(d) { if (!r.ok) throw new Error(d.error || 'save failed'); return d; });
+    }).then(function(d) {
+      saving = false;
+      if (pending) return;  // more typing since this save went out; the next save follows
+      // the saved bullets become the rows' new originals (no re-render, so the cursor stays put)
+      var trs = table.querySelectorAll('.sb-sheet-row');
+      if (trs.length === d.rows.length) {
+        trs.forEach(function(tr, i) { tr.dataset.orig = d.rows[i].orig; tr.dataset.dirty = ''; });
+      } else {
+        render(d.rows);  // empty rows were dropped
+      }
+      status.textContent = 'saved ✓';
+    }).catch(function(e) {
+      saving = false;
+      status.textContent = '⚠ ' + e.message;
+    });
+  }
+
+  // Enter / ↑ / ↓ move between rows in the same column, like a spreadsheet
+  table.addEventListener('keydown', function(e) {
+    var f = e.target.dataset && e.target.dataset.f;
+    if (!f || e.target.tagName === 'SELECT' && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) return;
+    if (e.key !== 'Enter' && e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    var rows = Array.prototype.slice.call(table.querySelectorAll('.sb-sheet-row'));
+    var i = rows.indexOf(e.target.closest('.sb-sheet-row'));
+    var next = rows[i + (e.key === 'ArrowUp' ? -1 : 1)];
+    if (next) { e.preventDefault(); next.querySelector('[data-f="' + f + '"]').focus(); }
+  });
+
+  render(data.rows);
+})();
+</script>
+{% endblock %}

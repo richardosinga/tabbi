@@ -723,3 +723,63 @@ button.plan-poi-title, button.sb-coaster-title {
 .plan-suggestion-tile { height: 252px; box-sizing: border-box; }
 .plan-suggestion-tile-body { overflow: hidden; }
 .plan-suggestion-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; flex-shrink: 0; }
+
+/* ── Sheet: the trip as a ledger ──────────────────────────────────────────── */
+
+.sb-sheet-link { margin-right: 8px; }
+.sb-item-note { margin: 4px 0 0; font-family: 'Caveat', cursive; font-size: 1.15rem; line-height: 1.1; color: #2563EB; }
+.tabbi-page .sb-item-note { font-family: 'Caveat', cursive; }
+.sb-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.sb-sheet-page .plan-header { align-items: center; }
+.sb-sheet-status { font-family: 'Caveat', cursive; font-size: 1.4rem; font-weight: 700; color: #16A34A; min-width: 100px; text-align: right; }
+.tabbi-page .sb-sheet-status { font-family: 'Caveat', cursive; }
+.sb-sheet-help { margin: -12px 0 20px; color: #535050; font-size: 0.85rem; }
+.sb-sheet-wrap {
+  overflow-x: auto; background: #fff; border: 2px solid #180A0A; box-shadow: 6px 6px 0 #180A0A;
+  border-radius: 2px;
+}
+.sb-sheet { width: 100%; min-width: 980px; border-collapse: collapse; font-size: 0.85rem; }
+.sb-sheet col.c-stop { width: 150px; } .sb-sheet col.c-name { width: 22%; } .sb-sheet col.c-url { width: 26%; }
+.sb-sheet col.c-cat { width: 96px; } .sb-sheet col.c-price { width: 90px; } .sb-sheet col.c-del { width: 40px; }
+.sb-sheet thead th {
+  position: sticky; top: 0; z-index: 2; background: #e7a328; color: #180A0A;
+  text-align: left; font-size: 0.7rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 10px 10px; border-bottom: 2px solid #180A0A; border-right: 1px solid rgba(24,10,10,0.25);
+}
+.sb-sheet .num { text-align: right; }
+.sb-sheet td { padding: 0; border-bottom: 1px solid rgba(37,99,235,0.18); border-right: 1px solid rgba(24,10,10,0.08); vertical-align: middle; }
+.sb-sheet td:first-child { border-left: 3px double rgba(215,38,61,0.45); }
+.sb-sheet input, .sb-sheet select {
+  width: 100%; box-sizing: border-box; border: 0; background: transparent; padding: 9px 10px;
+  font: inherit; font-size: 0.85rem; color: #180A0A; outline: none;
+}
+.sb-sheet input:focus, .sb-sheet select:focus { background: #FFF7E0; box-shadow: inset 0 0 0 2px #e7a328; }
+.tabbi-page .sb-sheet input[data-f="price"] { font-family: 'Courier Prime', monospace; font-size: 0.95rem; text-align: right; }
+.tabbi-page .sb-sheet input[data-f="note"] { font-family: 'Caveat', cursive; font-size: 1.15rem; color: #2563EB; }
+.sb-sheet select { cursor: pointer; -webkit-appearance: none; appearance: none; }
+.sb-sheet-url { position: relative; }
+.sb-sheet-url input { padding-right: 30px; color: #3A2E2A; font-size: 0.78rem; }
+.sb-sheet-open { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); text-decoration: none; font-weight: 800; color: #C2410C; }
+.sb-sheet-open[hidden] { display: none; }
+.sb-sheet-del { width: 100%; height: 36px; border: 0; background: none; color: #B8AFA6; font-size: 1.1rem; cursor: pointer; }
+.sb-sheet-del:hover { color: #D7263D; }
+.sb-sheet-row:hover td { background: #FFFDF5; }
+/* stop header rows */
+.sb-sheet-stop th, .sb-sheet-stop td { background: #FBF7EE; border-top: 2px solid #180A0A; border-bottom: 1px solid #180A0A; padding: 10px; }
+.sb-sheet-stop th { text-align: left; }
+.sb-sheet-stop th a { font-family: 'Caveat', cursive; font-size: 1.6rem; font-weight: 700; color: #180A0A; text-decoration: none; }
+.tabbi-page .sb-sheet-stop th a { font-family: 'Caveat', cursive; }
+.sb-sheet-dates { margin-left: 12px; padding: 2px 8px; border: 2px solid #C2410C; border-radius: 6px; color: #C2410C; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.sb-sheet-dt { margin-left: 10px; padding: 1px 8px; background: #BBF7D0; border: 1.5px solid #16A34A; border-radius: 999px; color: #14532D; font-size: 0.6rem; font-weight: 800; text-transform: uppercase; }
+.is-daytrip .sb-sheet-stop th a { font-size: 1.35rem; }
+.is-daytrip .sb-sheet-stop th { padding-left: 34px; }
+.tabbi-page .sb-sheet-sub { font-family: 'Courier Prime', monospace; font-weight: 700; text-align: right; }
+.sb-sheet-add td { padding: 4px 10px 10px; border-bottom: 0; }
+.tabbi-page .sb-sheet-add button {
+  border: 0; background: none; padding: 4px 0; cursor: pointer; color: #6B5E55;
+  font-family: 'Caveat', cursive; font-size: 1.15rem; font-weight: 700;
+}
+.sb-sheet-add button:hover { color: #180A0A; text-decoration: underline; text-decoration-color: #e7a328; text-decoration-thickness: 3px; }
+.sb-sheet-total { margin: 18px 4px; text-align: right; font-weight: 700; }
+.tabbi-page .sb-sheet-total { font-family: 'Courier Prime', monospace; font-size: 1.05rem; }
