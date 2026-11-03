@@ -40,11 +40,13 @@ def _w66_url(path):
 #   - [Conwy Castle](europe/unitedkingdom/wales/conwy/conwy_castle){cat=do price=14} book online
 #   - [Mum's favourite café](){cat=eat}
 #   - [Hotel Castle](https://www.booking.com/hotel/gb/castle-conwy.html){cat=hotel price=240 date="10/7 - 12/7"}
-#   - [Ferry Holyhead–Dublin](){cat=transport date=22/7 at=end}
+#   - [Ferry Holyhead–Dublin](){cat=transport date=22/7 after=Llandudno}
 #
-# `at=end` puts a stop's row after its day trips: in the file it sits with the
-# stop's other items (everything under a ### heading belongs to that day trip),
-# the sheet shows it below the day trips — e.g. the trip on to the next stop.
+# A day trip sits among its stop's places like one of them. `after=<day trip>`
+# keeps a stop's row below that day trip: in the file it stays with the stop's
+# other items (everything under a ### heading belongs to that day trip), the
+# sheet shows it after the day trip — e.g. the trip on to the next stop.
+# (An older `at=end` means: after the last day trip.)
 #   - [Ferry Holyhead–Dublin](https://www.stenaline.co.uk){cat=transport price=180 date=12/7}
 #
 # The content URL is a world66 path, a ~pois/ draft, an external URL, or empty.
@@ -73,7 +75,7 @@ def _parse_rich_bullet(text):
         "category": category if category in ITEM_CATEGORIES else "",
         "price": price,
         "date": attrs.get("date", "").strip(),
-        "at_end": attrs.get("at", "").lower() == "end",
+        "after": attrs.get("after", "").strip() or ("\n" if attrs.get("at", "").lower() == "end" else ""),
         "note": m.group("note").strip(),
     }
 
@@ -88,7 +90,7 @@ def _content_path(url):
     return url
 
 
-def _rich_bullet(name, url, category="", price=None, note="", date="", at_end=False):
+def _rich_bullet(name, url, category="", price=None, note="", date="", after=""):
     clean = lambda v: re.sub(r"\s+", " ", str(v or "")).strip()
     name = clean(name).replace("[", "(").replace("]", ")")
     url = _content_path(clean(url)).replace(" ", "%20").replace(")", "%29")
@@ -103,8 +105,9 @@ def _rich_bullet(name, url, category="", price=None, note="", date="", at_end=Fa
     date = clean(date).replace('"', "'")
     if date:
         attrs.append(f'date="{date}"' if " " in date else f"date={date}")
-    if at_end:
-        attrs.append("at=end")
+    after = clean(after).replace('"', "'")
+    if after:
+        attrs.append(f'after="{after}"' if " " in after else f"after={after}")
     text = f"[{name}]({url})" + ("{" + " ".join(attrs) + "}" if attrs else "")
     note = clean(note)
     return f"{text} {note}" if note else text
@@ -561,7 +564,7 @@ def _parse_stops(body, plan_slug):
                 "price": rich["price"] if rich else None,
                 "date": rich["date"] if rich else "",
                 "note": rich["note"] if rich else "",
-                "at_end": bool(rich and rich["at_end"]),
+                "after": rich["after"] if rich else "",
             })
 
     for stop in _all_stops({"stops": stops}):
@@ -1117,21 +1120,24 @@ def _head_row(stop):
 
 
 def _sheet_rows(plan):
-    """Per stop: its heading, its places, its day trips (each with its places),
-    then the stop's `at=end` rows. The first of those carries "out": it is where
-    the day trip above ends and the stop takes over again."""
+    """Per stop: its heading and places, each day trip (with its own places)
+    followed by the stop's rows marked `after=` it. The first row after a day
+    trip carries "out": the day trip ends there and the stop takes over again."""
     rows = []
     for stop in plan["stops"]:
         places = [i for i in stop["items"] if not _is_stop_note(i)]
+        names = [dt["city"].lower() for dt in stop["daytrips"]]
+        # "\n" (at=end) or a day trip that's gone: after the last day trip
+        where = lambda i: (i.get("after") or "").lower() if (i.get("after") or "").lower() in names else (names[-1] if names and i.get("after") else "")
         rows.append(_head_row(stop))
-        rows.extend(_place_row(i) for i in places if not (i.get("at_end") and stop["daytrips"]))
+        rows.extend(_place_row(i) for i in places if not where(i))
         for dt in stop["daytrips"]:
             rows.append(_head_row(dt))
             rows.extend(_place_row(i) for i in dt["items"] if not _is_stop_note(i))
-        end = [_place_row(i) for i in places if i.get("at_end") and stop["daytrips"]]
-        if end:
-            end[0]["out"] = True
-        rows.extend(end)
+            after = [_place_row(i) for i in places if where(i) == dt["city"].lower()]
+            if after:
+                after[0]["out"] = True
+            rows.extend(after)
     return rows
 
 
@@ -1192,21 +1198,21 @@ def _write_sheet(slug, plan, rows):
     while preamble and not preamble[-1].strip():
         preamble.pop()
 
-    def place_line(row, at_end):
+    def place_line(row, after):
         kind = row.get("type")
         text = row.get("orig") or ""
         rich = _parse_rich_bullet(text) if text else None
-        if row.get("dirty") or not text or bool(rich and rich["at_end"]) != at_end:
+        if row.get("dirty") or not text or (rich["after"] if rich else "").lower() != after.lower():
             name, url = (row.get("name") or "").strip(), (row.get("url") or "").strip()
             if not name and not url:
                 return None
             category = kind if kind in ITEM_CATEGORIES and kind != "note" else ""
-            text = _rich_bullet(name, url, category, row.get("price"), row.get("note"), row.get("date"), at_end)
+            text = _rich_bullet(name, url, category, row.get("price"), row.get("note"), row.get("date"), after)
         return f"- {text}"
 
     out = list(preamble)
-    # a stop is written as: heading, notes, its places, its at=end places, then its day trips
-    block, end_lines, daytrip_lines, in_daytrip = [], [], [], False
+    # a stop is written as: heading, notes, its places, the places it has after a day trip, then its day trips
+    block, end_lines, daytrip_lines, in_daytrip, daytrip = [], [], [], False, ""
 
     def flush():
         out.extend(block + end_lines + daytrip_lines)
@@ -1223,9 +1229,9 @@ def _write_sheet(slug, plan, rows):
                 flush()
                 if out:
                     out.append("")
-                target, in_daytrip = block, False
+                target, in_daytrip, daytrip = block, False, ""
             else:
-                target, in_daytrip = daytrip_lines, True
+                target, in_daytrip, daytrip = daytrip_lines, True, name
             target.append(_sheet_heading(row, old))
             old_notes = {_note_text(i): i["text"] for i in (old or {}).get("items", []) if _is_stop_note(i)}
             for note in str(row.get("note") or "").split(_NOTE_SEP.strip()):
@@ -1236,10 +1242,10 @@ def _write_sheet(slug, plan, rows):
             # rows under a day trip belong to it, unless the sheet says they are the stop's again
             if in_daytrip and row.get("owner") == "stop":
                 in_daytrip = False
-            after_daytrips = not in_daytrip and bool(daytrip_lines)
-            line = place_line(row, after_daytrips)
+            after = "" if in_daytrip else daytrip
+            line = place_line(row, after)
             if line:
-                (daytrip_lines if in_daytrip else end_lines if after_daytrips else block).append(line)
+                (daytrip_lines if in_daytrip else end_lines if after else block).append(line)
     flush()
     if hidden:
         out += [""] + hidden

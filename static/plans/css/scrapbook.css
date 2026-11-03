@@ -737,8 +737,8 @@ button.plan-poi-title, button.sb-coaster-title {
 .sb-sheet-help { margin: -12px 0 20px; color: #535050; font-size: 0.85rem; line-height: 1.6; }
 .sb-sheet-wrap { overflow-x: auto; background: #fff; border: 2px solid #180A0A; box-shadow: 6px 6px 0 #180A0A; }
 .sb-sheet { width: 100%; min-width: 960px; border-collapse: collapse; table-layout: fixed; font-size: 0.85rem; }
-.sb-sheet col.c-drag { width: 30px; } .sb-sheet col.c-type { width: 110px; } .sb-sheet col.c-date { width: 170px; }
-.sb-sheet col.c-name { width: 26%; } .sb-sheet col.c-price { width: 100px; } .sb-sheet col.c-act { width: 64px; }
+.sb-sheet col.c-drag { width: 48px; } .sb-sheet col.c-type { width: 110px; } .sb-sheet col.c-date { width: 170px; }
+.sb-sheet col.c-name { width: 26%; } .sb-sheet col.c-price { width: 100px; } .sb-sheet col.c-act { width: 92px; }
 .sb-sheet thead th {
   position: sticky; top: 0; z-index: 2; background: #e7a328; color: #180A0A; text-align: left;
   font-size: 0.7rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
@@ -829,14 +829,15 @@ a.sb-booking-title:hover { text-decoration: underline; }
 .sb-row.is-member td:first-child { box-shadow: inset 3px 0 0 #16A34A; }
 .sb-row.is-folded { display: none; }
 .sb-row.is-out td { border-top: 1px dashed #16A34A; }
-.sb-name-cell { position: relative; }
+.sb-drag-cell { white-space: nowrap; }
 .sb-fold {
-  position: absolute; left: 2px; top: 7px; min-width: 22px; padding: 1px 4px; border: 0; border-radius: 6px;
-  background: none; color: #14532D; font-size: 0.78rem; font-weight: 800; cursor: pointer; z-index: 1;
+  width: 20px; padding: 2px 0; border: 0; border-radius: 6px; vertical-align: middle;
+  background: none; color: #14532D; font-size: 0.8rem; font-weight: 800; cursor: pointer;
 }
 .sb-fold:hover { background: #BBF7D0; }
 .sb-fold[hidden] { display: none; }
-.tabbi-page .sb-row--daytrip .sb-fold + input[data-f="name"] { padding-left: 40px; }
+.sb-row.sb-drop-before td { box-shadow: inset 0 3px 0 #e7a328; }
+.sb-row.sb-drop-after td { box-shadow: inset 0 -3px 0 #e7a328; }
 .sb-act-nest { color: #16A34A; }
 .sb-act-nest:hover { background: #16A34A; color: #fff; }
 .sb-act[hidden] { display: none; }
