@@ -824,6 +824,23 @@ a.sb-booking-title:hover { text-decoration: underline; }
 }
 .tabbi-page .sb-booking-meta { font-family: 'Courier Prime', monospace; font-size: 0.75rem; font-weight: 700; color: #4A3F38; }
 
+/* sheet: a day trip's own rows sit one step further in; folded ones are hidden */
+.sb-row.is-member .sb-name-cell input { padding-left: 46px; }
+.sb-row.is-member td:first-child { box-shadow: inset 3px 0 0 #16A34A; }
+.sb-row.is-folded { display: none; }
+.sb-row.is-out td { border-top: 1px dashed #16A34A; }
+.sb-name-cell { position: relative; }
+.sb-fold {
+  position: absolute; left: 2px; top: 7px; min-width: 22px; padding: 1px 4px; border: 0; border-radius: 6px;
+  background: none; color: #14532D; font-size: 0.78rem; font-weight: 800; cursor: pointer; z-index: 1;
+}
+.sb-fold:hover { background: #BBF7D0; }
+.sb-fold[hidden] { display: none; }
+.tabbi-page .sb-row--daytrip .sb-fold + input[data-f="name"] { padding-left: 40px; }
+.sb-act-nest { color: #16A34A; }
+.sb-act-nest:hover { background: #16A34A; color: #fff; }
+.sb-act[hidden] { display: none; }
+
 /* sheet: download / upload */
 .sb-sheet-io { display: flex; gap: 10px; flex-wrap: wrap; }
 .tabbi-page .sb-sheet-io button {
