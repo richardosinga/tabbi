@@ -783,3 +783,19 @@ button.plan-poi-title, button.sb-coaster-title {
 .sb-sheet-add button:hover { color: #180A0A; text-decoration: underline; text-decoration-color: #e7a328; text-decoration-thickness: 3px; }
 .sb-sheet-total { margin: 18px 4px; text-align: right; font-weight: 700; }
 .tabbi-page .sb-sheet-total { font-family: 'Courier Prime', monospace; font-size: 1.05rem; }
+/* the stop's own line: dates + notes */
+.sb-sheet-stop td { padding: 0; vertical-align: top; }
+.sb-sheet-stop th { vertical-align: top; }
+.sb-sheet .sb-sheet-dates-cell input {
+  font-weight: 800; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: #C2410C; padding: 14px 10px;
+}
+.sb-sheet .sb-sheet-dates-cell input::placeholder { text-transform: none; letter-spacing: 0; font-weight: 400; color: #B8AFA6; }
+.sb-sheet .sb-sheet-sub { padding: 12px 10px; }
+.sb-sheet textarea {
+  display: block; width: 100%; box-sizing: border-box; min-height: 42px; resize: none; overflow: hidden;
+  border: 0; background: #FCE7A6; padding: 9px 10px; outline: none; color: #180A0A;
+  font-family: 'Caveat', cursive; font-size: 1.2rem; line-height: 1.2;
+}
+.tabbi-page .sb-sheet textarea { font-family: 'Caveat', cursive; }
+.sb-sheet textarea:focus { box-shadow: inset 0 0 0 2px #e7a328; }
+.sb-sheet input[data-s="dates"]:focus { background: #FFF7E0; box-shadow: inset 0 0 0 2px #e7a328; }

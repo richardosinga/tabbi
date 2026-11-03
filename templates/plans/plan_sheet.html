@@ -39,7 +39,7 @@
   var table = document.getElementById('sheet');
   var status = document.getElementById('sheet-status');
   var totalEl = document.getElementById('sheet-total');
-  var CATS = [['do', 'Do'], ['eat', 'Eat'], ['drink', 'Drink'], ['note', 'Note']];
+  var CATS = [['do', 'Do'], ['eat', 'Eat'], ['drink', 'Drink']];
   var FIELDS = ['stop', 'name', 'url', 'category', 'price', 'note'];
   var stopsBySlug = {};
   data.stops.forEach(function(s) { stopsBySlug[s.slug] = s; });
@@ -58,14 +58,23 @@
   var bodies = {};
   data.stops.forEach(function(s) {
     var tb = el('tbody', {'data-stop': s.slug, 'class': s.daytrip ? 'is-daytrip' : ''});
-    var head = el('tr', {'class': 'sb-sheet-stop'});
-    var th = el('th', {colspan: '4', scope: 'rowgroup'});
+    // the stop's own line: its dates and its notes (one note per line)
+    var head = el('tr', {'class': 'sb-sheet-stop', 'data-stop': s.slug});
+    var th = el('th', {scope: 'rowgroup'});
     th.appendChild(el('a', {href: s.url, text: s.city}));
     if (s.daytrip) th.appendChild(el('span', {'class': 'sb-sheet-dt', text: 'day trip'}));
-    if (s.dates) th.appendChild(el('span', {'class': 'sb-sheet-dates', text: s.dates}));
     head.appendChild(th);
+    var dates = el('input', {type: 'text', 'data-s': 'dates', 'aria-label': 'Dates of ' + s.city, placeholder: 'dates, e.g. 19–22 July 2027'});
+    dates.value = s.dates || '';
+    head.appendChild(el('td', {colspan: '3', 'class': 'sb-sheet-dates-cell'}, [dates]));
     head.appendChild(el('td', {'class': 'num sb-sheet-sub'}));
-    head.appendChild(el('td', {colspan: '2'}));
+    var notes = el('textarea', {'data-s': 'notes', rows: '1', 'aria-label': 'Notes for ' + s.city, placeholder: 'notes for ' + s.city + '…'});
+    notes.value = (s.notes || []).join('\n');
+    head.appendChild(el('td', {colspan: '2', 'class': 'sb-sheet-notes-cell'}, [notes]));
+    function grow() { notes.style.height = 'auto'; notes.style.height = notes.scrollHeight + 'px'; }
+    notes.addEventListener('input', grow);
+    requestAnimationFrame(grow);
+    head.addEventListener('input', function() { head.dataset.dirty = '1'; changed(); });
     tb.appendChild(head);
     var add = el('tr', {'class': 'sb-sheet-add'});
     var addTd = el('td', {colspan: '7'});
@@ -147,6 +156,16 @@
     return rows;
   }
 
+  function collectStops() {
+    return Array.prototype.map.call(table.querySelectorAll('.sb-sheet-stop'), function(tr) {
+      return {
+        slug: tr.dataset.stop,
+        dates: tr.querySelector('[data-s="dates"]').value,
+        notes: tr.querySelector('[data-s="notes"]').value.split('\n'),
+      };
+    });
+  }
+
   function totals() {
     var all = 0;
     Object.keys(bodies).forEach(function(slug) {
@@ -177,7 +196,7 @@
     fetch('/plans/{{ plan.slug }}/sheet/save/', {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
-      body: JSON.stringify({rows: collect()}),
+      body: JSON.stringify({rows: collect(), stops: collectStops()}),
     }).then(function(r) {
       return r.json().then(function(d) { if (!r.ok) throw new Error(d.error || 'save failed'); return d; });
     }).then(function(d) {
@@ -199,6 +218,7 @@
 
   // Enter / ↑ / ↓ move between rows in the same column, like a spreadsheet
   table.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'TEXTAREA') return;
     var f = e.target.dataset && e.target.dataset.f;
     if (!f || e.target.tagName === 'SELECT' && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) return;
     if (e.key !== 'Enter' && e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
