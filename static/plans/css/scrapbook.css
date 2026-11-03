@@ -217,6 +217,7 @@ body:has(.tabbi-page) {
 }
 .plan-poi-card.plan-poi-card-note::after { display: none; }
 .plan-poi-card-note .plan-note-text { font-family: 'Caveat', cursive; font-size: 1.45rem; font-weight: 700; line-height: 1.15; color: #180A0A; }
+.tabbi-page .plan-poi-card-note .plan-note-input { font-family: 'Caveat', cursive; font-size: 1.45rem; font-weight: 700; line-height: 1.15; }
 .plan-poi-tagline, .plan-poi-snippet { font-family: 'Caveat', cursive; font-size: 1.3rem; line-height: 1.2; color: #3A2E2A; }
 
 /* Day trips: train tickets */
@@ -783,9 +784,11 @@ button.plan-poi-title, button.sb-coaster-title {
 .tabbi-page .sb-row--stop input[data-f="name"] { font-family: 'Caveat', cursive; font-size: 1.5rem; font-weight: 700; }
 .sb-row--daytrip td { background: #F0FAF3; border-top: 1px dashed #16A34A; }
 .tabbi-page .sb-row--daytrip input[data-f="name"] { font-family: 'Caveat', cursive; font-size: 1.3rem; font-weight: 700; padding-left: 22px; }
-.sb-row--do .sb-name-cell input, .sb-row--eat .sb-name-cell input, .sb-row--drink .sb-name-cell input { padding-left: 26px; }
+.sb-row--do .sb-name-cell input, .sb-row--eat .sb-name-cell input, .sb-row--drink .sb-name-cell input,
+.sb-row--hotel .sb-name-cell input, .sb-row--transport .sb-name-cell input { padding-left: 26px; }
 .sb-row--stop select { color: #180A0A; } .sb-row--daytrip select { color: #14532D; }
 .sb-row--eat select { color: #C2410C; } .sb-row--drink select { color: #2563EB; } .sb-row--do select { color: #8a5a0c; }
+.sb-row--hotel select { color: #7C3AED; } .sb-row--transport select { color: #0F766E; }
 .sb-row--stop input[data-f="price"], .sb-row--daytrip input[data-f="price"] { font-weight: 700; }
 
 .sb-sheet-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 18px 4px; flex-wrap: wrap; }
@@ -795,3 +798,36 @@ button.plan-poi-title, button.sb-coaster-title {
 }
 .sb-sheet-addstop:hover { background: #FCE7A6; border-style: solid; }
 .tabbi-page .sb-sheet-total { font-family: 'Courier Prime', monospace; font-size: 1.05rem; font-weight: 700; }
+
+/* ── Sleep & transport: small tags stuck on the bottom of the map ────────── */
+
+.sb-bookings {
+  position: absolute; left: 14px; right: 60px; bottom: 26px; z-index: 500;  /* over the tiles, under Leaflet's controls */
+  display: flex; flex-wrap: wrap-reverse; gap: 8px; margin: 0; padding: 0; list-style: none; pointer-events: none;
+}
+.sb-booking {
+  pointer-events: auto; display: flex; align-items: center; gap: 7px; max-width: 100%;
+  padding: 5px 11px 5px 8px; background: #FFF8E7; border: 2px solid #180A0A; border-radius: 8px;
+  box-shadow: 3px 3px 0 #180A0A; transform: rotate(-1.5deg);
+}
+.sb-booking:nth-child(even) { transform: rotate(1.2deg); }
+.sb-booking--hotel { background: #F3EEFF; }
+.sb-booking--transport { background: #E6F6F3; }
+.sb-booking-icon { font-size: 1rem; line-height: 1; }
+.sb-booking-main { display: flex; flex-direction: column; min-width: 0; }
+.sb-booking-title { font-weight: 800; font-size: 0.82rem; line-height: 1.2; color: #180A0A; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+a.sb-booking-title:hover { text-decoration: underline; }
+.sb-booking { max-width: 260px; }
+.tabbi-page .sb-booking-note {
+  font-family: 'Caveat', cursive; font-size: 1.05rem; line-height: 1.05; color: #2563EB;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.tabbi-page .sb-booking-meta { font-family: 'Courier Prime', monospace; font-size: 0.75rem; font-weight: 700; color: #4A3F38; }
+
+/* sheet: download / upload */
+.sb-sheet-io { display: flex; gap: 10px; flex-wrap: wrap; }
+.tabbi-page .sb-sheet-io button {
+  padding: 5px 14px; border: 2px solid #180A0A; border-radius: 999px; background: #fff; cursor: pointer;
+  font-weight: 700; font-size: 0.85rem; color: #180A0A;
+}
+.sb-sheet-io button:hover { background: #FCE7A6; }

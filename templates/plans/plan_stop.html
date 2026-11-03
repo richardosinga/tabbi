@@ -43,6 +43,13 @@
       <div id="plan-stop-map">
         <button class="plan-map-toggle" id="plan-map-toggle" title="Toggle map style">🌙</button>
       </div>
+      {% if items_hotel or items_transport %}
+      {% comment %}Where you sleep and how you get there: small tags stuck on the map{% endcomment %}
+      <ul class="sb-bookings" aria-label="Sleep and transport">
+        {% for item in items_hotel %}{% include "plans/_booking_ticket.html" with kind="hotel" %}{% endfor %}
+        {% for item in items_transport %}{% include "plans/_booking_ticket.html" with kind="transport" %}{% endfor %}
+      </ul>
+      {% endif %}
     </div>
 
     <div class="plan-poi-list">
@@ -119,7 +126,7 @@
               {% csrf_token %}
               <input type="hidden" name="old_text" value="{{ item.text }}">
               <input type="hidden" name="next" value="{{ request.path }}">
-              <input type="text" name="new_text" class="plan-note-input" value="{{ item.label|default:item.text }}">
+              <textarea name="new_text" class="plan-note-input" rows="1">{{ item.label|default:item.text }}</textarea>
             </form>
           {% endif %}
         </div>
@@ -134,7 +141,7 @@
       {% else %}
 
       {% if items_do %}
-      <h3 class="plan-section-label">Do</h3>
+      <h3 class="sb-visually-hidden">Do</h3>
       <div class="sb-cards sb-photo-cards">
       {% for item in items_do %}
       <div class="plan-poi-card{% if not item.page and not item.external_url %} plan-poi-card-note{% endif %}{% if item.is_expandable %} plan-poi-card--expandable{% endif %}" data-card-index="{{ item.card_index }}"{% if item.is_expandable %} onclick="togglePoiCard(event, this)"{% endif %}>
@@ -196,6 +203,12 @@
             </a>
           {% else %}
             <span class="plan-note-text" title="Click to edit">{{ item.label|default:item.text }}</span>
+            <form class="plan-note-edit-form" method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/note/" hidden>
+              {% csrf_token %}
+              <input type="hidden" name="old_text" value="{{ item.text }}">
+              <input type="hidden" name="next" value="{{ request.path }}">
+              <textarea name="new_text" class="plan-note-input" rows="1">{{ item.label|default:item.text }}</textarea>
+            </form>
           {% endif %}
         </div>
         <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/remove/" class="plan-remove-form">
@@ -210,7 +223,7 @@
       {% endif %}
 
       {% if items_eat %}
-      <h3 class="plan-section-label">Eat</h3>
+      <h3 class="sb-visually-hidden">Eat</h3>
       {% comment %}Restaurants as menu card / receipt / chalkboard, cycling{% endcomment %}
       <div class="sb-cards sb-eat">
       {% for item in items_eat %}
@@ -244,7 +257,7 @@
       {% endif %}
 
       {% if items_drink %}
-      <h3 class="plan-section-label">Drink</h3>
+      <h3 class="sb-visually-hidden">Drink</h3>
       {% comment %}Drinks as beer mats: each one a different shape, cycling through the set{% endcomment %}
       <div class="sb-coasters">
       {% for item in items_drink %}
@@ -313,7 +326,7 @@
            data-save-url="/plans/{{ plan.slug }}/{{ stop.city_slug }}/budget/"
            data-csrf="{{ csrf_token }}"
            data-budget="{{ budget_json }}"
-           data-places="{{ places_total }}"
+           data-sheet="{{ sheet_budget }}"
            hidden>
       </div>
 
@@ -779,9 +792,17 @@ document.querySelectorAll('.plan-remove-form').forEach(function(form) {
 document.querySelectorAll('.plan-note-text').forEach(function(span) {
   span.addEventListener('click', function() {
     var form = span.nextElementSibling;
+    if (!form || !form.classList.contains('plan-note-edit-form')) return;
     span.hidden = true;
     form.hidden = false;
     var input = form.querySelector('.plan-note-input');
+    // the note wraps and grows as you type; it stays one line in the plan, so Enter saves
+    var grow = function() { input.style.height = 'auto'; input.style.height = input.scrollHeight + 'px'; };
+    input.addEventListener('input', function() {
+      if (/\n/.test(input.value)) input.value = input.value.replace(/\s*\n\s*/g, ' ');
+      grow();
+    });
+    grow();
     input.focus();
     input.select();
     input.addEventListener('keydown', function(e) {
@@ -803,21 +824,16 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
   var saveUrl = el.dataset.saveUrl;
   var csrf = el.dataset.csrf;
   var FIELDS = [
-    ['hotel',      '🛏️ Hotel / stay'],
-    ['food',       '🍜 Food & drinks'],
-    ['activities', '🎒 Activities'],
-    ['travel',     '🚌 Transport'],
-    ['currency',   '💱 Currency'],
-    ['notes',      '📝 Notes'],
+    ['other',    '➕ Other'],
+    ['currency', '💱 Currency'],
+    ['notes',    '📝 Notes'],
   ];
 
-  // prices entered per place in the sheet
-  var places = parseFloat(el.dataset.places) || 0;
+  // the budget sums the prices in the sheet, per type; only "other" is typed in here
+  var sheet = JSON.parse(el.dataset.sheet || '{}');
 
   function calcTotal() {
-    return places + ['hotel','food','activities','travel'].reduce(function(s, k) {
-      return s + (parseFloat(budget[k]) || 0);
-    }, 0);
+    return (sheet.total || 0) + (parseFloat(String(budget.other || '').replace(',', '.')) || 0);
   }
 
   function escHtml(s) {
@@ -827,9 +843,18 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
   function render() {
     var total = calcTotal();
     var cur = budget.currency || '';
-    var html = '<div class="plan-budget-heading">Budget estimate' +
+    var html = '<div class="plan-budget-heading">Budget' +
       (cur ? ' <span class="plan-budget-currency">(' + escHtml(cur) + ')</span>' : '') + '</div>' +
       '<div class="plan-budget-rows">';
+    (sheet.lines || []).forEach(function(l) {
+      html += '<div class="plan-budget-row">' +
+        '<span class="plan-budget-label">' + l.label + '</span>' +
+        '<a class="plan-budget-value-static" href="/plans/{{ plan.slug }}/sheet/" title="Edit in the sheet">' + l.amount.toFixed(0) + '</a>' +
+        '</div>';
+    });
+    if (!(sheet.lines || []).length) {
+      html += '<div class="plan-budget-row"><span class="plan-budget-label">Prices you enter in the <a href="/plans/{{ plan.slug }}/sheet/">sheet</a> add up here.</span></div>';
+    }
     FIELDS.forEach(function(f) {
       var key = f[0], label = f[1];
       var val = budget[key] || '';
@@ -839,15 +864,9 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
         (val ? escHtml(String(val)) : '<span class="plan-budget-empty">—</span>') +
         '</span></div>';
     });
-    if (places) {
-      html += '<div class="plan-budget-row">' +
-        '<span class="plan-budget-label">📋 Places (sheet)</span>' +
-        '<a class="plan-budget-value-static" href="/plans/{{ plan.slug }}/sheet/" title="Edit in the sheet">' + places.toFixed(0) + '</a>' +
-        '</div>';
-    }
     if (total > 0) {
       html += '<div class="plan-budget-row plan-budget-total-row">' +
-        '<span class="plan-budget-label">Total / day</span>' +
+        '<span class="plan-budget-label">Total</span>' +
         '<span class="plan-budget-total">' + (cur ? escHtml(cur) + ' ' : '') + total.toFixed(0) + '</span>' +
         '</div>';
     }
@@ -891,7 +910,7 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
   render();
 
   // Auto-open budget section if there's already data
-  var hasData = places || Object.keys(budget).some(function(k) { return budget[k]; });
+  var hasData = (sheet.lines || []).length || FIELDS.some(function(f) { return budget[f[0]]; });
   if (hasData) {
     el.removeAttribute('hidden');
     var toggleBtn = document.getElementById('budget-toggle-btn');
