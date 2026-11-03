@@ -54,7 +54,7 @@ def _parse_rich_bullet(text):
     m = _RICH_BULLET_RE.match(text)
     if not m:
         return None
-    attrs = dict(a.split("=", 1) for a in (m.group("attrs") or "").split() if "=" in a)
+    attrs = {k: (q if q else v) for k, q, v in re.findall(r'(\w+)=(?:"([^"]*)"|(\S+))', m.group("attrs") or "")}
     category = attrs.get("cat", "").lower()
     price = None
     try:
@@ -66,6 +66,7 @@ def _parse_rich_bullet(text):
         "url": m.group("url").strip(),
         "category": category if category in ITEM_CATEGORIES else "",
         "price": price,
+        "date": attrs.get("date", "").strip(),
         "note": m.group("note").strip(),
     }
 
@@ -80,7 +81,7 @@ def _content_path(url):
     return url
 
 
-def _rich_bullet(name, url, category="", price=None, note=""):
+def _rich_bullet(name, url, category="", price=None, note="", date=""):
     clean = lambda v: re.sub(r"\s+", " ", str(v or "")).strip()
     name = clean(name).replace("[", "(").replace("]", ")")
     url = _content_path(clean(url)).replace(" ", "%20").replace(")", "%29")
@@ -92,6 +93,9 @@ def _rich_bullet(name, url, category="", price=None, note=""):
             attrs.append(f"price={float(price):g}")
         except (TypeError, ValueError):
             pass
+    date = clean(date).replace('"', "'")
+    if date:
+        attrs.append(f'date="{date}"' if " " in date else f"date={date}")
     text = f"[{name}]({url})" + ("{" + " ".join(attrs) + "}" if attrs else "")
     note = clean(note)
     return f"{text} {note}" if note else text
@@ -545,6 +549,7 @@ def _parse_stops(body, plan_slug):
                 "label": label,
                 "category": rich["category"] if rich else "",
                 "price": rich["price"] if rich else None,
+                "date": rich["date"] if rich else "",
                 "note": rich["note"] if rich else "",
             })
 
@@ -1095,6 +1100,7 @@ def _sheet_rows(plan):
                 "url": url,
                 "category": group,
                 "price": item.get("price"),
+                "date": item.get("date") or "",
                 "note": item.get("note") or "",
                 "orig": item["text"],
             })
@@ -1153,7 +1159,7 @@ def _write_sheet(slug, rows, known, stops=None):
             if not name and not url:
                 continue
             category = row.get("category") if row.get("category") in ITEM_CATEGORIES else ""
-            text = _rich_bullet(name, url, category, row.get("price"), row.get("note"))
+            text = _rich_bullet(name, url, category, row.get("price"), row.get("note"), row.get("date"))
         else:
             text = row["orig"]
         bullets.setdefault(row.get("stop"), []).append(f"- {text}")
