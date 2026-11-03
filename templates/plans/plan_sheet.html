@@ -84,7 +84,9 @@
     });
     var date = input('date', 'Date', r.date);
     var name = input('name', 'Name', r.name);
-    var content = input('content', 'Content: a link or text', r.url || r.note || '', {placeholder: '—'});
+    // Content wraps and grows with its text, so long notes stay readable
+    var content = el('textarea', {'data-f': 'content', 'aria-label': 'Content: a link or text', placeholder: '—', rows: '1'});
+    content.value = r.url || r.note || '';
     var open = el('a', {'class': 'sb-sheet-open', rel: 'noopener', title: 'Open', text: '↗'});
     var price = input('price', 'Price', r.price, {inputmode: 'decimal', 'class': 'num'});
     var add = el('button', {type: 'button', 'class': 'sb-act', title: 'Insert a row below', 'aria-label': 'Insert a row below', text: '+'});
@@ -102,6 +104,7 @@
       else { open.removeAttribute('href'); open.hidden = true; }
     }
     content.addEventListener('input', sync);
+    content.addEventListener('input', function() { grow(content); });
     type.addEventListener('change', sync);
     sync();
 
@@ -135,9 +138,15 @@
     return tr;
   }
 
+  function grow(t) { t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; }
+  function growAll() { body.querySelectorAll('textarea').forEach(grow); }
+  window.addEventListener('resize', growAll);
+  if (document.fonts) document.fonts.ready.then(growAll);
+
   function render(rows) {
     body.innerHTML = '';
     rows.forEach(function(r) { body.appendChild(makeRow(r)); });
+    growAll();
     totals();
   }
 
@@ -225,6 +234,8 @@
       return;
     }
     if (e.target.tagName === 'SELECT' && e.key !== 'Enter') return;
+    if (e.target.tagName === 'TEXTAREA' && e.key !== 'Enter') return;  // ↑/↓ move the caret inside the text
+    if (e.key === 'Enter') e.preventDefault();
     if (e.key !== 'Enter' && e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
     var next = e.key === 'ArrowUp' ? tr.previousElementSibling : tr.nextElementSibling;
     if (next) { e.preventDefault(); next.querySelector('[data-f="' + f + '"]').focus(); }
