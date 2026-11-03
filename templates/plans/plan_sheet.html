@@ -14,40 +14,47 @@
     <h1><span class="sb-highlight">{{ plan.title }}</span></h1>
     <span class="sb-sheet-status" id="sheet-status" aria-live="polite"></span>
   </div>
-  <p class="sb-sheet-help">Every place in the trip, one row each. Changes save by themselves. <strong>Content</strong> is a link (a world66 page or any other site) or your own text.</p>
+  <p class="sb-sheet-help">
+    One row per stop, day trip and place — a place belongs to the stop or day trip above it.
+    <strong>Content</strong> is a link (world66 or any site) or your own text. Drag <span aria-hidden="true">⠿</span> (or Alt+↑/↓) to move a row. Changes save by themselves.
+  </p>
 
   <div class="sb-sheet-wrap">
     <table class="sb-sheet" id="sheet">
       <colgroup>
-        <col class="c-stop"><col class="c-date"><col class="c-name"><col class="c-content"><col class="c-cat"><col class="c-price"><col class="c-del">
+        <col class="c-drag"><col class="c-type"><col class="c-date"><col class="c-name"><col class="c-content"><col class="c-price"><col class="c-act">
       </colgroup>
       <thead>
         <tr>
-          <th scope="col">Stop</th><th scope="col">Date</th><th scope="col">Name</th><th scope="col">Content <span class="sb-sheet-hint">link or text</span></th>
-          <th scope="col">Category</th><th scope="col" class="num">Price</th><th scope="col"><span class="sb-visually-hidden">Remove</span></th>
+          <th scope="col"><span class="sb-visually-hidden">Move</span></th>
+          <th scope="col">Type</th><th scope="col">Date</th><th scope="col">Name</th>
+          <th scope="col">Content <span class="sb-sheet-hint">link or text</span></th>
+          <th scope="col" class="num">Price</th><th scope="col"><span class="sb-visually-hidden">Actions</span></th>
         </tr>
       </thead>
+      <tbody id="sheet-body"></tbody>
     </table>
   </div>
-  <div class="sb-sheet-total" id="sheet-total"></div>
+  <div class="sb-sheet-foot">
+    <button type="button" class="sb-sheet-addstop" id="add-stop">+ add a stop</button>
+    <span class="sb-sheet-total" id="sheet-total"></span>
+  </div>
 </div>
 
 {{ sheet|json_script:"sheet-data" }}
 <script>
 (function () {
   var data = JSON.parse(document.getElementById('sheet-data').textContent);
-  var table = document.getElementById('sheet');
+  var body = document.getElementById('sheet-body');
   var status = document.getElementById('sheet-status');
   var totalEl = document.getElementById('sheet-total');
-  var CATS = [['do', 'Do'], ['eat', 'Eat'], ['drink', 'Drink']];
-  var FIELDS = ['stop', 'date', 'name', 'category', 'price'];
-  // Content is one cell: a link becomes the place's content URL, anything else its note
+  var TYPES = [['stop', 'Stop'], ['daytrip', 'Day trip'], ['do', 'Do'], ['eat', 'Eat'], ['drink', 'Drink']];
+  var isHead = function(t) { return t === 'stop' || t === 'daytrip'; };
+
+  // Content is one cell: a link becomes the content URL, anything else the note
   function isLink(v) {
     return /^(https?:\/\/|~pois\/)\S*$/i.test(v) || /^\/?[a-z0-9_-]+(\/[a-z0-9_.-]+){2,}\/?$/i.test(v);
   }
-  var stopsBySlug = {};
-  data.stops.forEach(function(s) { stopsBySlug[s.slug] = s; });
-
   function el(tag, attrs, kids) {
     var e = document.createElement(tag);
     Object.keys(attrs || {}).forEach(function(k) {
@@ -57,139 +64,106 @@
     return e;
   }
   function money(n) { return (Math.round(n * 100) / 100).toLocaleString(undefined, {maximumFractionDigits: 2}); }
-
-  // one <tbody> per stop: a header row, its places, and an "add" row
-  var bodies = {};
-  data.stops.forEach(function(s) {
-    var tb = el('tbody', {'data-stop': s.slug, 'class': s.daytrip ? 'is-daytrip' : ''});
-    // the stop's own line: its dates and its notes (one note per line)
-    var head = el('tr', {'class': 'sb-sheet-stop', 'data-stop': s.slug});
-    var th = el('th', {scope: 'rowgroup'});
-    th.appendChild(el('a', {href: s.url, text: s.city}));
-    if (s.daytrip) th.appendChild(el('span', {'class': 'sb-sheet-dt', text: 'day trip'}));
-    head.appendChild(th);
-    var dates = el('input', {type: 'text', 'data-s': 'dates', 'aria-label': 'Dates of ' + s.city, placeholder: 'dates'});
-    dates.value = s.dates || '';
-    head.appendChild(el('td', {'class': 'sb-sheet-dates-cell'}, [dates]));
-    var notes = el('textarea', {'data-s': 'notes', rows: '1', 'aria-label': 'Notes for ' + s.city, placeholder: 'notes for ' + s.city + '…'});
-    notes.value = (s.notes || []).join('\n');
-    head.appendChild(el('td', {colspan: '2', 'class': 'sb-sheet-notes-cell'}, [notes]));
-    head.appendChild(el('td', {}));
-    head.appendChild(el('td', {'class': 'num sb-sheet-sub'}));
-    head.appendChild(el('td', {}));
-    function grow() { notes.style.height = 'auto'; notes.style.height = notes.scrollHeight + 'px'; }
-    notes.addEventListener('input', grow);
-    requestAnimationFrame(grow);
-    head.addEventListener('input', function() { head.dataset.dirty = '1'; changed(); });
-    tb.appendChild(head);
-    var add = el('tr', {'class': 'sb-sheet-add'});
-    var addTd = el('td', {colspan: '7'});
-    var addBtn = el('button', {type: 'button', text: '+ add a row to ' + s.city});
-    addBtn.addEventListener('click', function() {
-      var tr = makeRow({stop: s.slug, date: '', name: '', url: '', category: 'do', price: null, note: '', orig: ''});
-      tr.dataset.dirty = '1';
-      tb.insertBefore(tr, add);
-      tr.querySelector('[data-f="name"]').focus();
-    });
-    addTd.appendChild(addBtn);
-    add.appendChild(addTd);
-    tb.appendChild(add);
-    table.appendChild(tb);
-    bodies[s.slug] = tb;
-  });
+  function input(f, label, value, extra) {
+    var i = el('input', Object.assign({type: 'text', 'data-f': f, 'aria-label': label}, extra || {}));
+    i.value = value == null ? '' : value;
+    return i;
+  }
 
   function makeRow(r) {
-    var tr = el('tr', {'class': 'sb-sheet-row'});
+    var tr = el('tr', {'class': 'sb-row'});
     tr.dataset.orig = r.orig || '';
-    var stopSel = el('select', {'data-f': 'stop', 'aria-label': 'Stop'});
-    data.stops.forEach(function(s) {
-      var o = el('option', {value: s.slug, text: (s.daytrip ? '↳ ' : '') + s.city});
-      if (s.slug === r.stop) o.selected = true;
-      stopSel.appendChild(o);
+    tr.dataset.note = r.url ? (r.note || '') : '';  // a place with a link and a note shows the link; the note rides along
+
+    var handle = el('span', {'class': 'sb-drag', draggable: 'true', title: 'Drag to move', text: '⠿'});
+    var type = el('select', {'data-f': 'type', 'aria-label': 'Type'});
+    TYPES.forEach(function(t) {
+      var o = el('option', {value: t[0], text: t[1]});
+      if (t[0] === r.type) o.selected = true;
+      type.appendChild(o);
     });
-    var catSel = el('select', {'data-f': 'category', 'aria-label': 'Category'});
-    CATS.forEach(function(c) {
-      var o = el('option', {value: c[0], text: c[1]});
-      if (c[0] === r.category) o.selected = true;
-      catSel.appendChild(o);
-    });
-    var content = el('input', {type: 'text', 'data-f': 'content', 'aria-label': 'Content: a link or text', placeholder: '—'});
-    content.value = r.url || r.note || '';
-    // a place that has both a link and a note shows the link; the note rides along
-    tr.dataset.note = r.url ? (r.note || '') : '';
-    var open = el('a', {'class': 'sb-sheet-open', target: '_blank', rel: 'noopener', title: 'Open', text: '↗'});
-    function syncOpen() {
-      var v = content.value.trim();
-      var link = isLink(v);
+    var date = input('date', 'Date', r.date);
+    var name = input('name', 'Name', r.name);
+    var content = input('content', 'Content: a link or text', r.url || r.note || '', {placeholder: '—'});
+    var open = el('a', {'class': 'sb-sheet-open', rel: 'noopener', title: 'Open', text: '↗'});
+    var price = input('price', 'Price', r.price, {inputmode: 'decimal', 'class': 'num'});
+    var add = el('button', {type: 'button', 'class': 'sb-act', title: 'Insert a row below', 'aria-label': 'Insert a row below', text: '+'});
+    var del = el('button', {type: 'button', 'class': 'sb-act sb-act-del', title: 'Delete', 'aria-label': 'Delete row', text: '×'});
+
+    function sync() {
+      var t = type.value, v = content.value.trim(), head = isHead(t), link = !head && isLink(v);
+      tr.className = 'sb-row sb-row--' + t + (tr.classList.contains('is-dragging') ? ' is-dragging' : '');
       content.classList.toggle('is-link', link);
-      var href = /^https?:\/\//i.test(v) ? v : (link && !/^~pois\//.test(v) ? data.w66 + '/' + v.replace(/^\//, '') : '');
-      if (href) { open.href = href; open.hidden = false; } else { open.removeAttribute('href'); open.hidden = true; }
+      content.placeholder = head ? 'notes…' : '—';
+      price.disabled = head;
+      var href = head ? (tr.dataset.orig ? r.href || '' : '')
+        : /^https?:\/\//i.test(v) ? v : (link && !/^~pois\//.test(v) ? data.w66 + '/' + v.replace(/^\//, '') : '');
+      if (href) { open.href = href; open.hidden = false; open.target = head ? '_self' : '_blank'; }
+      else { open.removeAttribute('href'); open.hidden = true; }
     }
-    syncOpen();
-    content.addEventListener('input', syncOpen);
-    var date = el('input', {type: 'text', 'data-f': 'date', 'aria-label': 'Date', placeholder: ''}); date.value = r.date || '';
-    var name = el('input', {type: 'text', 'data-f': 'name', 'aria-label': 'Name'}); name.value = r.name || '';
-    var price = el('input', {type: 'text', inputmode: 'decimal', 'data-f': 'price', 'aria-label': 'Price', 'class': 'num'});
-    price.value = r.price == null ? '' : r.price;
-    var del = el('button', {type: 'button', 'class': 'sb-sheet-del', 'aria-label': 'Remove row', title: 'Remove row', text: '×'});
-    del.addEventListener('click', function() { tr.remove(); changed(); });
-    var contentTd = el('td', {'class': 'sb-sheet-url'}, [content, open]);
-    [el('td', {}, [stopSel]), el('td', {}, [date]), el('td', {}, [name]), contentTd, el('td', {}, [catSel]),
-     el('td', {}, [price]), el('td', {}, [del])].forEach(function(td) { tr.appendChild(td); });
-    tr.addEventListener('input', function() { tr.dataset.dirty = '1'; changed(); });
-    stopSel.addEventListener('change', function() {
-      var tb = bodies[stopSel.value];
-      tb.insertBefore(tr, tb.querySelector('.sb-sheet-add'));
-      stopSel.focus();
+    content.addEventListener('input', sync);
+    type.addEventListener('change', sync);
+    sync();
+
+    add.addEventListener('click', function() {
+      var row = makeRow({type: isHead(type.value) ? 'do' : type.value, orig: ''});
+      row.dataset.dirty = '1';
+      tr.after(row);
+      row.querySelector('[data-f="name"]').focus();
     });
+    del.addEventListener('click', function() {
+      var rows = [tr];
+      if (isHead(type.value)) {
+        // a stop takes its places and day trips with it; a day trip its places
+        for (var n = tr.nextElementSibling; n; n = n.nextElementSibling) {
+          var t = n.querySelector('[data-f="type"]').value;
+          if (t === 'stop' || (type.value === 'daytrip' && t === 'daytrip')) break;
+          rows.push(n);
+        }
+        if (rows.length > 1 && !confirm('Delete ' + (name.value || 'this stop') + ' and the ' + (rows.length - 1) + ' row(s) under it?')) return;
+      }
+      rows.forEach(function(x) { x.remove(); });
+      changed();
+    });
+
+    [el('td', {'class': 'sb-drag-cell'}, [handle]), el('td', {}, [type]), el('td', {}, [date]),
+     el('td', {'class': 'sb-name-cell'}, [name]), el('td', {'class': 'sb-sheet-url'}, [content, open]),
+     el('td', {'class': 'sb-price-cell'}, [price]), el('td', {'class': 'sb-act-cell'}, [add, del])]
+      .forEach(function(td) { tr.appendChild(td); });
+    tr.addEventListener('input', function() { tr.dataset.dirty = '1'; changed(); });
+    tr.addEventListener('change', function() { tr.dataset.dirty = '1'; changed(); });
     return tr;
   }
 
   function render(rows) {
-    table.querySelectorAll('.sb-sheet-row').forEach(function(tr) { tr.remove(); });
-    rows.forEach(function(r) {
-      var tb = bodies[r.stop];
-      if (tb) tb.insertBefore(makeRow(r), tb.querySelector('.sb-sheet-add'));
-    });
+    body.innerHTML = '';
+    rows.forEach(function(r) { body.appendChild(makeRow(r)); });
     totals();
   }
 
   function collect() {
-    var rows = [];
-    table.querySelectorAll('.sb-sheet-row').forEach(function(tr) {
+    return Array.prototype.map.call(body.querySelectorAll('.sb-row'), function(tr) {
       var r = {orig: tr.dataset.orig, dirty: tr.dataset.dirty === '1'};
-      FIELDS.forEach(function(f) { r[f] = tr.querySelector('[data-f="' + f + '"]').value; });
+      ['type', 'date', 'name'].forEach(function(f) { r[f] = tr.querySelector('[data-f="' + f + '"]').value; });
       var c = tr.querySelector('[data-f="content"]').value.trim();
-      if (isLink(c)) { r.url = c; r.note = tr.dataset.note || ''; }
+      if (!isHead(r.type) && isLink(c)) { r.url = c; r.note = tr.dataset.note || ''; }
       else { r.url = ''; r.note = c; }
-      r.price = r.price.trim() === '' ? null : parseFloat(r.price.replace(',', '.'));
-      if (r.price !== null && isNaN(r.price)) r.price = null;
-      rows.push(r);
-    });
-    return rows;
-  }
-
-  function collectStops() {
-    return Array.prototype.map.call(table.querySelectorAll('.sb-sheet-stop'), function(tr) {
-      return {
-        slug: tr.dataset.stop,
-        dates: tr.querySelector('[data-s="dates"]').value,
-        notes: tr.querySelector('[data-s="notes"]').value.split('\n'),
-      };
+      var p = tr.querySelector('[data-f="price"]').value.trim().replace(',', '.');
+      r.price = isHead(r.type) || p === '' || isNaN(parseFloat(p)) ? null : parseFloat(p);
+      return r;
     });
   }
 
+  // a stop / day trip shows the sum of its places' prices
   function totals() {
-    var all = 0;
-    Object.keys(bodies).forEach(function(slug) {
-      var sum = 0;
-      bodies[slug].querySelectorAll('[data-f="price"]').forEach(function(i) {
-        var v = parseFloat((i.value || '').replace(',', '.'));
-        if (!isNaN(v)) sum += v;
-      });
-      bodies[slug].querySelector('.sb-sheet-sub').textContent = sum ? money(sum) : '';
-      all += sum;
+    var all = 0, head = null, sum = 0;
+    function flush() { if (head) head.querySelector('[data-f="price"]').value = sum ? money(sum) : ''; }
+    body.querySelectorAll('.sb-row').forEach(function(tr) {
+      if (isHead(tr.querySelector('[data-f="type"]').value)) { flush(); head = tr; sum = 0; return; }
+      var v = parseFloat((tr.querySelector('[data-f="price"]').value || '').replace(',', '.'));
+      if (!isNaN(v)) { sum += v; all += v; }
     });
+    flush();
     totalEl.textContent = all ? 'Total of all prices: ' + money(all) : '';
   }
 
@@ -203,23 +177,26 @@
   }
   function save() {
     if (saving) { timer = setTimeout(save, 300); return; }
+    var rows = collect();
+    var first = rows.filter(function(r) { return r.name || r.url; })[0];
+    if (first && first.type !== 'stop') { status.textContent = '⚠ the first row must be a stop'; return; }
     saving = true;
     pending = false;
     status.textContent = 'saving…';
     fetch('/plans/{{ plan.slug }}/sheet/save/', {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
-      body: JSON.stringify({rows: collect(), stops: collectStops()}),
+      body: JSON.stringify({rows: rows}),
     }).then(function(r) {
       return r.json().then(function(d) { if (!r.ok) throw new Error(d.error || 'save failed'); return d; });
     }).then(function(d) {
       saving = false;
       if (pending) return;  // more typing since this save went out; the next save follows
-      // the saved bullets become the rows' new originals (no re-render, so the cursor stays put)
-      var trs = table.querySelectorAll('.sb-sheet-row');
+      // the saved lines become the rows' new originals (no re-render, so the cursor stays put)
+      var trs = body.querySelectorAll('.sb-row');
       if (trs.length === d.rows.length) {
         trs.forEach(function(tr, i) { tr.dataset.orig = d.rows[i].orig; tr.dataset.dirty = ''; });
-      } else {
+      } else if (!body.contains(document.activeElement)) {
         render(d.rows);  // empty rows were dropped
       }
       status.textContent = 'saved ✓';
@@ -229,16 +206,52 @@
     });
   }
 
-  // Enter / ↑ / ↓ move between rows in the same column, like a spreadsheet
-  table.addEventListener('keydown', function(e) {
-    if (e.target.tagName === 'TEXTAREA') return;
+  document.getElementById('add-stop').addEventListener('click', function() {
+    var row = makeRow({type: 'stop', orig: ''});
+    row.dataset.dirty = '1';
+    body.appendChild(row);
+    row.querySelector('[data-f="name"]').focus();
+  });
+
+  // keyboard: Enter / ↑ / ↓ move between rows in a column; Alt+↑/↓ moves the row itself
+  body.addEventListener('keydown', function(e) {
     var f = e.target.dataset && e.target.dataset.f;
-    if (!f || e.target.tagName === 'SELECT' && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) return;
+    var tr = e.target.closest && e.target.closest('.sb-row');
+    if (!f || !tr) return;
+    if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      e.preventDefault();
+      var sib = e.key === 'ArrowUp' ? tr.previousElementSibling : tr.nextElementSibling;
+      if (sib) { if (e.key === 'ArrowUp') sib.before(tr); else sib.after(tr); e.target.focus(); changed(); }
+      return;
+    }
+    if (e.target.tagName === 'SELECT' && e.key !== 'Enter') return;
     if (e.key !== 'Enter' && e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
-    var rows = Array.prototype.slice.call(table.querySelectorAll('.sb-sheet-row'));
-    var i = rows.indexOf(e.target.closest('.sb-sheet-row'));
-    var next = rows[i + (e.key === 'ArrowUp' ? -1 : 1)];
+    var next = e.key === 'ArrowUp' ? tr.previousElementSibling : tr.nextElementSibling;
     if (next) { e.preventDefault(); next.querySelector('[data-f="' + f + '"]').focus(); }
+  });
+
+  // drag the ⠿ handle to move a row
+  var dragging = null;
+  body.addEventListener('dragstart', function(e) {
+    if (!e.target.classList || !e.target.classList.contains('sb-drag')) return;
+    dragging = e.target.closest('.sb-row');
+    dragging.classList.add('is-dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', '');
+  });
+  body.addEventListener('dragover', function(e) {
+    if (!dragging) return;
+    e.preventDefault();
+    var over = e.target.closest && e.target.closest('.sb-row');
+    if (!over || over === dragging) return;
+    var rect = over.getBoundingClientRect();
+    if (e.clientY < rect.top + rect.height / 2) over.before(dragging); else over.after(dragging);
+  });
+  body.addEventListener('dragend', function() {
+    if (!dragging) return;
+    dragging.classList.remove('is-dragging');
+    dragging = null;
+    changed();
   });
 
   render(data.rows);

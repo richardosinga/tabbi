@@ -470,6 +470,7 @@ def _parse_stops(body, plan_slug):
                         continue
             city_slug = _slugify(city_name)
             current = {
+                "heading_line": line,
                 "city": city_name,
                 "city_slug": city_slug,
                 "city_path": city_path,
@@ -1065,6 +1066,14 @@ def plan_traveler_join(request, slug, token):
 
 
 # ── Sheet: the whole trip as one editable table ─────────────────────────────
+#
+# One flat list of rows in file order. Each row has a type: "stop" and "daytrip"
+# rows are the ## / ### headings (name, dates, notes); "do" / "eat" / "drink" rows
+# are places and belong to the stop or day trip above them.
+
+SHEET_STOP_TYPES = ("stop", "daytrip")
+_NOTE_SEP = " · "
+
 
 def _is_stop_note(item):
     """A note about the stop itself: no page, no link — just text."""
@@ -1075,35 +1084,42 @@ def _note_text(item):
     return item.get("label") or item["text"]
 
 
+def _place_row(item):
+    page = item.get("page")
+    rich = _parse_rich_bullet(item["text"]) if item.get("rich") else None
+    if rich:
+        url = rich["url"]
+    elif page:
+        url = page.path
+    else:
+        url = item.get("external_url") or ""
+    if url and not re.match(r"^(https?://|~pois/)", url):
+        url = _w66_url(url)
+    return {
+        "type": _item_group(item),
+        "date": item.get("date") or "",
+        "name": item.get("label") or (page.title if page else "") or item.get("display_label") or "",
+        "url": url,
+        "note": item.get("note") or "",
+        "price": item.get("price"),
+        "orig": item["text"],
+    }
+
+
 def _sheet_rows(plan):
     rows = []
     for stop in _all_stops(plan):
-        for item in stop["items"]:
-            if _is_stop_note(item):
-                continue
-            page = item.get("page")
-            rich = _parse_rich_bullet(item["text"]) if item.get("rich") else None
-            if rich:
-                url = rich["url"]
-            elif page and not page.path.startswith("~pois/"):
-                url = page.path
-            elif page:
-                url = page.path
-            else:
-                url = item.get("external_url") or ""
-            if url and not re.match(r"^(https?://|~pois/)", url):
-                url = _w66_url(url)
-            group = _item_group(item)
-            rows.append({
-                "stop": stop["city_slug"],
-                "name": item.get("label") or (page.title if page else "") or item.get("display_label") or ("" if url else item["text"]),
-                "url": url,
-                "category": group,
-                "price": item.get("price"),
-                "date": item.get("date") or "",
-                "note": item.get("note") or "",
-                "orig": item["text"],
-            })
+        rows.append({
+            "type": "daytrip" if stop.get("is_daytrip") else "stop",
+            "date": stop["dates"],
+            "name": stop["city"],
+            "url": "",
+            "note": _NOTE_SEP.join(_note_text(i) for i in stop["items"] if _is_stop_note(i)),
+            "price": None,
+            "orig": stop.get("heading_line", ""),
+            "href": stop["url"],
+        })
+        rows.extend(_place_row(i) for i in stop["items"] if not _is_stop_note(i))
     return rows
 
 
@@ -1112,15 +1128,9 @@ def plan_sheet(request, slug):
     plan = _parse_plan(PLANS_DIR / f"{slug}.md")
     if not plan:
         raise Http404
-    stops = []
-    for stop in _all_stops(plan):
-        label = stop["city"] + (f"  ·  day trip from {stop['parent_city']}" if stop.get("is_daytrip") else "")
-        stops.append({"slug": stop["city_slug"], "label": label, "city": stop["city"], "dates": stop["dates"],
-                      "daytrip": bool(stop.get("is_daytrip")), "url": stop["url"],
-                      "notes": [_note_text(i) for i in stop["items"] if _is_stop_note(i)]})
     return render(request, "plans/plan_sheet.html", {
         "plan": plan,
-        "sheet": {"stops": stops, "rows": _sheet_rows(plan), "w66": getattr(_settings, "WORLD66_SITE_URL", "https://world66.ai")},
+        "sheet": {"rows": _sheet_rows(plan), "w66": getattr(_settings, "WORLD66_SITE_URL", "https://world66.ai")},
     })
 
 
@@ -1137,52 +1147,70 @@ def _heading_with_dates(line, old_dates, dates):
     return f"{prefix}{left} | {dates}" if dates else f"{prefix}{left}"
 
 
-def _write_sheet(slug, rows, known, stops=None):
-    """Rewrite the bullets of every known stop from the sheet's rows (in sheet order).
-    Untouched rows keep their original bullet; edited ones become rich bullets.
-    `stops` ({slug: {dates, notes, old_dates, note_origs}}) sets each stop's dates and
-    its notes, which go first under the heading. Sections the sheet doesn't show
-    (e.g. a country heading) are left alone."""
+def _sheet_heading(row, old):
+    """The heading line for a stop / day-trip row. `old` is the stop it was, if any:
+    unchanged rows keep their original line (path-style headings included)."""
+    clean = lambda v: re.sub(r"\s+", " ", str(v or "")).strip()
+    daytrip = row["type"] == "daytrip"
+    name, dates = clean(row.get("name")), clean(row.get("date"))
+    if old and bool(old.get("is_daytrip")) == daytrip and name == old["city"]:
+        line = old["heading_line"]
+        return line if dates == old["dates"] else _heading_with_dates(line, old["dates"], dates)
+    head = ("### Day trip: " if daytrip else "## ") + name
+    return f"{head} | {dates}" if dates else head
+
+
+def _write_sheet(slug, plan, rows):
+    """Rebuild the plan body from the sheet's rows. Text before the first heading
+    stays on top; sections the sheet doesn't show (e.g. a country heading) go last."""
     import frontmatter as fm
     path = PLANS_DIR / f"{slug}.md"
     post = fm.load(path)
-    stops = stops or {}
-    bullets = {}
-    for section, st in stops.items():
-        for note in st["notes"]:
-            # a note that's still the same text keeps its original bullet
-            orig = st["note_origs"].get(note)
-            bullets.setdefault(section, []).append(f"- {orig or _rich_bullet(note, '', 'note')}")
-    for row in rows:
-        if row.get("dirty") or not row.get("orig"):
-            name, url = (row.get("name") or "").strip(), (row.get("url") or "").strip()
-            if not name and not url:
-                continue
-            category = row.get("category") if row.get("category") in ITEM_CATEGORIES else ""
-            text = _rich_bullet(name, url, category, row.get("price"), row.get("note"), row.get("date"))
-        else:
-            text = row["orig"]
-        bullets.setdefault(row.get("stop"), []).append(f"- {text}")
-    out, in_section = [], False
+    stops_by_heading = {s.get("heading_line"): s for s in _all_stops(plan)}
+    known = set(stops_by_heading)
+
+    preamble, hidden, section_known = [], [], None
     for line in post.content.splitlines():
-        h = re.match(r"^#{2,3}\s+(.+)$", line)
-        if h:
-            section = _heading_slug(h.group(1))
-            st = stops.get(section)
-            if st and st["dates"] != st["old_dates"]:
-                line = _heading_with_dates(line, st["old_dates"], st["dates"])
-            out.append(line)
-            in_section = section in known
-            if in_section:
-                out.extend(bullets.pop(section, []))
-            continue
-        if in_section and re.match(r"^[-*]\s+", line):
-            continue
-        out.append(line)
-    post.content = "\n".join(out)
+        if re.match(r"^#{2,3}\s+", line):
+            section_known = line in known
+        if section_known is None:
+            preamble.append(line)
+        elif not section_known:
+            hidden.append(line)
+    while preamble and not preamble[-1].strip():
+        preamble.pop()
+
+    out = list(preamble)
+    for row in rows:
+        kind = row.get("type")
+        if kind in SHEET_STOP_TYPES:
+            old = stops_by_heading.get(row.get("orig"))
+            name = re.sub(r"\s+", " ", str(row.get("name") or "")).strip()
+            if not name:
+                continue
+            if kind == "stop" and out:
+                out.append("")
+            out.append(_sheet_heading(row, old))
+            old_notes = {_note_text(i): i["text"] for i in (old or {}).get("items", []) if _is_stop_note(i)}
+            for note in str(row.get("note") or "").split(_NOTE_SEP.strip()):
+                note = note.strip()
+                if note:
+                    out.append(f"- {old_notes.get(note) or _rich_bullet(note, '', 'note')}")
+        else:
+            if row.get("dirty") or not row.get("orig"):
+                name, url = (row.get("name") or "").strip(), (row.get("url") or "").strip()
+                if not name and not url:
+                    continue
+                category = kind if kind in ("do", "eat", "drink") else ""
+                text = _rich_bullet(name, url, category, row.get("price"), row.get("note"), row.get("date"))
+            else:
+                text = row["orig"]
+            out.append(f"- {text}")
+    if hidden:
+        out += [""] + hidden
+    post.content = "\n".join(out) + "\n"
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(fm.dumps(post))
-    return sorted(k for k in bullets if k)  # rows for stops that don't exist
 
 
 @_require_plan_auth
@@ -1192,29 +1220,14 @@ def plan_sheet_save(request, slug):
         rows = json.loads(request.body).get("rows")
     except (json.JSONDecodeError, UnicodeDecodeError, AttributeError):
         return JsonResponse({"error": "invalid JSON"}, status=400)
-    if not isinstance(rows, list):
+    if not isinstance(rows, list) or not all(isinstance(r, dict) for r in rows):
         return JsonResponse({"error": "rows required"}, status=400)
+    first = next((r for r in rows if (r.get("name") or r.get("url"))), None)
+    if first and first.get("type") != "stop":
+        return JsonResponse({"error": "the first row must be a stop"}, status=400)
     plan = _parse_plan(PLANS_DIR / f"{slug}.md")
-    known = {s["city_slug"] for s in _all_stops(plan)}
-    unknown = sorted({r.get("stop") for r in rows if isinstance(r, dict)} - known)
-    if unknown:
-        return JsonResponse({"error": f"unknown stop: {', '.join(map(str, unknown))}"}, status=400)
-    stops = {}
-    sent = {st.get("slug"): st for st in (json.loads(request.body).get("stops") or []) if isinstance(st, dict)}
-    for stop in _all_stops(plan):
-        st = sent.get(stop["city_slug"])
-        notes = [i for i in stop["items"] if _is_stop_note(i)]
-        if st is None:  # not sent: keep dates and notes as they are
-            st = {"dates": stop["dates"], "notes": [_note_text(i) for i in notes]}
-        stops[stop["city_slug"]] = {
-            "dates": re.sub(r"\s+", " ", str(st.get("dates") or "")).strip(),
-            "notes": [n.strip() for n in (st.get("notes") or []) if isinstance(n, str) and n.strip()],
-            "old_dates": stop["dates"],
-            "note_origs": {_note_text(i): i["text"] for i in notes},
-        }
-    _write_sheet(slug, [r for r in rows if isinstance(r, dict)], known, stops)
-    plan = _parse_plan(PLANS_DIR / f"{slug}.md")
-    return JsonResponse({"ok": True, "rows": _sheet_rows(plan)})
+    _write_sheet(slug, plan, rows)
+    return JsonResponse({"ok": True, "rows": _sheet_rows(_parse_plan(PLANS_DIR / f"{slug}.md"))})
 
 
 def _distance_km(a, b):
