@@ -802,3 +802,8 @@ button.plan-poi-title, button.sb-coaster-title {
 .sb-sheet col.c-date { width: 150px; } .sb-sheet col.c-stop { width: 140px; } .sb-sheet col.c-name { width: 20%; } .sb-sheet col.c-url { width: 22%; }
 .sb-sheet { min-width: 1120px; }
 .tabbi-page .sb-sheet input[data-f="date"] { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #C2410C; }
+.sb-sheet col.c-content { width: 34%; } .sb-sheet col.c-name { width: 22%; }
+.sb-sheet-hint { font-weight: 600; letter-spacing: 0; text-transform: none; opacity: 0.7; margin-left: 4px; }
+/* text in the Content cell reads as a handwritten note; a link as a link */
+.tabbi-page .sb-sheet input[data-f="content"] { font-family: 'Caveat', cursive; font-size: 1.15rem; color: #2563EB; }
+.tabbi-page .sb-sheet input[data-f="content"].is-link { font-family: 'Lexend Exa', sans-serif; font-size: 0.75rem; color: #3A2E2A; text-decoration: underline; text-decoration-color: rgba(194,65,12,0.4); }

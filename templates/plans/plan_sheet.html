@@ -14,17 +14,17 @@
     <h1><span class="sb-highlight">{{ plan.title }}</span></h1>
     <span class="sb-sheet-status" id="sheet-status" aria-live="polite"></span>
   </div>
-  <p class="sb-sheet-help">Every place in the trip, one row each. Changes save by themselves. <strong>Content URL</strong> is a world66 page, any other link, or empty.</p>
+  <p class="sb-sheet-help">Every place in the trip, one row each. Changes save by themselves. <strong>Content</strong> is a link (a world66 page or any other site) or your own text.</p>
 
   <div class="sb-sheet-wrap">
     <table class="sb-sheet" id="sheet">
       <colgroup>
-        <col class="c-stop"><col class="c-date"><col class="c-name"><col class="c-url"><col class="c-cat"><col class="c-price"><col class="c-note"><col class="c-del">
+        <col class="c-stop"><col class="c-date"><col class="c-name"><col class="c-content"><col class="c-cat"><col class="c-price"><col class="c-del">
       </colgroup>
       <thead>
         <tr>
-          <th scope="col">Stop</th><th scope="col">Date</th><th scope="col">Name</th><th scope="col">Content URL</th>
-          <th scope="col">Category</th><th scope="col" class="num">Price</th><th scope="col">Note</th><th scope="col"><span class="sb-visually-hidden">Remove</span></th>
+          <th scope="col">Stop</th><th scope="col">Date</th><th scope="col">Name</th><th scope="col">Content <span class="sb-sheet-hint">link or text</span></th>
+          <th scope="col">Category</th><th scope="col" class="num">Price</th><th scope="col"><span class="sb-visually-hidden">Remove</span></th>
         </tr>
       </thead>
     </table>
@@ -40,7 +40,11 @@
   var status = document.getElementById('sheet-status');
   var totalEl = document.getElementById('sheet-total');
   var CATS = [['do', 'Do'], ['eat', 'Eat'], ['drink', 'Drink']];
-  var FIELDS = ['stop', 'date', 'name', 'url', 'category', 'price', 'note'];
+  var FIELDS = ['stop', 'date', 'name', 'category', 'price'];
+  // Content is one cell: a link becomes the place's content URL, anything else its note
+  function isLink(v) {
+    return /^(https?:\/\/|~pois\/)\S*$/i.test(v) || /^\/?[a-z0-9_-]+(\/[a-z0-9_.-]+){2,}\/?$/i.test(v);
+  }
   var stopsBySlug = {};
   data.stops.forEach(function(s) { stopsBySlug[s.slug] = s; });
 
@@ -67,11 +71,11 @@
     var dates = el('input', {type: 'text', 'data-s': 'dates', 'aria-label': 'Dates of ' + s.city, placeholder: 'dates'});
     dates.value = s.dates || '';
     head.appendChild(el('td', {'class': 'sb-sheet-dates-cell'}, [dates]));
-    head.appendChild(el('td', {colspan: '3'}));
-    head.appendChild(el('td', {'class': 'num sb-sheet-sub'}));
     var notes = el('textarea', {'data-s': 'notes', rows: '1', 'aria-label': 'Notes for ' + s.city, placeholder: 'notes for ' + s.city + '…'});
     notes.value = (s.notes || []).join('\n');
-    head.appendChild(el('td', {'class': 'sb-sheet-notes-cell'}, [notes]));
+    head.appendChild(el('td', {colspan: '2', 'class': 'sb-sheet-notes-cell'}, [notes]));
+    head.appendChild(el('td', {}));
+    head.appendChild(el('td', {'class': 'num sb-sheet-sub'}));
     head.appendChild(el('td', {}));
     function grow() { notes.style.height = 'auto'; notes.style.height = notes.scrollHeight + 'px'; }
     notes.addEventListener('input', grow);
@@ -79,7 +83,7 @@
     head.addEventListener('input', function() { head.dataset.dirty = '1'; changed(); });
     tb.appendChild(head);
     var add = el('tr', {'class': 'sb-sheet-add'});
-    var addTd = el('td', {colspan: '8'});
+    var addTd = el('td', {colspan: '7'});
     var addBtn = el('button', {type: 'button', text: '+ add a row to ' + s.city});
     addBtn.addEventListener('click', function() {
       var tr = makeRow({stop: s.slug, date: '', name: '', url: '', category: 'do', price: null, note: '', orig: ''});
@@ -109,26 +113,29 @@
       if (c[0] === r.category) o.selected = true;
       catSel.appendChild(o);
     });
-    var urlInput = el('input', {type: 'text', 'data-f': 'url', 'aria-label': 'Content URL', placeholder: '—', spellcheck: 'false'});
-    urlInput.value = r.url || '';
+    var content = el('input', {type: 'text', 'data-f': 'content', 'aria-label': 'Content: a link or text', placeholder: '—'});
+    content.value = r.url || r.note || '';
+    // a place that has both a link and a note shows the link; the note rides along
+    tr.dataset.note = r.url ? (r.note || '') : '';
     var open = el('a', {'class': 'sb-sheet-open', target: '_blank', rel: 'noopener', title: 'Open', text: '↗'});
     function syncOpen() {
-      var v = urlInput.value.trim();
-      var href = /^https?:\/\//.test(v) ? v : (v && !/^~pois\//.test(v) ? data.w66 + '/' + v.replace(/^\//, '') : '');
+      var v = content.value.trim();
+      var link = isLink(v);
+      content.classList.toggle('is-link', link);
+      var href = /^https?:\/\//i.test(v) ? v : (link && !/^~pois\//.test(v) ? data.w66 + '/' + v.replace(/^\//, '') : '');
       if (href) { open.href = href; open.hidden = false; } else { open.removeAttribute('href'); open.hidden = true; }
     }
     syncOpen();
-    urlInput.addEventListener('input', syncOpen);
+    content.addEventListener('input', syncOpen);
     var date = el('input', {type: 'text', 'data-f': 'date', 'aria-label': 'Date', placeholder: ''}); date.value = r.date || '';
     var name = el('input', {type: 'text', 'data-f': 'name', 'aria-label': 'Name'}); name.value = r.name || '';
     var price = el('input', {type: 'text', inputmode: 'decimal', 'data-f': 'price', 'aria-label': 'Price', 'class': 'num'});
     price.value = r.price == null ? '' : r.price;
-    var note = el('input', {type: 'text', 'data-f': 'note', 'aria-label': 'Note'}); note.value = r.note || '';
     var del = el('button', {type: 'button', 'class': 'sb-sheet-del', 'aria-label': 'Remove row', title: 'Remove row', text: '×'});
     del.addEventListener('click', function() { tr.remove(); changed(); });
-    var urlTd = el('td', {'class': 'sb-sheet-url'}, [urlInput, open]);
-    [el('td', {}, [stopSel]), el('td', {}, [date]), el('td', {}, [name]), urlTd, el('td', {}, [catSel]),
-     el('td', {}, [price]), el('td', {}, [note]), el('td', {}, [del])].forEach(function(td) { tr.appendChild(td); });
+    var contentTd = el('td', {'class': 'sb-sheet-url'}, [content, open]);
+    [el('td', {}, [stopSel]), el('td', {}, [date]), el('td', {}, [name]), contentTd, el('td', {}, [catSel]),
+     el('td', {}, [price]), el('td', {}, [del])].forEach(function(td) { tr.appendChild(td); });
     tr.addEventListener('input', function() { tr.dataset.dirty = '1'; changed(); });
     stopSel.addEventListener('change', function() {
       var tb = bodies[stopSel.value];
@@ -152,6 +159,9 @@
     table.querySelectorAll('.sb-sheet-row').forEach(function(tr) {
       var r = {orig: tr.dataset.orig, dirty: tr.dataset.dirty === '1'};
       FIELDS.forEach(function(f) { r[f] = tr.querySelector('[data-f="' + f + '"]').value; });
+      var c = tr.querySelector('[data-f="content"]').value.trim();
+      if (isLink(c)) { r.url = c; r.note = tr.dataset.note || ''; }
+      else { r.url = ''; r.note = c; }
       r.price = r.price.trim() === '' ? null : parseFloat(r.price.replace(',', '.'));
       if (r.price !== null && isNaN(r.price)) r.price = null;
       rows.push(r);
