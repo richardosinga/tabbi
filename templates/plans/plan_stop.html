@@ -18,6 +18,7 @@
     <h1><span class="sb-highlight">{{ stop.city }}</span></h1>
     {% if parent_stop %}<div class="plan-daytrip-from">Day trip from <a href="{{ parent_stop.url }}">{{ parent_stop.city }}</a></div>{% endif %}
     {% if stop.dates %}<div class="plan-stop-dates-large">{{ stop.dates }}</div>{% endif %}
+    <a href="/plans/{{ plan.slug }}/sheet/" class="plan-edit-link sb-sheet-link">Sheet</a>
     <a href="/plans/{{ plan.slug }}/edit/" class="plan-edit-link">Edit</a>
   </div>
   {% include "plans/_travelers.html" with stop=stop %}
@@ -72,11 +73,12 @@
         <div class="plan-poi-body">
           {% if item.page %}
             {% if item.page.meta.external_url or item.page.meta.source_url %}
-            <a class="plan-poi-title plan-poi-title--draft" href="{{ item.page.meta.external_url|default:item.page.meta.source_url }}" target="_blank" rel="noopener">{{ item.page.title }}</a>
+            <a class="plan-poi-title plan-poi-title--draft" href="{{ item.page.meta.external_url|default:item.page.meta.source_url }}" target="_blank" rel="noopener">{{ item.label|default:item.page.title }}</a>
             {% elif item.page.path|slice:":6" == "~pois/" or item.page.meta.tabbi_only %}
-            <span class="plan-poi-title plan-poi-title--draft">{{ item.page.title }}</span>
+            <span class="plan-poi-title plan-poi-title--draft">{{ item.label|default:item.page.title }}</span>
             {% else %}
-            {% if item.is_expandable %}<button type="button" class="plan-poi-title plan-poi-title--open" aria-expanded="false">{{ item.page.title }}</button>{% else %}<a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.page.title }}</a>{% endif %}
+            {% if item.is_expandable %}<button type="button" class="plan-poi-title plan-poi-title--open" aria-expanded="false">{{ item.label|default:item.page.title }}</button>{% else %}<a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.label|default:item.page.title }}</a>{% endif %}
+            {% if item.note %}<p class="sb-item-note">{{ item.note }}</p>{% endif %}
             {% endif %}
             {% if item.is_expandable %}
               {% if item.page.meta.snippet %}
@@ -112,12 +114,12 @@
               <span class="plan-external-domain">{{ item.display_domain }} ↗</span>
             </a>
           {% else %}
-            <span class="plan-note-text" title="Click to edit">{{ item.text }}</span>
+            <span class="plan-note-text" title="Click to edit">{{ item.label|default:item.text }}</span>
             <form class="plan-note-edit-form" method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/note/" hidden>
               {% csrf_token %}
               <input type="hidden" name="old_text" value="{{ item.text }}">
               <input type="hidden" name="next" value="{{ request.path }}">
-              <input type="text" name="new_text" class="plan-note-input" value="{{ item.text }}">
+              <input type="text" name="new_text" class="plan-note-input" value="{{ item.label|default:item.text }}">
             </form>
           {% endif %}
         </div>
@@ -139,14 +141,15 @@
         <div class="plan-poi-body">
           {% if item.page %}
             {% if item.image_url or item.photo_pending %}
-            <button type="button" class="sb-card-photo" data-card="{{ item.card_index }}"{% if item.image_url %} style="background-image:url('{{ item.image_url }}')"{% endif %}{% if item.photo_pending %} data-photo-for="{{ item.text }}"{% endif %} aria-label="Photo of {{ item.page.title }}" onclick="event.stopPropagation(); tabbiOpenPhoto(this.dataset.card)"></button>
+            <button type="button" class="sb-card-photo" data-card="{{ item.card_index }}"{% if item.image_url %} style="background-image:url('{{ item.image_url }}')"{% endif %}{% if item.photo_pending %} data-photo-for="{{ item.text }}"{% endif %} aria-label="Photo of {{ item.label|default:item.page.title }}" onclick="event.stopPropagation(); tabbiOpenPhoto(this.dataset.card)"></button>
             {% endif %}
             {% if item.page.meta.external_url or item.page.meta.source_url %}
-            <a class="plan-poi-title plan-poi-title--draft" href="{{ item.page.meta.external_url|default:item.page.meta.source_url }}" target="_blank" rel="noopener">{{ item.page.title }}</a>
+            <a class="plan-poi-title plan-poi-title--draft" href="{{ item.page.meta.external_url|default:item.page.meta.source_url }}" target="_blank" rel="noopener">{{ item.label|default:item.page.title }}</a>
             {% elif item.page.path|slice:":6" == "~pois/" or item.page.meta.tabbi_only %}
-            <span class="plan-poi-title plan-poi-title--draft">{{ item.page.title }}</span>
+            <span class="plan-poi-title plan-poi-title--draft">{{ item.label|default:item.page.title }}</span>
             {% else %}
-            {% if item.is_expandable %}<button type="button" class="plan-poi-title plan-poi-title--open" aria-expanded="false">{{ item.page.title }}</button>{% else %}<a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.page.title }}</a>{% endif %}
+            {% if item.is_expandable %}<button type="button" class="plan-poi-title plan-poi-title--open" aria-expanded="false">{{ item.label|default:item.page.title }}</button>{% else %}<a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.label|default:item.page.title }}</a>{% endif %}
+            {% if item.note %}<p class="sb-item-note">{{ item.note }}</p>{% endif %}
             {% endif %}
             {% if item.is_expandable %}
               {% if item.page.meta.snippet %}<p class="plan-poi-tagline">{{ item.page.meta.snippet }}</p>{% endif %}
@@ -192,7 +195,7 @@
               <span class="plan-external-domain">{{ item.display_domain }} ↗</span>
             </a>
           {% else %}
-            <span class="plan-note-text" title="Click to edit">{{ item.text }}</span>
+            <span class="plan-note-text" title="Click to edit">{{ item.label|default:item.text }}</span>
           {% endif %}
         </div>
         <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/remove/" class="plan-remove-form">
@@ -215,9 +218,10 @@
         <div class="plan-poi-body">
           {% if item.page %}
             {% if item.page.path|slice:":6" == "~pois/" %}
-            <span class="plan-poi-title plan-poi-title--draft">{{ item.page.title }}</span>
+            <span class="plan-poi-title plan-poi-title--draft">{{ item.label|default:item.page.title }}</span>
             {% else %}
-            {% if item.is_expandable %}<button type="button" class="plan-poi-title plan-poi-title--open" aria-expanded="false">{{ item.page.title }}</button>{% else %}<a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.page.title }}</a>{% endif %}
+            {% if item.is_expandable %}<button type="button" class="plan-poi-title plan-poi-title--open" aria-expanded="false">{{ item.label|default:item.page.title }}</button>{% else %}<a class="plan-poi-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ item.label|default:item.page.title }}</a>{% endif %}
+            {% if item.note %}<p class="sb-item-note">{{ item.note }}</p>{% endif %}
             {% endif %}
             {% if item.is_expandable %}
               {% if item.page.meta.snippet %}<p class="plan-poi-tagline">{{ item.page.meta.snippet }}</p>{% endif %}
@@ -249,22 +253,22 @@
           <span class="sb-coaster-kicker">{% cycle '★ cheers ★' 'on tap' '★ ★ ★' 'last round' 'bar' %}</span>
           {% if item.page %}
             {% if item.page.path|slice:":6" == "~pois/" %}
-            <span class="sb-coaster-title">{{ item.page.title }}</span>
+            <span class="sb-coaster-title">{{ item.label|default:item.page.title }}</span>
             {% else %}
-            {% if item.page.body or item.image_url %}<button type="button" class="sb-coaster-title sb-coaster-open">{{ item.page.title }}</button>{% else %}<a class="sb-coaster-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener">{{ item.page.title }}</a>{% endif %}
+            {% if item.page.body or item.image_url %}<button type="button" class="sb-coaster-title sb-coaster-open">{{ item.label|default:item.page.title }}</button>{% else %}<a class="sb-coaster-title" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener">{{ item.label|default:item.page.title }}</a>{% endif %}
             {% endif %}
             {% if item.page.meta.snippet %}<span class="sb-coaster-note">{{ item.page.meta.snippet }}</span>{% endif %}
             {% if item.page.body or item.image_url %}
             <button type="button" class="sb-coaster-more" aria-expanded="false">read more</button>
             <template class="sb-coaster-detail">
               {% if item.image_url %}<div class="plan-poi-full-image" style="background-image:url('{{ item.image_url }}')"></div>{% endif %}
-              <h4 class="sb-detail-title">{{ item.page.title }}</h4>
+              <h4 class="sb-detail-title">{{ item.label|default:item.page.title }}</h4>
               <p class="plan-poi-full-body">{{ item.page.body }}</p>
               {% if not item.page.path|slice:":6" == "~pois/" %}<a class="plan-poi-full-link" href="{{ WORLD66_SITE_URL }}/{{ item.page.path }}" target="_blank" rel="noopener">Open in world66 ↗</a>{% endif %}
             </template>
             {% endif %}
           {% else %}
-            <span class="sb-coaster-title">{{ item.text }}</span>
+            <span class="sb-coaster-title">{{ item.label|default:item.text }}</span>
           {% endif %}
         </div>
         <form method="post" action="/plans/{{ plan.slug }}/{{ stop.city_slug }}/remove/" class="plan-remove-form sb-coaster-remove">
@@ -309,6 +313,7 @@
            data-save-url="/plans/{{ plan.slug }}/{{ stop.city_slug }}/budget/"
            data-csrf="{{ csrf_token }}"
            data-budget="{{ budget_json }}"
+           data-places="{{ places_total }}"
            hidden>
       </div>
 
@@ -806,8 +811,11 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
     ['notes',      '📝 Notes'],
   ];
 
+  // prices entered per place in the sheet
+  var places = parseFloat(el.dataset.places) || 0;
+
   function calcTotal() {
-    return ['hotel','food','activities','travel'].reduce(function(s, k) {
+    return places + ['hotel','food','activities','travel'].reduce(function(s, k) {
       return s + (parseFloat(budget[k]) || 0);
     }, 0);
   }
@@ -831,6 +839,12 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
         (val ? escHtml(String(val)) : '<span class="plan-budget-empty">—</span>') +
         '</span></div>';
     });
+    if (places) {
+      html += '<div class="plan-budget-row">' +
+        '<span class="plan-budget-label">📋 Places (sheet)</span>' +
+        '<a class="plan-budget-value-static" href="/plans/{{ plan.slug }}/sheet/" title="Edit in the sheet">' + places.toFixed(0) + '</a>' +
+        '</div>';
+    }
     if (total > 0) {
       html += '<div class="plan-budget-row plan-budget-total-row">' +
         '<span class="plan-budget-label">Total / day</span>' +
@@ -877,7 +891,7 @@ document.querySelectorAll('.plan-note-text').forEach(function(span) {
   render();
 
   // Auto-open budget section if there's already data
-  var hasData = Object.keys(budget).some(function(k) { return budget[k]; });
+  var hasData = places || Object.keys(budget).some(function(k) { return budget[k]; });
   if (hasData) {
     el.removeAttribute('hidden');
     var toggleBtn = document.getElementById('budget-toggle-btn');

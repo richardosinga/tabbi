@@ -13,6 +13,7 @@
   <div class="plan-header">
     <h1><span class="sb-highlight">{{ plan.title }}</span></h1>
     {% if plan.budget %}<div class="plan-budget">Budget: {{ plan.budget }}</div>{% endif %}
+    <a href="/plans/{{ plan.slug }}/sheet/" class="plan-edit-link sb-sheet-link">Sheet</a>
     <a href="/plans/{{ plan.slug }}/edit/" class="plan-edit-link">Edit</a>
   </div>
   {% if plan.description %}<p class="plan-description">{{ plan.description }}</p>{% endif %}
@@ -157,6 +158,7 @@
       {% if total_budget.food %}<div class="plan-budget-row"><span class="plan-budget-label">🍜 Food</span><span class="plan-budget-value-static">{{ total_budget.food|floatformat:0 }}</span></div>{% endif %}
       {% if total_budget.activities %}<div class="plan-budget-row"><span class="plan-budget-label">🎒 Activities</span><span class="plan-budget-value-static">{{ total_budget.activities|floatformat:0 }}</span></div>{% endif %}
       {% if total_budget.travel %}<div class="plan-budget-row"><span class="plan-budget-label">🚌 Transport</span><span class="plan-budget-value-static">{{ total_budget.travel|floatformat:0 }}</span></div>{% endif %}
+      {% if total_budget.places %}<div class="plan-budget-row"><span class="plan-budget-label">📋 Places (sheet)</span><a class="plan-budget-value-static" href="/plans/{{ plan.slug }}/sheet/">{{ total_budget.places|floatformat:0 }}</a></div>{% endif %}
       <div class="plan-budget-row plan-budget-total-row">
         <span class="plan-budget-label">Total / day</span>
         <span class="plan-budget-total">{% if total_budget.currency %}{{ total_budget.currency }} {% endif %}{{ total_budget.total|floatformat:0 }}</span>

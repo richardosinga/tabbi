@@ -31,6 +31,99 @@ def _w66_url(path):
     base = getattr(_settings, "WORLD66_SITE_URL", "https://world66.ai")
     return f"{base}/{path}"
 
+# ── Plan items: grouping and the "rich" bullet ───────────────────────────────
+#
+# A place can be written as a plain bullet (a world66 path, ~pois/… draft, URL or
+# free-text note), or — when edited in the sheet — as a rich bullet that carries
+# its own name, content URL, category, price and note:
+#
+#   - [Conwy Castle](europe/unitedkingdom/wales/conwy/conwy_castle){cat=do price=14} book online
+#   - [Mum's favourite café](){cat=eat}
+#   - [Ferry tickets](https://www.stenaline.co.uk){cat=do price=180}
+#
+# The content URL is a world66 path, a ~pois/ draft, an external URL, or empty.
+
+_RICH_BULLET_RE = re.compile(r"^\[(?P<name>[^\]]*)\]\((?P<url>[^)\s]*)\)(?:\{(?P<attrs>[^}]*)\})?\s*(?P<note>.*)$")
+ITEM_CATEGORIES = ("do", "eat", "drink", "note")
+EAT_SIGNALS = {"restaurant", "eating_out", "food", "cafe", "café"}
+DRINK_SIGNALS = {"bar", "bars_and_cafes", "pub", "nightlife", "drink"}
+
+
+def _parse_rich_bullet(text):
+    """{name, url, category, price, note} for a rich bullet, else None."""
+    m = _RICH_BULLET_RE.match(text)
+    if not m:
+        return None
+    attrs = {k: (q if q else v) for k, q, v in re.findall(r'(\w+)=(?:"([^"]*)"|(\S+))', m.group("attrs") or "")}
+    category = attrs.get("cat", "").lower()
+    price = None
+    try:
+        price = float(attrs["price"]) if attrs.get("price") else None
+    except ValueError:
+        pass
+    return {
+        "name": m.group("name").strip(),
+        "url": m.group("url").strip(),
+        "category": category if category in ITEM_CATEGORIES else "",
+        "price": price,
+        "date": attrs.get("date", "").strip(),
+        "note": m.group("note").strip(),
+    }
+
+
+def _content_path(url):
+    """A world66 page URL becomes its content path; anything else is kept as is."""
+    url = (url or "").strip()
+    base = getattr(_settings, "WORLD66_SITE_URL", "https://world66.ai").rstrip("/")
+    for prefix in (base + "/", "https://world66.ai/", "http://world66.ai/"):
+        if url.startswith(prefix):
+            return url[len(prefix):].split("?")[0].split("#")[0].strip("/")
+    return url
+
+
+def _rich_bullet(name, url, category="", price=None, note="", date=""):
+    clean = lambda v: re.sub(r"\s+", " ", str(v or "")).strip()
+    name = clean(name).replace("[", "(").replace("]", ")")
+    url = _content_path(clean(url)).replace(" ", "%20").replace(")", "%29")
+    attrs = []
+    if category in ITEM_CATEGORIES:
+        attrs.append(f"cat={category}")
+    if price not in (None, ""):
+        try:
+            attrs.append(f"price={float(price):g}")
+        except (TypeError, ValueError):
+            pass
+    date = clean(date).replace('"', "'")
+    if date:
+        attrs.append(f'date="{date}"' if " " in date else f"date={date}")
+    text = f"[{name}]({url})" + ("{" + " ".join(attrs) + "}" if attrs else "")
+    note = clean(note)
+    return f"{text} {note}" if note else text
+
+
+def _bullet_key(text):
+    """What a bullet points at: the content URL of a rich bullet, else the text."""
+    rich = _parse_rich_bullet(text)
+    return (rich["url"] or text) if rich else text
+
+
+def _item_group(item):
+    """do / eat / drink / note for a parsed plan item."""
+    if item.get("category"):
+        return item["category"]
+    page = item.get("page")
+    if not page:
+        return "note" if not item.get("external_url") else "do"
+    cat = (page.meta.get("category") or "").lower()
+    tags = [t.lower() for t in (page.tags if hasattr(page, "tags") else page.meta.get("tags") or [])]
+    signals = {cat} | set(tags)
+    if signals & DRINK_SIGNALS:
+        return "drink"
+    if signals & EAT_SIGNALS:
+        return "eat"
+    return "do"
+
+
 PLANS_DIR = Path(settings.BASE_DIR) / "plans"
 _PASSWORDS_FILE = PLANS_DIR / ".passwords.json"
 _GEOCACHE_FILE = PLANS_DIR / ".geocache.json"
@@ -377,6 +470,7 @@ def _parse_stops(body, plan_slug):
                         continue
             city_slug = _slugify(city_name)
             current = {
+                "heading_line": line,
                 "city": city_name,
                 "city_slug": city_slug,
                 "city_path": city_path,
@@ -400,30 +494,34 @@ def _parse_stops(body, plan_slug):
         bullet = re.match(r"^[-*]\s+(.+)$", line)
         if bullet:
             text = bullet.group(1).strip()
+            rich = _parse_rich_bullet(text)
+            target = _content_path(rich["url"]) if rich else text
             page = None
             external_url = None
             display_label = None
             display_domain = None
-            if re.match(r"^https?://", text):
-                external_url = text
+            if rich and not target:
+                pass  # a named place without content
+            elif re.match(r"^https?://", target):
+                external_url = target
                 from urllib.parse import urlparse as _urlparse
                 _p = _urlparse(text)
                 display_domain = _p.netloc.lstrip("www.")
                 display_path = (_p.path.rstrip("/").rsplit("/", 1)[-1].replace("-", " ").replace("_", " ").title()
                                 if _p.path and _p.path != "/" else "")
                 display_label = display_path or display_domain
-            elif text.startswith("/"):
-                page = load_page(text.lstrip("/"))
-            elif text.startswith("~pois/"):
+            elif target.startswith("/"):
+                page = load_page(target.lstrip("/"))
+            elif target.startswith("~pois/"):
                 from world66_content.models import _load_page_from_file
-                poi_file = PLANS_DIR / "pois" / (text[6:] + ".md")
+                poi_file = PLANS_DIR / "pois" / (target[6:] + ".md")
                 if poi_file.is_file():
-                    page = _load_page_from_file(poi_file, text)
-            elif re.match(r"^[\w/_-]+$", text):
-                page = load_page(text)
-                if not page and current.get("city_path"):
-                    page = _find_poi_in_city(text, current["city_path"])
-            else:
+                    page = _load_page_from_file(poi_file, target)
+            elif re.match(r"^[\w/_-]+$", target):
+                page = load_page(target)
+                if not page and current.get("city_path") and not rich:
+                    page = _find_poi_in_city(target, current["city_path"])
+            elif not rich:
                 if current.get("city_path"):
                     page = _find_poi_in_city(text, current["city_path"])
             image_url = None
@@ -440,13 +538,20 @@ def _parse_stops(body, plan_slug):
                         image_url = f"/content-image/{img}"
                     else:
                         image_url = photo_cache.get(page.path)
+            label = (rich["name"] if rich else "") or None
             current["items"].append({
                 "text": text,
                 "page": page,
                 "external_url": external_url,
-                "display_label": display_label if external_url else None,
+                "display_label": (label or display_label) if external_url else None,
                 "display_domain": display_domain if external_url else None,
                 "image_url": image_url,
+                "rich": bool(rich),
+                "label": label,
+                "category": rich["category"] if rich else "",
+                "price": rich["price"] if rich else None,
+                "date": rich["date"] if rich else "",
+                "note": rich["note"] if rich else "",
             })
 
     for stop in _all_stops({"stops": stops}):
@@ -468,7 +573,7 @@ def _read_plan_items(plan_slug):
     plan = _parse_plan(PLANS_DIR / f"{plan_slug}.md")
     if not plan:
         return {}
-    return {s["city_slug"]: [item["text"] for item in s["items"]] for s in _all_stops(plan)}
+    return {s["city_slug"]: [_bullet_key(item["text"]) for item in s["items"]] for s in _all_stops(plan)}
 
 
 def authenticated_plan_stops(request):
@@ -792,7 +897,8 @@ def plan_detail(request, slug):
         if not currency and b.get("currency"):
             currency = b["currency"]
     total_budget["currency"] = currency
-    total_budget["total"] = sum(total_budget[k] for k in ("hotel", "food", "activities", "travel"))
+    total_budget["places"] = sum(i["price"] for st in _all_stops(plan) for i in st["items"] if i.get("price"))
+    total_budget["total"] = sum(total_budget[k] for k in ("hotel", "food", "activities", "travel", "places"))
 
     from passport.views import _load_passport as _lp
     linked_passport = None
@@ -957,6 +1063,171 @@ def plan_traveler_join(request, slug, token):
         return HttpResponseRedirect(f"/auth/login/{slug}/?next=/plans/{slug}/")
     _mark_plan_authenticated(request, slug)
     return HttpResponseRedirect(f"/plans/{slug}/")
+
+
+# ── Sheet: the whole trip as one editable table ─────────────────────────────
+#
+# One flat list of rows in file order. Each row has a type: "stop" and "daytrip"
+# rows are the ## / ### headings (name, dates, notes); "do" / "eat" / "drink" rows
+# are places and belong to the stop or day trip above them.
+
+SHEET_STOP_TYPES = ("stop", "daytrip")
+_NOTE_SEP = " · "
+
+
+def _is_stop_note(item):
+    """A note about the stop itself: no page, no link — just text."""
+    return not item.get("page") and not item.get("external_url") and _item_group(item) == "note"
+
+
+def _note_text(item):
+    return item.get("label") or item["text"]
+
+
+def _place_row(item):
+    page = item.get("page")
+    rich = _parse_rich_bullet(item["text"]) if item.get("rich") else None
+    if rich:
+        url = rich["url"]
+    elif page:
+        url = page.path
+    else:
+        url = item.get("external_url") or ""
+    if url and not re.match(r"^(https?://|~pois/)", url):
+        url = _w66_url(url)
+    return {
+        "type": _item_group(item),
+        "date": item.get("date") or "",
+        "name": item.get("label") or (page.title if page else "") or item.get("display_label") or "",
+        "url": url,
+        "note": item.get("note") or "",
+        "price": item.get("price"),
+        "orig": item["text"],
+    }
+
+
+def _sheet_rows(plan):
+    rows = []
+    for stop in _all_stops(plan):
+        rows.append({
+            "type": "daytrip" if stop.get("is_daytrip") else "stop",
+            "date": stop["dates"],
+            "name": stop["city"],
+            "url": "",
+            "note": _NOTE_SEP.join(_note_text(i) for i in stop["items"] if _is_stop_note(i)),
+            "price": None,
+            "orig": stop.get("heading_line", ""),
+            "href": stop["url"],
+        })
+        rows.extend(_place_row(i) for i in stop["items"] if not _is_stop_note(i))
+    return rows
+
+
+@_require_plan_auth
+def plan_sheet(request, slug):
+    plan = _parse_plan(PLANS_DIR / f"{slug}.md")
+    if not plan:
+        raise Http404
+    return render(request, "plans/plan_sheet.html", {
+        "plan": plan,
+        "sheet": {"rows": _sheet_rows(plan), "w66": getattr(_settings, "WORLD66_SITE_URL", "https://world66.ai")},
+    })
+
+
+def _heading_with_dates(line, old_dates, dates):
+    """The same ## / ### heading with its dates replaced (or removed)."""
+    m = re.match(r"^(#{2,3}\s+)(.*)$", line)
+    prefix, text = m.group(1), m.group(2)
+    if "|" in text:
+        left = text.split("|", 1)[0].rstrip()
+    elif old_dates and old_dates in text:
+        left = text[:text.rindex(old_dates)].rstrip(" -–,")
+    else:
+        left = text.rstrip()
+    return f"{prefix}{left} | {dates}" if dates else f"{prefix}{left}"
+
+
+def _sheet_heading(row, old):
+    """The heading line for a stop / day-trip row. `old` is the stop it was, if any:
+    unchanged rows keep their original line (path-style headings included)."""
+    clean = lambda v: re.sub(r"\s+", " ", str(v or "")).strip()
+    daytrip = row["type"] == "daytrip"
+    name, dates = clean(row.get("name")), clean(row.get("date"))
+    if old and bool(old.get("is_daytrip")) == daytrip and name == old["city"]:
+        line = old["heading_line"]
+        return line if dates == old["dates"] else _heading_with_dates(line, old["dates"], dates)
+    head = ("### Day trip: " if daytrip else "## ") + name
+    return f"{head} | {dates}" if dates else head
+
+
+def _write_sheet(slug, plan, rows):
+    """Rebuild the plan body from the sheet's rows. Text before the first heading
+    stays on top; sections the sheet doesn't show (e.g. a country heading) go last."""
+    import frontmatter as fm
+    path = PLANS_DIR / f"{slug}.md"
+    post = fm.load(path)
+    stops_by_heading = {s.get("heading_line"): s for s in _all_stops(plan)}
+    known = set(stops_by_heading)
+
+    preamble, hidden, section_known = [], [], None
+    for line in post.content.splitlines():
+        if re.match(r"^#{2,3}\s+", line):
+            section_known = line in known
+        if section_known is None:
+            preamble.append(line)
+        elif not section_known:
+            hidden.append(line)
+    while preamble and not preamble[-1].strip():
+        preamble.pop()
+
+    out = list(preamble)
+    for row in rows:
+        kind = row.get("type")
+        if kind in SHEET_STOP_TYPES:
+            old = stops_by_heading.get(row.get("orig"))
+            name = re.sub(r"\s+", " ", str(row.get("name") or "")).strip()
+            if not name:
+                continue
+            if kind == "stop" and out:
+                out.append("")
+            out.append(_sheet_heading(row, old))
+            old_notes = {_note_text(i): i["text"] for i in (old or {}).get("items", []) if _is_stop_note(i)}
+            for note in str(row.get("note") or "").split(_NOTE_SEP.strip()):
+                note = note.strip()
+                if note:
+                    out.append(f"- {old_notes.get(note) or _rich_bullet(note, '', 'note')}")
+        else:
+            if row.get("dirty") or not row.get("orig"):
+                name, url = (row.get("name") or "").strip(), (row.get("url") or "").strip()
+                if not name and not url:
+                    continue
+                category = kind if kind in ("do", "eat", "drink") else ""
+                text = _rich_bullet(name, url, category, row.get("price"), row.get("note"), row.get("date"))
+            else:
+                text = row["orig"]
+            out.append(f"- {text}")
+    if hidden:
+        out += [""] + hidden
+    post.content = "\n".join(out) + "\n"
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(fm.dumps(post))
+
+
+@_require_plan_auth
+@require_POST
+def plan_sheet_save(request, slug):
+    try:
+        rows = json.loads(request.body).get("rows")
+    except (json.JSONDecodeError, UnicodeDecodeError, AttributeError):
+        return JsonResponse({"error": "invalid JSON"}, status=400)
+    if not isinstance(rows, list) or not all(isinstance(r, dict) for r in rows):
+        return JsonResponse({"error": "rows required"}, status=400)
+    first = next((r for r in rows if (r.get("name") or r.get("url"))), None)
+    if first and first.get("type") != "stop":
+        return JsonResponse({"error": "the first row must be a stop"}, status=400)
+    plan = _parse_plan(PLANS_DIR / f"{slug}.md")
+    _write_sheet(slug, plan, rows)
+    return JsonResponse({"ok": True, "rows": _sheet_rows(_parse_plan(PLANS_DIR / f"{slug}.md"))})
 
 
 def _distance_km(a, b):
@@ -1275,25 +1546,9 @@ def plan_stop(request, slug, city_slug):
     stop_budget = (_plan_meta.get("budgets") or {}).get(stop["city_slug"]) or {}
     pinned_providers = {item["text"] for item in stop["items"]}
 
-    EAT_SIGNALS = {"restaurant", "eating_out", "food", "cafe", "café"}
-    DRINK_SIGNALS = {"bar", "bars_and_cafes", "pub", "nightlife", "drink"}
-
-    def _item_group(item):
-        if not item["page"]:
-            return "do"
-        page = item["page"]
-        cat = (page.meta.get("category") or "").lower()
-        tags = [t.lower() for t in (page.tags if hasattr(page, "tags") else page.meta.get("tags") or [])]
-        signals = {cat} | set(tags)
-        if signals & DRINK_SIGNALS:
-            return "drink"
-        if signals & EAT_SIGNALS:
-            return "eat"
-        return "do"
-
     for idx, item in enumerate(stop["items"]):
         item["card_index"] = idx  # matches the gallery's "card", so photo ⇄ card links line up
-    items_do    = [i for i in stop["items"] if _item_group(i) == "do"]
+    items_do    = [i for i in stop["items"] if _item_group(i) in ("do", "note")]
     items_eat   = [i for i in stop["items"] if _item_group(i) == "eat"]
     items_drink = [i for i in stop["items"] if _item_group(i) == "drink"]
     ungrouped   = False
@@ -1368,6 +1623,7 @@ def plan_stop(request, slug, city_slug):
         "city_image_url": city_image_url,
         "suggestion_groups": suggestion_groups,
         "budget_json": json.dumps(stop_budget),
+        "places_total": sum(i["price"] for i in stop["items"] if i.get("price")),
         "pinned_providers": pinned_providers,
         "items_do": items_do,
         "items_eat": items_eat,
@@ -1601,7 +1857,7 @@ def _plan_file_add(slug, city_slug, poi_path):
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(fm.dumps(post))
         return True
-    if any(l.strip().lstrip("-* ") == poi_path for l in lines):
+    if any(_bullet_key(l.strip().lstrip("-* ")) == poi_path for l in lines if re.match(r"^[-*]\s+", l)):
         return False
     lines.insert(insert_at, f"- {poi_path}")
     post.content = "\n".join(lines)

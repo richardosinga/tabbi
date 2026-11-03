@@ -1,0 +1,271 @@
+{% extends "plans/base.html" %}
+{% block title %}Sheet — {{ plan.title }} — Tab.bi{% endblock %}
+
+{% block content %}
+<div class="tabbi-page plan-page sb-sheet-page">
+  <nav class="plan-breadcrumb">
+    <a href="/plans/">Trips</a>
+    <span class="plan-breadcrumb-sep">›</span>
+    <a href="/plans/{{ plan.slug }}/">{{ plan.title }}</a>
+    <span class="plan-breadcrumb-sep">›</span>
+    <span>sheet</span>
+  </nav>
+  <div class="plan-header">
+    <h1><span class="sb-highlight">{{ plan.title }}</span></h1>
+    <span class="sb-sheet-status" id="sheet-status" aria-live="polite"></span>
+  </div>
+  <p class="sb-sheet-help">
+    One row per stop, day trip and place — a place belongs to the stop or day trip above it.
+    <strong>Content</strong> is a link (world66 or any site) or your own text. Drag <span aria-hidden="true">⠿</span> (or Alt+↑/↓) to move a row. Changes save by themselves.
+  </p>
+
+  <div class="sb-sheet-wrap">
+    <table class="sb-sheet" id="sheet">
+      <colgroup>
+        <col class="c-drag"><col class="c-type"><col class="c-date"><col class="c-name"><col class="c-content"><col class="c-price"><col class="c-act">
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col"><span class="sb-visually-hidden">Move</span></th>
+          <th scope="col">Type</th><th scope="col">Date</th><th scope="col">Name</th>
+          <th scope="col">Content <span class="sb-sheet-hint">link or text</span></th>
+          <th scope="col" class="num">Price</th><th scope="col"><span class="sb-visually-hidden">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody id="sheet-body"></tbody>
+    </table>
+  </div>
+  <div class="sb-sheet-foot">
+    <button type="button" class="sb-sheet-addstop" id="add-stop">+ add a stop</button>
+    <span class="sb-sheet-total" id="sheet-total"></span>
+  </div>
+</div>
+
+{{ sheet|json_script:"sheet-data" }}
+<script>
+(function () {
+  var data = JSON.parse(document.getElementById('sheet-data').textContent);
+  var body = document.getElementById('sheet-body');
+  var status = document.getElementById('sheet-status');
+  var totalEl = document.getElementById('sheet-total');
+  var TYPES = [['stop', 'Stop'], ['daytrip', 'Day trip'], ['do', 'Do'], ['eat', 'Eat'], ['drink', 'Drink']];
+  var isHead = function(t) { return t === 'stop' || t === 'daytrip'; };
+
+  // Content is one cell: a link becomes the content URL, anything else the note
+  function isLink(v) {
+    return /^(https?:\/\/|~pois\/)\S*$/i.test(v) || /^\/?[a-z0-9_-]+(\/[a-z0-9_.-]+){2,}\/?$/i.test(v);
+  }
+  function el(tag, attrs, kids) {
+    var e = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function(k) {
+      if (k === 'text') e.textContent = attrs[k]; else e.setAttribute(k, attrs[k]);
+    });
+    (kids || []).forEach(function(k) { e.appendChild(k); });
+    return e;
+  }
+  function money(n) { return (Math.round(n * 100) / 100).toLocaleString(undefined, {maximumFractionDigits: 2}); }
+  function input(f, label, value, extra) {
+    var i = el('input', Object.assign({type: 'text', 'data-f': f, 'aria-label': label}, extra || {}));
+    i.value = value == null ? '' : value;
+    return i;
+  }
+
+  function makeRow(r) {
+    var tr = el('tr', {'class': 'sb-row'});
+    tr.dataset.orig = r.orig || '';
+    tr.dataset.note = r.url ? (r.note || '') : '';  // a place with a link and a note shows the link; the note rides along
+
+    var handle = el('span', {'class': 'sb-drag', draggable: 'true', title: 'Drag to move', text: '⠿'});
+    var type = el('select', {'data-f': 'type', 'aria-label': 'Type'});
+    TYPES.forEach(function(t) {
+      var o = el('option', {value: t[0], text: t[1]});
+      if (t[0] === r.type) o.selected = true;
+      type.appendChild(o);
+    });
+    var date = input('date', 'Date', r.date);
+    var name = input('name', 'Name', r.name);
+    // Content wraps and grows with its text, so long notes stay readable
+    var content = el('textarea', {'data-f': 'content', 'aria-label': 'Content: a link or text', placeholder: '—', rows: '1'});
+    content.value = r.url || r.note || '';
+    var open = el('a', {'class': 'sb-sheet-open', rel: 'noopener', title: 'Open', text: '↗'});
+    var price = input('price', 'Price', r.price, {inputmode: 'decimal', 'class': 'num'});
+    var add = el('button', {type: 'button', 'class': 'sb-act', title: 'Insert a row below', 'aria-label': 'Insert a row below', text: '+'});
+    var del = el('button', {type: 'button', 'class': 'sb-act sb-act-del', title: 'Delete', 'aria-label': 'Delete row', text: '×'});
+
+    function sync() {
+      var t = type.value, v = content.value.trim(), head = isHead(t), link = !head && isLink(v);
+      tr.className = 'sb-row sb-row--' + t + (tr.classList.contains('is-dragging') ? ' is-dragging' : '');
+      content.classList.toggle('is-link', link);
+      content.placeholder = head ? 'notes…' : '—';
+      price.disabled = head;
+      var href = head ? (tr.dataset.orig ? r.href || '' : '')
+        : /^https?:\/\//i.test(v) ? v : (link && !/^~pois\//.test(v) ? data.w66 + '/' + v.replace(/^\//, '') : '');
+      if (href) { open.href = href; open.hidden = false; open.target = head ? '_self' : '_blank'; }
+      else { open.removeAttribute('href'); open.hidden = true; }
+    }
+    content.addEventListener('input', sync);
+    content.addEventListener('input', function() { grow(content); });
+    type.addEventListener('change', sync);
+    sync();
+
+    add.addEventListener('click', function() {
+      var row = makeRow({type: isHead(type.value) ? 'do' : type.value, orig: ''});
+      row.dataset.dirty = '1';
+      tr.after(row);
+      row.querySelector('[data-f="name"]').focus();
+    });
+    del.addEventListener('click', function() {
+      var rows = [tr];
+      if (isHead(type.value)) {
+        // a stop takes its places and day trips with it; a day trip its places
+        for (var n = tr.nextElementSibling; n; n = n.nextElementSibling) {
+          var t = n.querySelector('[data-f="type"]').value;
+          if (t === 'stop' || (type.value === 'daytrip' && t === 'daytrip')) break;
+          rows.push(n);
+        }
+        if (rows.length > 1 && !confirm('Delete ' + (name.value || 'this stop') + ' and the ' + (rows.length - 1) + ' row(s) under it?')) return;
+      }
+      rows.forEach(function(x) { x.remove(); });
+      changed();
+    });
+
+    [el('td', {'class': 'sb-drag-cell'}, [handle]), el('td', {}, [type]), el('td', {}, [date]),
+     el('td', {'class': 'sb-name-cell'}, [name]), el('td', {'class': 'sb-sheet-url'}, [content, open]),
+     el('td', {'class': 'sb-price-cell'}, [price]), el('td', {'class': 'sb-act-cell'}, [add, del])]
+      .forEach(function(td) { tr.appendChild(td); });
+    tr.addEventListener('input', function() { tr.dataset.dirty = '1'; changed(); });
+    tr.addEventListener('change', function() { tr.dataset.dirty = '1'; changed(); });
+    return tr;
+  }
+
+  function grow(t) { t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; }
+  function growAll() { body.querySelectorAll('textarea').forEach(grow); }
+  window.addEventListener('resize', growAll);
+  if (document.fonts) document.fonts.ready.then(growAll);
+
+  function render(rows) {
+    body.innerHTML = '';
+    rows.forEach(function(r) { body.appendChild(makeRow(r)); });
+    growAll();
+    totals();
+  }
+
+  function collect() {
+    return Array.prototype.map.call(body.querySelectorAll('.sb-row'), function(tr) {
+      var r = {orig: tr.dataset.orig, dirty: tr.dataset.dirty === '1'};
+      ['type', 'date', 'name'].forEach(function(f) { r[f] = tr.querySelector('[data-f="' + f + '"]').value; });
+      var c = tr.querySelector('[data-f="content"]').value.trim();
+      if (!isHead(r.type) && isLink(c)) { r.url = c; r.note = tr.dataset.note || ''; }
+      else { r.url = ''; r.note = c; }
+      var p = tr.querySelector('[data-f="price"]').value.trim().replace(',', '.');
+      r.price = isHead(r.type) || p === '' || isNaN(parseFloat(p)) ? null : parseFloat(p);
+      return r;
+    });
+  }
+
+  // a stop / day trip shows the sum of its places' prices
+  function totals() {
+    var all = 0, head = null, sum = 0;
+    function flush() { if (head) head.querySelector('[data-f="price"]').value = sum ? money(sum) : ''; }
+    body.querySelectorAll('.sb-row').forEach(function(tr) {
+      if (isHead(tr.querySelector('[data-f="type"]').value)) { flush(); head = tr; sum = 0; return; }
+      var v = parseFloat((tr.querySelector('[data-f="price"]').value || '').replace(',', '.'));
+      if (!isNaN(v)) { sum += v; all += v; }
+    });
+    flush();
+    totalEl.textContent = all ? 'Total of all prices: ' + money(all) : '';
+  }
+
+  var timer = null, saving = false, pending = false;
+  function changed() {
+    totals();
+    pending = true;
+    status.textContent = 'unsaved…';
+    clearTimeout(timer);
+    timer = setTimeout(save, 700);
+  }
+  function save() {
+    if (saving) { timer = setTimeout(save, 300); return; }
+    var rows = collect();
+    var first = rows.filter(function(r) { return r.name || r.url; })[0];
+    if (first && first.type !== 'stop') { status.textContent = '⚠ the first row must be a stop'; return; }
+    saving = true;
+    pending = false;
+    status.textContent = 'saving…';
+    fetch('/plans/{{ plan.slug }}/sheet/save/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+      body: JSON.stringify({rows: rows}),
+    }).then(function(r) {
+      return r.json().then(function(d) { if (!r.ok) throw new Error(d.error || 'save failed'); return d; });
+    }).then(function(d) {
+      saving = false;
+      if (pending) return;  // more typing since this save went out; the next save follows
+      // the saved lines become the rows' new originals (no re-render, so the cursor stays put)
+      var trs = body.querySelectorAll('.sb-row');
+      if (trs.length === d.rows.length) {
+        trs.forEach(function(tr, i) { tr.dataset.orig = d.rows[i].orig; tr.dataset.dirty = ''; });
+      } else if (!body.contains(document.activeElement)) {
+        render(d.rows);  // empty rows were dropped
+      }
+      status.textContent = 'saved ✓';
+    }).catch(function(e) {
+      saving = false;
+      status.textContent = '⚠ ' + e.message;
+    });
+  }
+
+  document.getElementById('add-stop').addEventListener('click', function() {
+    var row = makeRow({type: 'stop', orig: ''});
+    row.dataset.dirty = '1';
+    body.appendChild(row);
+    row.querySelector('[data-f="name"]').focus();
+  });
+
+  // keyboard: Enter / ↑ / ↓ move between rows in a column; Alt+↑/↓ moves the row itself
+  body.addEventListener('keydown', function(e) {
+    var f = e.target.dataset && e.target.dataset.f;
+    var tr = e.target.closest && e.target.closest('.sb-row');
+    if (!f || !tr) return;
+    if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      e.preventDefault();
+      var sib = e.key === 'ArrowUp' ? tr.previousElementSibling : tr.nextElementSibling;
+      if (sib) { if (e.key === 'ArrowUp') sib.before(tr); else sib.after(tr); e.target.focus(); changed(); }
+      return;
+    }
+    if (e.target.tagName === 'SELECT' && e.key !== 'Enter') return;
+    if (e.target.tagName === 'TEXTAREA' && e.key !== 'Enter') return;  // ↑/↓ move the caret inside the text
+    if (e.key === 'Enter') e.preventDefault();
+    if (e.key !== 'Enter' && e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    var next = e.key === 'ArrowUp' ? tr.previousElementSibling : tr.nextElementSibling;
+    if (next) { e.preventDefault(); next.querySelector('[data-f="' + f + '"]').focus(); }
+  });
+
+  // drag the ⠿ handle to move a row
+  var dragging = null;
+  body.addEventListener('dragstart', function(e) {
+    if (!e.target.classList || !e.target.classList.contains('sb-drag')) return;
+    dragging = e.target.closest('.sb-row');
+    dragging.classList.add('is-dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', '');
+  });
+  body.addEventListener('dragover', function(e) {
+    if (!dragging) return;
+    e.preventDefault();
+    var over = e.target.closest && e.target.closest('.sb-row');
+    if (!over || over === dragging) return;
+    var rect = over.getBoundingClientRect();
+    if (e.clientY < rect.top + rect.height / 2) over.before(dragging); else over.after(dragging);
+  });
+  body.addEventListener('dragend', function() {
+    if (!dragging) return;
+    dragging.classList.remove('is-dragging');
+    dragging = null;
+    changed();
+  });
+
+  render(data.rows);
+})();
+</script>
+{% endblock %}
