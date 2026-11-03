@@ -16,7 +16,9 @@
   </div>
   <p class="sb-sheet-help">
     One row per stop, day trip and place — a place belongs to the stop or day trip above it.
+    A stop or day trip moves as a whole, with its own rows; <strong>▾</strong> folds it. Under a day trip, <strong>⇤</strong> (Alt+←) hands a row back to the stop, e.g. the ferry on to the next stop.
     <strong>Content</strong> is a link (world66 or any site) or your own text. Where you sleep and how you travel (a ferry, a train) are rows too, with their price.
+    Change when a stop ends and the stops after it move along by as many days; move or delete a stop and the dates are worked out again (each stop keeps its length).
     Download the sheet to edit it in Excel or Numbers, then upload it again. Drag <span aria-hidden="true">⠿</span> (or Alt+↑/↓) to move a row. Changes save by themselves.
   </p>
 
@@ -80,6 +82,7 @@
     var tr = el('tr', {'class': 'sb-row'});
     tr.dataset.orig = r.orig || '';
     if (r.dirty) tr.dataset.dirty = '1';
+    if (r.out) tr.dataset.out = '1';  // the day trip above ends here; this row is the stop's again
     tr.dataset.note = r.url ? (r.note || '') : '';  // a place with a link and a note shows the link; the note rides along
 
     var handle = el('span', {'class': 'sb-drag', draggable: 'true', title: 'Drag to move', text: '⠿'});
@@ -98,10 +101,13 @@
     var price = input('price', 'Price', r.price, {inputmode: 'decimal', 'class': 'num'});
     var add = el('button', {type: 'button', 'class': 'sb-act', title: 'Insert a row below', 'aria-label': 'Insert a row below', text: '+'});
     var del = el('button', {type: 'button', 'class': 'sb-act sb-act-del', title: 'Delete', 'aria-label': 'Delete row', text: '×'});
+    var nest = el('button', {type: 'button', 'class': 'sb-act sb-act-nest'});
+    var fold = el('button', {type: 'button', 'class': 'sb-fold'});
 
     function sync() {
       var t = type.value, v = content.value.trim(), head = isHead(t), link = !head && isLink(v);
-      tr.className = 'sb-row sb-row--' + t + (tr.classList.contains('is-dragging') ? ' is-dragging' : '');
+      TYPES.forEach(function(x) { tr.classList.remove('sb-row--' + x[0]); });
+      tr.classList.add('sb-row--' + t);
       content.classList.toggle('is-link', link);
       content.placeholder = head ? 'notes…' : '—';
       price.disabled = head;
@@ -113,9 +119,23 @@
     content.addEventListener('input', sync);
     content.addEventListener('input', function() { grow(content); });
     type.addEventListener('change', sync);
+    // a stop's new end date moves the stops after it along (see cascadeDates)
+    date.addEventListener('focus', function() { date.dataset.before = date.value; });
+    date.addEventListener('change', function() {
+      if (type.value === 'stop') cascadeDates(tr, date.dataset.before);
+      date.dataset.before = date.value;
+    });
     sync();
 
+    nest.addEventListener('click', function() { toggleNest(tr); });
+    fold.addEventListener('click', function() {
+      folded[foldKey(tr)] = !folded[foldKey(tr)];
+      saveFolded();
+      layout();
+    });
+
     add.addEventListener('click', function() {
+      if (isHead(type.value) && folded[foldKey(tr)]) { folded[foldKey(tr)] = false; saveFolded(); }
       var row = makeRow({type: isHead(type.value) ? 'do' : type.value, orig: ''});
       row.dataset.dirty = '1';
       tr.after(row);
@@ -124,21 +144,23 @@
     del.addEventListener('click', function() {
       var rows = [tr];
       if (isHead(type.value)) {
-        // a stop takes its places and day trips with it; a day trip its places
+        // a stop takes everything up to the next stop with it; a day trip its own places
         for (var n = tr.nextElementSibling; n; n = n.nextElementSibling) {
           var t = n.querySelector('[data-f="type"]').value;
-          if (t === 'stop' || (type.value === 'daytrip' && t === 'daytrip')) break;
+          if (t === 'stop' || (type.value === 'daytrip' && (t === 'daytrip' || n.dataset.owner !== 'daytrip'))) break;
           rows.push(n);
         }
         if (rows.length > 1 && !confirm('Delete ' + (name.value || 'this stop') + ' and the ' + (rows.length - 1) + ' row(s) under it?')) return;
       }
+      var dates = snapshotDates();
       rows.forEach(function(x) { x.remove(); });
+      redate(dates);
       changed();
     });
 
-    [el('td', {'class': 'sb-drag-cell'}, [handle]), el('td', {}, [type]), el('td', {}, [date]),
+    [el('td', {'class': 'sb-drag-cell'}, [fold, handle]), el('td', {}, [type]), el('td', {}, [date]),
      el('td', {'class': 'sb-name-cell'}, [name]), el('td', {'class': 'sb-sheet-url'}, [content, open]),
-     el('td', {'class': 'sb-price-cell'}, [price]), el('td', {'class': 'sb-act-cell'}, [add, del])]
+     el('td', {'class': 'sb-price-cell'}, [price]), el('td', {'class': 'sb-act-cell'}, [nest, add, del])]
       .forEach(function(td) { tr.appendChild(td); });
     tr.addEventListener('input', function() { tr.dataset.dirty = '1'; changed(); });
     tr.addEventListener('change', function() { tr.dataset.dirty = '1'; changed(); });
@@ -153,13 +175,134 @@
   function render(rows) {
     body.innerHTML = '';
     rows.forEach(function(r) { body.appendChild(makeRow(r)); });
+    layout();
     growAll();
     totals();
   }
 
+  // ── day trips: rows under one belong to it until a row is pulled back to the stop ──
+  var FOLD_KEY = 'tabbi-sheet-fold:{{ plan.slug }}', folded = {};
+  try { folded = JSON.parse(localStorage.getItem(FOLD_KEY) || '{}') || {}; } catch (e) { folded = {}; }
+  function saveFolded() { try { localStorage.setItem(FOLD_KEY, JSON.stringify(folded)); } catch (e) {} }
+  function typeOf(tr) { return tr.querySelector('[data-f="type"]').value; }
+
+  function foldKey(tr) { return typeOf(tr) + ':' + tr.querySelector('[data-f="name"]').value; }
+
+  // marks each place row as the day trip's or the stop's, folds folded stops and day trips, sets the buttons
+  function layout() {
+    var state = 'stop', stop = null, daytrip = null, stopShut = false, dtShut = false;
+    function label(head, count) {
+      if (!head) return;
+      var f = head.querySelector('.sb-fold'), shut = !!folded[foldKey(head)];
+      f.hidden = !count;
+      f.textContent = shut ? '▸' : '▾';
+      f.title = (shut ? 'Show' : 'Fold') + ' this ' + (typeOf(head) === 'stop' ? 'stop' : 'day trip') +
+        ' (' + count + (count === 1 ? ' row)' : ' rows)');
+      f.setAttribute('aria-label', f.title);
+      f.setAttribute('aria-expanded', String(!shut));
+    }
+    body.querySelectorAll('.sb-row').forEach(function(tr) {
+      var t = typeOf(tr), nest = tr.querySelector('.sb-act-nest');
+      tr.classList.remove('is-member', 'is-out', 'is-folded');
+      tr.querySelector('.sb-fold').hidden = !isHead(t);
+      nest.hidden = true;
+      if (t === 'stop') {
+        if (stop) label(stop.tr, stop.count);
+        if (daytrip) label(daytrip.tr, daytrip.count);
+        delete tr.dataset.out;
+        stop = {tr: tr, count: 0}; daytrip = null; state = 'stop';
+        stopShut = !!folded[foldKey(tr)]; dtShut = false;
+        return;
+      }
+      stop && stop.count++;
+      if (stopShut) tr.classList.add('is-folded');
+      if (t === 'daytrip') {
+        if (daytrip) label(daytrip.tr, daytrip.count);
+        delete tr.dataset.out;
+        daytrip = {tr: tr, count: 0}; state = 'daytrip';
+        dtShut = !!folded[foldKey(tr)];
+        return;
+      }
+      if (tr.dataset.out && state === 'daytrip') state = 'after';
+      else delete tr.dataset.out;
+      var member = state === 'daytrip';
+      tr.dataset.owner = member ? 'daytrip' : 'stop';
+      if (member) {
+        daytrip.count++;
+        tr.classList.add('is-member');
+        if (dtShut) tr.classList.add('is-folded');
+        nest.hidden = false; nest.textContent = '⇤';
+        nest.title = 'Back to the stop: the day trip ends above this row (Alt+←)';
+      } else if (tr.dataset.out) {
+        tr.classList.add('is-out');
+        nest.hidden = false; nest.textContent = '⇥';
+        nest.title = 'Into the day trip above (Alt+→)';
+      }
+      nest.setAttribute('aria-label', nest.title);
+    });
+    if (stop) label(stop.tr, stop.count);
+    if (daytrip) label(daytrip.tr, daytrip.count);
+  }
+
+  // a stop moves as one block with everything up to the next stop; a day trip as one block
+  // with its own places, like a single place in the stop
+  function blockOf(tr) {
+    var t = typeOf(tr), rows = [tr];
+    if (t === 'stop') {
+      for (var n = tr.nextElementSibling; n && typeOf(n) !== 'stop'; n = n.nextElementSibling) rows.push(n);
+    } else if (t === 'daytrip') {
+      for (n = tr.nextElementSibling; n && n.dataset.owner === 'daytrip' && !isHead(typeOf(n)); n = n.nextElementSibling) rows.push(n);
+    }
+    return rows;
+  }
+  function headOf(tr, type) {
+    for (var n = tr; n; n = n.previousElementSibling) if (typeOf(n) === (type || 'daytrip')) return n;
+    return tr;
+  }
+  // the neighbouring unit above / below: a single row, or a whole day trip block
+  function unitAbove(first) {
+    var prev = first.previousElementSibling;
+    if (!prev) return null;
+    return prev.dataset.owner === 'daytrip' && !isHead(typeOf(prev)) ? blockOf(headOf(prev))
+      : typeOf(prev) === 'daytrip' ? blockOf(prev) : [prev];
+  }
+  function unitBelow(last) {
+    var next = last.nextElementSibling;
+    return next ? blockOf(next) : null;
+  }
+  // after a move every row keeps whose it was — the stop's or a day trip's — as far as its
+  // new place allows; a dragged row (`joins`) takes the owner of where it was dropped
+  function moveRows(unit, ref, before, joins) {
+    var dates = snapshotDates();
+    body.querySelectorAll('.sb-row').forEach(function(tr) { tr.dataset.was = tr.dataset.owner || ''; });
+    unit.forEach(function(tr) { if (before) ref.before(tr); else ref.after(tr); if (!before) ref = tr; });
+    var state = 'stop';
+    body.querySelectorAll('.sb-row').forEach(function(tr) {
+      var t = typeOf(tr), want = tr.dataset.was;
+      delete tr.dataset.was;
+      if (isHead(t)) { state = t === 'daytrip' ? 'daytrip' : 'stop'; return; }
+      if (tr === joins) want = state === 'daytrip' ? 'daytrip' : 'stop';
+      if (state === 'daytrip' && want !== 'daytrip') { tr.dataset.out = '1'; state = 'after'; }
+      else delete tr.dataset.out;
+    });
+    redate(dates);
+    changed();
+  }
+
+  function toggleNest(tr) {
+    if (tr.dataset.owner === 'daytrip') {
+      tr.dataset.out = '1';
+    } else if (tr.dataset.out) {
+      delete tr.dataset.out;
+      var next = tr.nextElementSibling;
+      if (next && !isHead(typeOf(next))) next.dataset.out = '1';  // the rows below stay the stop's
+    } else return;
+    changed();
+  }
+
   function collect() {
     return Array.prototype.map.call(body.querySelectorAll('.sb-row'), function(tr) {
-      var r = {orig: tr.dataset.orig, dirty: tr.dataset.dirty === '1'};
+      var r = {orig: tr.dataset.orig, dirty: tr.dataset.dirty === '1', owner: tr.dataset.owner || 'stop', out: !!tr.dataset.out};
       ['type', 'date', 'name'].forEach(function(f) { r[f] = tr.querySelector('[data-f="' + f + '"]').value; });
       var c = tr.querySelector('[data-f="content"]').value.trim();
       if (!isHead(r.type) && isLink(c)) { r.url = c; r.note = tr.dataset.note || ''; }
@@ -170,21 +313,172 @@
     });
   }
 
-  // a stop / day trip shows the sum of its places' prices
-  function totals() {
-    var all = 0, head = null, sum = 0;
-    function flush() { if (head) head.querySelector('[data-f="price"]').value = sum ? money(sum) : ''; }
-    body.querySelectorAll('.sb-row').forEach(function(tr) {
-      if (isHead(tr.querySelector('[data-f="type"]').value)) { flush(); head = tr; sum = 0; return; }
-      var v = parseFloat((tr.querySelector('[data-f="price"]').value || '').replace(',', '.'));
-      if (!isNaN(v)) { sum += v; all += v; }
+  // ── dates: "17–19 July 2027", "29 July – 1 August 2027", "August 2-4", "10/7 - 12/7", "19 July" ──
+  var MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  var MONTHS_NL = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+  var DAY = 86400000;
+  var dateNote = '';
+
+  function monthIndex(word) {
+    var w = word.toLowerCase().replace(/\.$/, '');
+    for (var i = 0; i < 12; i++) {
+      if (w === MONTHS_EN[i].toLowerCase() || w === MONTHS_NL[i]) return i;
+    }
+    for (i = 0; i < 12; i++) {
+      if (w.length >= 3 && (MONTHS_EN[i].toLowerCase().indexOf(w) === 0 || MONTHS_NL[i].indexOf(w) === 0)) return i;
+    }
+    return w === 'mrt' ? 2 : w === 'okt' ? 9 : -1;
+  }
+  // one side of a range: {d, m, y}, any of them possibly missing
+  function parseSide(text) {
+    var out = {}, num = text.match(/^\s*(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\s*$/);
+    if (num) {
+      out.d = +num[1]; out.m = +num[2] - 1;
+      if (num[3]) out.y = num[3].length === 2 ? 2000 + +num[3] : +num[3];
+      return out;
+    }
+    var ok = false;
+    (text.match(/[A-Za-zÀ-ÿ]+\.?|\d+/g) || []).forEach(function(tok) {
+      if (/^\d{4}$/.test(tok)) { out.y = +tok; ok = true; }
+      else if (/^\d{1,2}$/.test(tok)) { out.d = +tok; ok = true; }
+      else { var m = monthIndex(tok); if (m >= 0) { out.m = m; ok = true; } }
     });
-    flush();
+    return ok ? out : null;
+  }
+  // {start, end} as UTC day numbers, or null when it doesn't read as a date
+  function parseRange(text, year) {
+    var parts = String(text || '').trim().split(/\s*[–—]\s*|\s+-\s+|-/);
+    if (!parts[0] || parts.length > 2) return null;
+    var a = parseSide(parts[0]), b = parts.length === 2 ? parseSide(parts[1]) : a;
+    if (!a || !b) return null;
+    var m1 = a.m != null ? a.m : b.m, m2 = b.m != null ? b.m : a.m;
+    var y2 = b.y || a.y || year, y1 = a.y || y2;
+    if (a.d == null || b.d == null || m1 == null || m2 == null || !y2) return null;
+    var start = Date.UTC(y1, m1, a.d) / DAY, end = Date.UTC(y2, m2, b.d) / DAY;
+    if (!a.y && start > end) start = Date.UTC(y1 - 1, m1, a.d) / DAY;  // 29 December – 2 January 2028
+    return start <= end ? {start: start, end: end} : null;
+  }
+  // a range written the way `like` was written: order, month names, dashes, year
+  function formatRange(start, end, like) {
+    var s = new Date(start * DAY), e = new Date(end * DAY);
+    var word = (like.match(/[A-Za-zÀ-ÿ]{3,}/) || ['July'])[0];
+    var i = monthIndex(word), nl = i >= 0 && word.toLowerCase() === MONTHS_NL[i] && word.toLowerCase() !== MONTHS_EN[i].toLowerCase();
+    var short = i >= 0 && word.length < (nl ? MONTHS_NL : MONTHS_EN)[i].length;
+    var name = function(m) {
+      var n = (nl ? MONTHS_NL : MONTHS_EN)[m];
+      if (short) n = n.slice(0, 3);
+      return /^[A-ZÀ-Þ]/.test(word) ? n.charAt(0).toUpperCase() + n.slice(1) : n.toLowerCase();
+    };
+    var year = /\b\d{4}\b/.test(like), dash = /–/.test(like) ? '–' : '-';
+    var D1 = s.getUTCDate(), D2 = e.getUTCDate(), M1 = s.getUTCMonth(), M2 = e.getUTCMonth();
+    var Y1 = s.getUTCFullYear(), Y2 = e.getUTCFullYear(), single = start === end;
+    if (/\d+\/\d+/.test(like)) {
+      var dm = function(d) { return d.getUTCDate() + '/' + (d.getUTCMonth() + 1) + (year ? '/' + d.getUTCFullYear() : ''); };
+      return single ? dm(s) : dm(s) + ' - ' + dm(e);
+    }
+    if (/^\s*[A-Za-zÀ-ÿ]/.test(like)) {  // August 2-4
+      var out = single ? name(M1) + ' ' + D1
+        : M1 === M2 ? name(M1) + ' ' + D1 + dash + D2
+        : name(M1) + ' ' + D1 + ' ' + dash + ' ' + name(M2) + ' ' + D2;
+      return out + (year ? ', ' + Y2 : '');
+    }
+    var tail = function(m, y) { return ' ' + name(m) + (year ? ' ' + y : ''); };
+    if (single) return D1 + tail(M1, Y1);
+    if (M1 === M2 && Y1 === Y2) return D1 + dash + D2 + tail(M2, Y2);
+    return D1 + (Y1 === Y2 ? ' ' + name(M1) : tail(M1, Y1)) + ' ' + dash + ' ' + D2 + tail(M2, Y2);
+  }
+
+  // the stops after this one move by as many days as its end moved: a trip that
+  // joins up stays joined up, a deliberate gap (a night ferry) stays a gap
+  function cascadeDates(tr, before) {
+    var dateOf = function(row) { return row.querySelector('[data-f="date"]'); };
+    var typeOf = function(row) { return row.querySelector('[data-f="type"]').value; };
+    var any = Array.prototype.map.call(body.querySelectorAll('[data-f="date"]'), function(i) { return i.value; }).join(' ');
+    var year = +((any.match(/\b(20\d\d)\b/) || [])[1] || new Date().getFullYear());
+    var was = parseRange(before, year), now = parseRange(dateOf(tr).value, year);
+    if (!was || !now || now.end === was.end) return;
+    var shift = now.end - was.end, moved = 0, later = false;
+    for (var n = tr.nextElementSibling; n; n = n.nextElementSibling) {
+      if (typeOf(n) === 'stop') later = true;
+      if (!later) continue;  // this stop's own places and day trips stay put
+      var input = dateOf(n), r = parseRange(input.value, year);
+      if (!r) continue;
+      input.value = formatRange(r.start + shift, r.end + shift, input.value);
+      if (typeOf(n) === 'stop') moved++;
+      else n.dataset.dirty = '1';
+    }
+    if (moved) dateNote = (moved === 1 ? 'the next stop' : 'the next ' + moved + ' stops') +
+      ' moved ' + Math.abs(shift) + (Math.abs(shift) === 1 ? ' day ' : ' days ') + (shift > 0 ? 'later' : 'earlier');
+  }
+
+  // ── moving or deleting stops: dates are worked out again from the trip's start ──
+  // Each stop keeps its length and the gap before it (a night ferry); day trips and
+  // dated rows keep their day within their stop. The plan file keeps real dates.
+  function snapshotDates() {
+    var any = Array.prototype.map.call(body.querySelectorAll('[data-f="date"]'), function(i) { return i.value; }).join(' ');
+    var year = +((any.match(/\b(20\d\d)\b/) || [])[1] || new Date().getFullYear());
+    var snap = {year: year, start: null, stops: new Map(), rows: new Map()}, prevEnd = null, stopStart = null;
+    body.querySelectorAll('.sb-row').forEach(function(tr) {
+      var r = parseRange(tr.querySelector('[data-f="date"]').value, year);
+      if (typeOf(tr) === 'stop') {
+        stopStart = r ? r.start : null;
+        if (!r) return;
+        if (snap.start == null) snap.start = r.start;
+        snap.stops.set(tr, {length: r.end - r.start, gap: prevEnd == null ? 0 : Math.max(0, r.start - prevEnd)});
+        prevEnd = r.end;
+      } else if (r && stopStart != null) {
+        snap.rows.set(tr, {from: r.start - stopStart, length: r.end - r.start});
+      }
+    });
+    return snap;
+  }
+  function redate(snap) {
+    if (snap.start == null) return;
+    var prevEnd = null, stopStart = null, moved = 0;
+    function put(tr, start, end) {
+      var input = tr.querySelector('[data-f="date"]'), r = parseRange(input.value, snap.year);
+      if (r && r.start === start && r.end === end) return false;
+      input.value = formatRange(start, end, input.value);
+      if (!isHead(typeOf(tr))) tr.dataset.dirty = '1';
+      return true;
+    }
+    body.querySelectorAll('.sb-row').forEach(function(tr) {
+      if (typeOf(tr) === 'stop') {
+        var st = snap.stops.get(tr);
+        stopStart = null;
+        if (!st) return;  // a stop without readable dates is left as it is
+        stopStart = prevEnd == null ? snap.start : prevEnd + st.gap;
+        if (put(tr, stopStart, stopStart + st.length)) moved++;
+        prevEnd = stopStart + st.length;
+      } else {
+        var row = snap.rows.get(tr);
+        if (row && stopStart != null) put(tr, stopStart + row.from, stopStart + row.from + row.length);
+      }
+    });
+    if (moved) dateNote = 'dates of ' + moved + (moved === 1 ? ' stop' : ' stops') + ' worked out again';
+  }
+
+  // a day trip shows the sum of its own places' prices, a stop the sum of the rest
+  function totals() {
+    var all = 0, sums = [];
+    var stopHead = null, dtHead = null;
+    body.querySelectorAll('.sb-row').forEach(function(tr) {
+      var t = typeOf(tr);
+      if (t === 'stop') { stopHead = {tr: tr, sum: 0}; dtHead = null; sums.push(stopHead); return; }
+      if (t === 'daytrip') { dtHead = {tr: tr, sum: 0}; sums.push(dtHead); return; }
+      var v = parseFloat((tr.querySelector('[data-f="price"]').value || '').replace(',', '.'));
+      if (isNaN(v)) return;
+      all += v;
+      var into = tr.dataset.owner === 'daytrip' ? dtHead : stopHead;
+      if (into) into.sum += v;
+    });
+    sums.forEach(function(h) { h.tr.querySelector('[data-f="price"]').value = h.sum ? money(h.sum) : ''; });
     totalEl.textContent = all ? 'Total of all prices: ' + money(all) : '';
   }
 
   var timer = null, saving = false, pending = false;
   function changed() {
+    layout();
     totals();
     pending = true;
     status.textContent = 'unsaved…';
@@ -215,7 +509,8 @@
       } else if (!body.contains(document.activeElement)) {
         render(d.rows);  // empty rows were dropped
       }
-      status.textContent = 'saved ✓';
+      status.textContent = 'saved ✓' + (dateNote ? ' · ' + dateNote : '');
+      dateNote = '';
     }).catch(function(e) {
       saving = false;
       status.textContent = '⚠ ' + e.message;
@@ -234,10 +529,28 @@
     var f = e.target.dataset && e.target.dataset.f;
     var tr = e.target.closest && e.target.closest('.sb-row');
     if (!f || !tr) return;
+    if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && e.target.tagName !== 'TEXTAREA') {
+      if ((e.key === 'ArrowLeft') === (tr.dataset.owner === 'daytrip') && (e.key === 'ArrowLeft' || tr.dataset.out)) {
+        e.preventDefault();
+        toggleNest(tr);
+      }
+      return;
+    }
     if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
       e.preventDefault();
-      var sib = e.key === 'ArrowUp' ? tr.previousElementSibling : tr.nextElementSibling;
-      if (sib) { if (e.key === 'ArrowUp') sib.before(tr); else sib.after(tr); e.target.focus(); changed(); }
+      var up = e.key === 'ArrowUp', member = tr.dataset.owner === 'daytrip' && !isHead(typeOf(tr));
+      // a day trip's own place moves among its rows; anything else hops a whole day trip
+      var unit = member ? [tr] : blockOf(tr), prev = unit[0].previousElementSibling;
+      var other = member ? [up ? tr.previousElementSibling : tr.nextElementSibling].filter(Boolean)
+        : typeOf(tr) === 'stop' ? (up ? prev && blockOf(headOf(prev, 'stop')) : unitBelow(unit[unit.length - 1]))
+        : up ? unitAbove(unit[0]) : unitBelow(unit[unit.length - 1]);
+      // a day trip stays within its stop (drag it to move it to another stop); nothing goes above the first stop
+      if (other && typeOf(tr) === 'daytrip' && typeOf(other[0]) === 'stop') other = null;
+      if (other && up && typeOf(tr) !== 'stop' && other[0] === body.firstElementChild) other = null;
+      if (other && other.length) {
+        moveRows(unit, up ? other[0] : other[other.length - 1], up, null);
+        e.target.focus();
+      }
       return;
     }
     if (e.target.tagName === 'SELECT' && e.key !== 'Enter') return;
@@ -249,11 +562,13 @@
   });
 
   // drag the ⠿ handle to move a row
-  var dragging = null;
+  // a dragged day trip brings its own places along and lands before or after whole blocks;
+  // the rows go to their new place on drop
+  var dragging = null, dropAt = null;
   body.addEventListener('dragstart', function(e) {
     if (!e.target.classList || !e.target.classList.contains('sb-drag')) return;
-    dragging = e.target.closest('.sb-row');
-    dragging.classList.add('is-dragging');
+    dragging = blockOf(e.target.closest('.sb-row'));
+    dragging.forEach(function(tr) { tr.classList.add('is-dragging'); });
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', '');
   });
@@ -261,19 +576,30 @@
     if (!dragging) return;
     e.preventDefault();
     var over = e.target.closest && e.target.closest('.sb-row');
-    if (!over || over === dragging) return;
-    var rect = over.getBoundingClientRect();
-    if (e.clientY < rect.top + rect.height / 2) over.before(dragging); else over.after(dragging);
+    if (!over || dragging.indexOf(over) >= 0) return;
+    var rect = over.getBoundingClientRect(), before = e.clientY < rect.top + rect.height / 2;
+    var kind = typeOf(dragging[0]), target = null;
+    if (kind === 'stop') target = blockOf(headOf(over, 'stop'));
+    else if (kind === 'daytrip') target = over.dataset.owner === 'daytrip' || typeOf(over) === 'daytrip' ? blockOf(headOf(over)) : [over];
+    if (target) {
+      if (dragging.indexOf(target[0]) >= 0) return;
+      over = before ? target[0] : target[target.length - 1];
+    }
+    if (before && kind !== 'stop' && over === body.firstElementChild) return;  // the first row stays a stop
+    body.querySelectorAll('.sb-drop-before, .sb-drop-after').forEach(function(tr) { tr.classList.remove('sb-drop-before', 'sb-drop-after'); });
+    over.classList.add(before ? 'sb-drop-before' : 'sb-drop-after');
+    dropAt = {ref: over, before: before};
   });
   body.addEventListener('dragend', function() {
     if (!dragging) return;
-    dragging.classList.remove('is-dragging');
-    dragging = null;
-    changed();
+    body.querySelectorAll('.sb-drop-before, .sb-drop-after').forEach(function(tr) { tr.classList.remove('sb-drop-before', 'sb-drop-after'); });
+    dragging.forEach(function(tr) { tr.classList.remove('is-dragging'); });
+    if (dropAt) moveRows(dragging, dropAt.ref, dropAt.before, isHead(typeOf(dragging[0])) ? null : dragging[0]);
+    dragging = dropAt = null;
   });
 
   // ── download / upload as CSV: Type, Date, Name, Content, Price, Note ──
-  var COLS = ['Type', 'Date', 'Name', 'Content', 'Price', 'Note'];
+  var COLS = ['Type', 'Date', 'Name', 'Content', 'Price', 'Note', 'Part'];
   function typeLabel(t) { return (TYPES.filter(function(x) { return x[0] === t; })[0] || [t, t])[1]; }
   function typeKey(v) {
     v = String(v || '').trim().toLowerCase();
@@ -312,7 +638,7 @@
     collect().forEach(function(r) {
       var head = isHead(r.type);
       lines.push([typeLabel(r.type), r.date, r.name, r.url || r.note, head || r.price == null ? '' : r.price,
-                  r.url ? r.note : ''].map(csvCell).join(','));
+                  r.url ? r.note : '', !head && r.owner === 'daytrip' ? 'day trip' : ''].map(csvCell).join(','));
     });
     var blob = new Blob(['\ufeff' + lines.join('\r\n') + '\r\n'], {type: 'text/csv;charset=utf-8'});
     var a = el('a', {href: URL.createObjectURL(blob), download: '{{ plan.slug }}.csv'});
@@ -343,10 +669,13 @@
         known[key(r)] = r.orig;
       });
 
-      var rows = [], bad = [];
+      var rows = [], bad = [], inDaytrip = false;
       table.forEach(function(line, n) {
         var t = typeKey(cell(line, 'Type'));
         if (!t) { bad.push(n + 2); return; }
+        if (isHead(t)) inDaytrip = t === 'daytrip';
+        // without a Part column, everything under a day trip is the day trip's (as in the plan file)
+        else if (inDaytrip && at.Part >= 0 && !/day/i.test(cell(line, 'Part'))) { inDaytrip = false; var out = true; }
         var c = cell(line, 'Content'), p = cell(line, 'Price').replace(/\s/g, '').replace(',', '.');
         var r = {type: t, date: cell(line, 'Date'), name: cell(line, 'Name')};
         if (!isHead(t) && isLink(c)) { r.url = c; r.note = cell(line, 'Note'); } else { r.url = ''; r.note = c; }
@@ -355,6 +684,7 @@
         if (orig === undefined && isHead(t)) orig = known['h' + t + '\u0001' + r.name];
         r.orig = orig || '';
         r.dirty = !isHead(t) && orig === undefined;
+        r.out = !!out; out = false;
         rows.push(r);
       });
       if (!rows.length) { status.textContent = '⚠ no rows found in ' + file.name; return; }
